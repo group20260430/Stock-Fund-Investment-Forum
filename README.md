@@ -7,7 +7,7 @@
 | 角色 | 班级 | 学号 | 姓名 | Gitee/GitHub用户名 |
 |------|------|------|------|-------------------|
 | 负责人 | 软件2402班 | U202415227 | 贺嘉轩 | https://github.com/kkk431 |
-| 成员 | 软件2402班 | U202410032 | 陶畅 |  |
+| 成员 | 软件2402班 | U202410032 | 陶畅 | https://github.com/AsimaBivcaks |
 | 成员 | 软件2402班 | U202410003 | 张桐尘 | https://github.com/sshadow-sky |
 | 成员 | 软件2402班 | U202411334 | 刘嘉成 | https://github.com/Teamanmade |
 | 成员 | 软件2402班 | U202410002 | 张照炎 | https://github.com/yigongwugezi |
