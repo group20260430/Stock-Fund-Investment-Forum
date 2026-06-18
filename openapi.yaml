@@ -1,0 +1,2037 @@
+openapi: "3.0.3"
+info:
+  title: 股票基金投资论坛 API
+  description: |
+    股票基金投资论坛后端 RESTful API。
+    支持用户认证、内容发布、社交互动、搜索聚合、管理运营等完整功能。
+  version: "1.0.0"
+  contact:
+    name: 贺嘉轩
+    url: https://github.com/kkk431/Stock-Fund-Investment-Forum
+
+servers:
+  - url: http://localhost:8000
+    description: 本地开发环境
+  - url: http://api.example.com
+    description: 生产环境（待部署）
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: 登录后返回的 JWT Token，放入 Authorization 请求头
+
+  schemas:
+    # ==================== 通用 ====================
+    ApiResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: 业务状态码
+          example: 200
+        message:
+          type: string
+          description: 提示消息
+          example: success
+        data:
+          oneOf:
+            - type: object
+            - type: array
+            - type: "null"
+          description: 响应数据
+      required: [code, message]
+
+    PaginatedResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: success
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                type: object
+            total:
+              type: integer
+              example: 100
+            page:
+              type: integer
+              example: 1
+            size:
+              type: integer
+              example: 20
+      required: [code, message, data]
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: 参数错误
+        data:
+          type: "null"
+          example: null
+      required: [code, message]
+
+    # ==================== 用户系统 ====================
+    RegisterRequest:
+      type: object
+      required: [phone, password]
+      properties:
+        phone:
+          type: string
+          description: 手机号，11位数字
+          example: "13800138000"
+        password:
+          type: string
+          description: 密码，8~32位，含字母+数字
+          example: "Abc@123456"
+        nickname:
+          type: string
+          description: 昵称，2~20字符
+          example: "小明"
+        avatar_url:
+          type: string
+          format: uri
+          description: 头像URL
+        register_type:
+          type: string
+          enum: [phone, email, wechat, weibo]
+          description: 注册方式
+          default: phone
+
+    LoginRequest:
+      type: object
+      required: [phone, login_type]
+      properties:
+        phone:
+          type: string
+          description: 手机号或邮箱
+          example: "13800138000"
+        password:
+          type: string
+          description: 密码（密码登录时必填）
+        code:
+          type: string
+          description: 验证码（验证码登录时必填）
+        login_type:
+          type: string
+          enum: [password, code]
+          description: 登录方式
+
+    SendCodeRequest:
+      type: object
+      required: [phone, type]
+      properties:
+        phone:
+          type: string
+          example: "13800138000"
+        type:
+          type: string
+          enum: [register, login, reset_password]
+          description: 验证码类型
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        nickname:
+          type: string
+        avatar_url:
+          type: string
+        bio:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [user, moderator, admin]
+        auth_level:
+          type: string
+          enum: [none, basic, verified, professional]
+        is_professional:
+          type: boolean
+        risk_level:
+          type: string
+          enum: [conservative, moderate, aggressive]
+        investment_tags:
+          type: array
+          items:
+            type: string
+        follow_markets:
+          type: array
+          items:
+            type: string
+        achievements:
+          type: object
+          properties:
+            posts_count:
+              type: integer
+            elite_posts:
+              type: integer
+            influence_score:
+              type: integer
+            badges:
+              type: array
+              items:
+                type: string
+        created_at:
+          type: string
+          format: date-time
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        nickname:
+          type: string
+          maxLength: 20
+          minLength: 2
+        bio:
+          type: string
+          maxLength: 500
+        avatar_url:
+          type: string
+          format: uri
+        investment_tags:
+          type: array
+          items:
+            type: string
+        follow_markets:
+          type: array
+          items:
+            type: string
+        risk_preference:
+          type: string
+          enum: [conservative, moderate, aggressive]
+
+    CertificationRequest:
+      type: object
+      required: [id_card_front, id_card_back, real_name, id_number]
+      properties:
+        id_card_front:
+          type: string
+          description: 身份证正面照片(base64)
+        id_card_back:
+          type: string
+          description: 身份证反面照片(base64)
+        real_name:
+          type: string
+          description: 真实姓名
+        id_number:
+          type: string
+          description: 身份证号
+
+    RiskAssessmentRequest:
+      type: object
+      required: [answers]
+      properties:
+        answers:
+          type: array
+          items:
+            type: object
+            properties:
+              question_id:
+                type: integer
+              answer:
+                type: string
+
+    # ==================== 内容系统 ====================
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        sort_order:
+          type: integer
+        post_count:
+          type: integer
+
+    Post:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        content_summary:
+          type: string
+        author:
+          type: object
+          properties:
+            id:
+              type: integer
+            nickname:
+              type: string
+            avatar_url:
+              type: string
+            auth_level:
+              type: string
+        category:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+        post_type:
+          type: string
+          enum: [normal, long_article, poll, moment]
+        view_count:
+          type: integer
+        like_count:
+          type: integer
+        comment_count:
+          type: integer
+        is_elite:
+          type: boolean
+        tags:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+
+    PostDetail:
+      allOf:
+        - $ref: "#/components/schemas/Post"
+        - type: object
+          properties:
+            content:
+              type: string
+            attachments:
+              type: array
+              items:
+                type: object
+                properties:
+                  file_name:
+                    type: string
+                  file_url:
+                    type: string
+                  file_size:
+                    type: integer
+            collect_count:
+              type: integer
+            share_count:
+              type: integer
+            is_liked:
+              type: boolean
+            is_collected:
+              type: boolean
+            updated_at:
+              type: string
+              format: date-time
+
+    CreatePostRequest:
+      type: object
+      required: [category_id, title, content, post_type]
+      properties:
+        category_id:
+          type: integer
+        title:
+          type: string
+          maxLength: 120
+          minLength: 1
+        content:
+          type: string
+        post_type:
+          type: string
+          enum: [normal, long_article, poll, moment]
+        tags:
+          type: array
+          items:
+            type: string
+        attachments:
+          type: array
+          items:
+            type: object
+            properties:
+              file_name:
+                type: string
+              file_url:
+                type: string
+
+    Comment:
+      type: object
+      properties:
+        id:
+          type: integer
+        content:
+          type: string
+        author:
+          type: object
+          properties:
+            id:
+              type: integer
+            nickname:
+              type: string
+            avatar_url:
+              type: string
+        like_count:
+          type: integer
+        is_liked:
+          type: boolean
+        replies:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              content:
+                type: string
+              author:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  nickname:
+                    type: string
+                  avatar_url:
+                    type: string
+              reply_to:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  nickname:
+                    type: string
+              created_at:
+                type: string
+                format: date-time
+        reply_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    CreateCommentRequest:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          maxLength: 2000
+        parent_id:
+          type: integer
+          nullable: true
+          description: 父评论ID，一级评论为null
+        reply_to_id:
+          type: integer
+          nullable: true
+          description: 回复的目标评论ID
+
+    # ==================== 社交系统 ====================
+    UserBrief:
+      type: object
+      properties:
+        id:
+          type: integer
+        nickname:
+          type: string
+        avatar_url:
+          type: string
+        auth_level:
+          type: string
+        is_followed:
+          type: boolean
+
+    Group:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        avatar_url:
+          type: string
+        visibility:
+          type: string
+          enum: [public, private]
+        member_count:
+          type: integer
+        role:
+          type: string
+          enum: [owner, admin, member]
+        created_at:
+          type: string
+          format: date-time
+
+    CreateGroupRequest:
+      type: object
+      required: [name, visibility]
+      properties:
+        name:
+          type: string
+          maxLength: 50
+        description:
+          type: string
+          maxLength: 500
+        avatar_url:
+          type: string
+        visibility:
+          type: string
+          enum: [public, private]
+        need_approval:
+          type: boolean
+          default: false
+        invite_ids:
+          type: array
+          items:
+            type: integer
+
+    # ==================== 热榜 ====================
+    HotTopic:
+      type: object
+      properties:
+        rank:
+          type: integer
+        topic:
+          type: string
+        heat_score:
+          type: integer
+        discussion_count:
+          type: integer
+        market:
+          type: string
+        change_indicator:
+          type: string
+        trending_posts:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              title:
+                type: string
+              author:
+                type: string
+
+    # ==================== 搜索 ====================
+    SearchResult:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [post, user, stock]
+        id:
+          type: integer
+        title:
+          type: string
+        content_summary:
+          type: string
+        author:
+          type: object
+          properties:
+            id:
+              type: integer
+            nickname:
+              type: string
+        heat:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    SearchSuggestions:
+      type: object
+      properties:
+        stocks:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+              name:
+                type: string
+              market:
+                type: string
+        users:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              nickname:
+                type: string
+        topics:
+          type: array
+          items:
+            type: string
+
+    # ==================== 举报 ====================
+    ReportRequest:
+      type: object
+      required: [target_id, target_type, reason]
+      properties:
+        target_id:
+          type: integer
+        target_type:
+          type: string
+          enum: [post, comment, user]
+        reason:
+          type: string
+          enum: [fake_info, personal_attack, illegal_stock_promotion, spam, other]
+        description:
+          type: string
+
+    # ==================== 审核 ====================
+    ReviewItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        content_type:
+          type: string
+          enum: [post, comment]
+        title:
+          type: string
+        author:
+          type: object
+          properties:
+            id:
+              type: integer
+            nickname:
+              type: string
+        flags:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        submitted_at:
+          type: string
+          format: date-time
+
+    ReviewActionRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [approve, reject, edit]
+        comment:
+          type: string
+          description: 审核意见（拒绝时必填）
+
+    # ==================== 统计 ====================
+    StatsOverview:
+      type: object
+      properties:
+        daily_active_users:
+          type: integer
+        new_users_today:
+          type: integer
+        total_posts:
+          type: integer
+        total_comments:
+          type: integer
+        pending_review:
+          type: integer
+        reports_today:
+          type: integer
+
+    TrendData:
+      type: object
+      properties:
+        user_activity:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              dau:
+                type: integer
+              new_users:
+                type: integer
+        content_stats:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              posts:
+                type: integer
+              comments:
+                type: integer
+        hot_topics:
+          type: array
+          items:
+            type: object
+            properties:
+              topic:
+                type: string
+              discussions:
+                type: integer
+              trend:
+                type: string
+                enum: [up, down, stable]
+
+    # ==================== 投票 ====================
+    VoteRequest:
+      type: object
+      required: [option_ids]
+      properties:
+        option_ids:
+          type: array
+          items:
+            type: integer
+          minItems: 1
+
+    VoteResult:
+      type: object
+      properties:
+        option_id:
+          type: integer
+        option_text:
+          type: string
+        votes:
+          type: integer
+        percentage:
+          type: number
+          format: float
+
+    # ==================== 收藏 ====================
+    CollectRequest:
+      type: object
+      properties:
+        folder_name:
+          type: string
+          description: 收藏文件夹名称
+
+    # ==================== 转发 ====================
+    ShareRequest:
+      type: object
+      required: [share_type]
+      properties:
+        share_type:
+          type: string
+          enum: [timeline, message, group]
+        comment:
+          type: string
+          description: 转发附言
+
+    # ==================== 私信 ====================
+    SendMessageRequest:
+      type: object
+      required: [receiver_id, content]
+      properties:
+        receiver_id:
+          type: integer
+        content:
+          type: string
+          maxLength: 5000
+        message_type:
+          type: string
+          enum: [text, image, file]
+          default: text
+        attachment_url:
+          type: string
+          nullable: true
+
+    # ==================== 板块管理 ====================
+    CreateCategoryRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          maxLength: 50
+        description:
+          type: string
+          maxLength: 255
+        sort_order:
+          type: integer
+          default: 0
+
+    # ==================== 封禁 ====================
+    BanUserRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [ban, unban]
+        reason:
+          type: string
+          description: 封禁原因
+        duration_hours:
+          type: integer
+          description: 封禁时长（小时）
+
+paths:
+  # ==================== 用户系统 ====================
+  /api/auth/register:
+    post:
+      tags:
+        - 用户系统
+      summary: 用户注册
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: 注册成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          user_id:
+                            type: integer
+                          token:
+                            type: string
+        "409":
+          description: 手机号已注册
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/auth/send-code:
+    post:
+      tags:
+        - 用户系统
+      summary: 发送验证码
+      operationId: sendVerificationCode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendCodeRequest"
+      responses:
+        "200":
+          description: 验证码已发送
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          expire_in:
+                            type: integer
+                            description: 过期时间（秒）
+
+  /api/auth/login:
+    post:
+      tags:
+        - 用户系统
+      summary: 用户登录
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          user_id:
+                            type: integer
+                          token:
+                            type: string
+                          expires_in:
+                            type: integer
+                          user:
+                            $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: 登录失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/auth/refresh:
+    post:
+      tags:
+        - 用户系统
+      summary: 刷新Token
+      operationId: refreshToken
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Token刷新成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          token:
+                            type: string
+                          expires_in:
+                            type: integer
+
+  /api/auth/me:
+    get:
+      tags:
+        - 用户系统
+      summary: 获取当前用户信息
+      operationId: getCurrentUser
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/UserProfile"
+
+  /api/auth/profile:
+    put:
+      tags:
+        - 用户系统
+      summary: 更新个人资料
+      operationId: updateProfile
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+      responses:
+        "200":
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  /api/auth/certification:
+    post:
+      tags:
+        - 用户系统
+      summary: 申请实名认证
+      operationId: applyCertification
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CertificationRequest"
+      responses:
+        "200":
+          description: 认证申请已提交
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  /api/auth/risk-assessment:
+    post:
+      tags:
+        - 用户系统
+      summary: 提交风险评估问卷
+      operationId: submitRiskAssessment
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RiskAssessmentRequest"
+      responses:
+        "200":
+          description: 评估完成
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          risk_level:
+                            type: string
+                          score:
+                            type: integer
+                          max_score:
+                            type: integer
+                          suggestion:
+                            type: string
+
+  # ==================== 内容系统 ====================
+  /api/categories:
+    get:
+      tags:
+        - 内容系统
+      summary: 获取板块列表
+      operationId: listCategories
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Category"
+
+  /api/posts:
+    get:
+      tags:
+        - 内容系统
+      summary: 获取帖子列表
+      operationId: listPosts
+      parameters:
+        - name: category_id
+          in: query
+          schema:
+            type: integer
+          description: 板块ID筛选
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [latest, hot, elite]
+          description: 排序方式
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 50
+        - name: keyword
+          in: query
+          schema:
+            type: string
+          description: 关键词搜索
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedResponse"
+    post:
+      tags:
+        - 内容系统
+      summary: 创建帖子
+      operationId: createPost
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePostRequest"
+      responses:
+        "201":
+          description: 发布成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+
+  /api/posts/{id}:
+    get:
+      tags:
+        - 内容系统
+      summary: 获取帖子详情
+      operationId: getPostDetail
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/PostDetail"
+        "404":
+          description: 帖子不存在
+    put:
+      tags:
+        - 内容系统
+      summary: 编辑帖子
+      operationId: updatePost
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePostRequest"
+      responses:
+        "200":
+          description: 编辑成功
+    delete:
+      tags:
+        - 内容系统
+      summary: 删除帖子
+      operationId: deletePost
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: 删除成功
+
+  /api/posts/{id}/vote:
+    post:
+      tags:
+        - 内容系统
+      summary: 参与投票
+      operationId: votePost
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VoteRequest"
+      responses:
+        "200":
+          description: 投票成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          results:
+                            type: array
+                            items:
+                              $ref: "#/components/schemas/VoteResult"
+
+  /api/posts/{id}/comments:
+    get:
+      tags:
+        - 内容系统
+      summary: 获取评论列表
+      operationId: listComments
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedResponse"
+    post:
+      tags:
+        - 内容系统
+      summary: 发表评论
+      operationId: createComment
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCommentRequest"
+      responses:
+        "201":
+          description: 评论成功
+
+  /api/posts/{id}/like:
+    post:
+      tags:
+        - 内容系统
+      summary: 点赞/取消点赞
+      operationId: toggleLike
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          is_liked:
+                            type: boolean
+                          like_count:
+                            type: integer
+
+  /api/posts/{id}/collect:
+    post:
+      tags:
+        - 内容系统
+      summary: 收藏/取消收藏
+      operationId: toggleCollect
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CollectRequest"
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          is_collected:
+                            type: boolean
+                          collect_count:
+                            type: integer
+
+  /api/posts/{id}/share:
+    post:
+      tags:
+        - 内容系统
+      summary: 转发帖子
+      operationId: sharePost
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShareRequest"
+      responses:
+        "200":
+          description: 转发成功
+
+  /api/users/me/collections:
+    get:
+      tags:
+        - 内容系统
+      summary: 获取收藏列表
+      operationId: listCollections
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: folder
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedResponse"
+
+  # ==================== 社交系统 ====================
+  /api/users/{id}/follow:
+    post:
+      tags:
+        - 社交系统
+      summary: 关注/取消关注用户
+      operationId: toggleFollow
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: 成功
+
+  /api/users/{id}/followers:
+    get:
+      tags:
+        - 社交系统
+      summary: 获取粉丝列表
+      operationId: listFollowers
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: 成功
+
+  /api/users/{id}/following:
+    get:
+      tags:
+        - 社交系统
+      summary: 获取关注列表
+      operationId: listFollowing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: 成功
+
+  /api/users/me/starred:
+    put:
+      tags:
+        - 社交系统
+      summary: 设置星标用户
+      operationId: setStarredUser
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, is_starred]
+              properties:
+                user_id:
+                  type: integer
+                is_starred:
+                  type: boolean
+      responses:
+        "200":
+          description: 成功
+
+  /api/groups:
+    post:
+      tags:
+        - 社交系统
+      summary: 创建群组
+      operationId: createGroup
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGroupRequest"
+      responses:
+        "201":
+          description: 群组创建成功
+    get:
+      tags:
+        - 社交系统
+      summary: 获取群组列表
+      operationId: listGroups
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [my, explore, joined]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: 成功
+
+  /api/groups/{id}/join:
+    post:
+      tags:
+        - 社交系统
+      summary: 申请/加入群组
+      operationId: joinGroup
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: 成功
+
+  /api/groups/{id}/members/approve:
+    post:
+      tags:
+        - 社交系统
+      summary: 审核成员加入（管理员）
+      operationId: approveGroupMember
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, action]
+              properties:
+                user_id:
+                  type: integer
+                action:
+                  type: string
+                  enum: [approve, reject]
+      responses:
+        "200":
+          description: 审核完成
+
+  /api/messages:
+    get:
+      tags:
+        - 社交系统
+      summary: 获取私信列表（按会话分组）
+      operationId: listMessages
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: 成功
+    post:
+      tags:
+        - 社交系统
+      summary: 发送私信
+      operationId: sendMessage
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendMessageRequest"
+      responses:
+        "201":
+          description: 发送成功
+
+  # ==================== 信息整合系统 ====================
+  /api/feed:
+    get:
+      tags:
+        - 信息整合系统
+      summary: 获取个性化内容流
+      operationId: getPersonalizedFeed
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedResponse"
+
+  /api/hot:
+    get:
+      tags:
+        - 信息整合系统
+      summary: 获取热榜
+      operationId: getHotRanking
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [daily, weekly, monthly]
+          description: 时间范围
+        - name: market
+          in: query
+          schema:
+            type: string
+            enum: [all, a_stock, hk_stock, fund]
+          description: 市场分类
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/HotTopic"
+
+  /api/search:
+    get:
+      tags:
+        - 信息整合系统
+      summary: 全文搜索
+      operationId: search
+      parameters:
+        - name: keyword
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [all, post, user, stock]
+            default: all
+        - name: category_id
+          in: query
+          schema:
+            type: integer
+        - name: time_range
+          in: query
+          schema:
+            type: string
+            enum: [all, day, week, month]
+            default: all
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [relevance, time, heat]
+            default: relevance
+        - name: is_elite
+          in: query
+          schema:
+            type: boolean
+        - name: market
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedResponse"
+
+  /api/search/suggestions:
+    get:
+      tags:
+        - 信息整合系统
+      summary: 搜索联想
+      operationId: getSearchSuggestions
+      parameters:
+        - name: keyword
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [all, stock, user, topic]
+            default: all
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/SearchSuggestions"
+
+  # ==================== 管理运营系统 ====================
+  /api/report:
+    post:
+      tags:
+        - 管理运营系统
+      summary: 提交举报
+      operationId: submitReport
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportRequest"
+      responses:
+        "201":
+          description: 举报成功
+
+  /api/admin/review-queue:
+    get:
+      tags:
+        - 管理运营系统
+      summary: 获取审核队列
+      operationId: getReviewQueue
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, rejected]
+            default: pending
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          items:
+                            type: array
+                            items:
+                              $ref: "#/components/schemas/ReviewItem"
+                          total:
+                            type: integer
+                          page:
+                            type: integer
+                          size:
+                            type: integer
+
+  /api/admin/review-queue/{id}/review:
+    post:
+      tags:
+        - 管理运营系统
+      summary: 审核操作
+      operationId: performReview
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewActionRequest"
+      responses:
+        "200":
+          description: 审核完成
+
+  /api/admin/users:
+    get:
+      tags:
+        - 管理运营系统
+      summary: 获取用户列表（管理员）
+      operationId: adminListUsers
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, disabled]
+        - name: keyword
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 成功
+
+  /api/admin/users/{id}/ban:
+    post:
+      tags:
+        - 管理运营系统
+      summary: 封禁/解封用户
+      operationId: banUser
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BanUserRequest"
+      responses:
+        "200":
+          description: 操作成功
+
+  /api/admin/stats/overview:
+    get:
+      tags:
+        - 管理运营系统
+      summary: 获取数据总览
+      operationId: getStatsOverview
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/StatsOverview"
+
+  /api/admin/stats/trend:
+    get:
+      tags:
+        - 管理运营系统
+      summary: 获取趋势数据
+      operationId: getStatsTrend
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [daily, weekly, monthly]
+            default: weekly
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/TrendData"
+
+  /api/admin/categories:
+    post:
+      tags:
+        - 管理运营系统
+      summary: 创建板块
+      operationId: adminCreateCategory
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCategoryRequest"
+      responses:
+        "201":
+          description: 板块创建成功
+
+  /api/admin/categories/{id}:
+    put:
+      tags:
+        - 管理运营系统
+      summary: 编辑板块
+      operationId: adminUpdateCategory
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCategoryRequest"
+      responses:
+        "200":
+          description: 编辑成功
+    delete:
+      tags:
+        - 管理运营系统
+      summary: 删除板块
+      operationId: adminDeleteCategory
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: 删除成功
+
+  # ==================== 系统 ====================
+  /api/health:
+    get:
+      tags:
+        - 系统
+      summary: 健康检查
+      operationId: healthCheck
+      responses:
+        "200":
+          description: 服务正常
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
