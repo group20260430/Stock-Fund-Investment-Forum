@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 
 from app.schemas.user import ApiResponse
 
@@ -106,7 +106,7 @@ MOCK_POSTS = [
 def list_posts(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=50),
-    sort: Optional[str] = Query(None, regex="^(latest|hot|elite)$"),
+    sort: Optional[str] = Query(None),
     category_id: Optional[int] = Query(None),
     keyword: Optional[str] = Query(None),
 ):

@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     project_name: str = "Stock Fund Investment Forum"
     version: str = "0.1.0"
     allowed_origins: list[str] = ["http://localhost:5173"]
+    allowed_origin_regex: str = r"http://(localhost|127\.0\.0\.1):\d+"
 
     # --- Database ---
     # Set DATABASE_URL in .env to override.  Defaults to SQLite for local dev.
