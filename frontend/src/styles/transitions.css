@@ -1,0 +1,75 @@
+/* ============================================
+   Page & Route Transitions
+   ============================================ */
+
+/* Page transition (wraps <router-view> in App.vue) */
+.page-enter-active {
+  transition:
+    opacity var(--duration-page) var(--ease-out-expo),
+    transform var(--duration-page) var(--ease-out-expo);
+}
+.page-leave-active {
+  transition:
+    opacity var(--duration-fast) var(--ease-in-out),
+    transform var(--duration-fast) var(--ease-in-out);
+}
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(12px);
+}
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+/* Fade-only transition (for modals, overlays) */
+.fade-enter-active {
+  transition: opacity var(--duration-normal) var(--ease-out);
+}
+.fade-leave-active {
+  transition: opacity var(--duration-normal) var(--ease-in-out);
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* Slide-up transition (for bottom sheets, toasts) */
+.slide-up-enter-active {
+  transition:
+    opacity var(--duration-slow) var(--ease-out-expo),
+    transform var(--duration-slow) var(--ease-out-expo);
+}
+.slide-up-leave-active {
+  transition:
+    opacity var(--duration-fast) var(--ease-in-out),
+    transform var(--duration-fast) var(--ease-in-out);
+}
+.slide-up-enter-from {
+  opacity: 0;
+  transform: translateY(24px);
+}
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+/* Scale bounce transition (for dialogs, modals) */
+.scale-enter-active {
+  transition:
+    opacity var(--duration-normal) var(--ease-out-expo),
+    transform var(--duration-normal) var(--ease-out-back);
+}
+.scale-leave-active {
+  transition:
+    opacity var(--duration-fast) var(--ease-in-out),
+    transform var(--duration-fast) var(--ease-in-out);
+}
+.scale-enter-from {
+  opacity: 0;
+  transform: scale(0.95);
+}
+.scale-leave-to {
+  opacity: 0;
+  transform: scale(0.98);
+}

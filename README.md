@@ -18,9 +18,9 @@
 |------|------|------|------|--------------|
 | 项目负责人 | 软件2402班 | U202415227 | 贺嘉轩 | [kkk431](https://github.com/kkk431) |
 | 后端开发 | 软件2402班 | U202410032 | 陶畅 | [AsimaBivcaks](https://github.com/AsimaBivcaks) |
-| 后端开发/测试 | 软件2402班 | U202410003 | 张桐尘 | [sshadow-sky](https://github.com/sshadow-sky) |
+| 后端开发/测试 | 软件2402班 | U202410003 | 张照炎 | [sshadow-sky](https://github.com/sshadow-sky) |
 | 前端开发/文档 | 软件2402班 | U202411334 | 刘嘉成 | [Teamanmade](https://github.com/Teamanmade) |
-| 前端开发 | 软件2402班 | U202410002 | 张照炎 | [yigongwugezi](https://github.com/yigongwugezi) |
+| 前端开发 | 软件2402班 | U202410002 | 张桐尘 | [yigongwugezi](https://github.com/yigongwugezi) |
 | 后端开发/运维 | 软件2402班 | U202415026 | 杨文弢 | [Luvef](https://github.com/Luvef) |
 
 ---
