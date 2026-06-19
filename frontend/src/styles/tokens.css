@@ -1,0 +1,123 @@
+/* ============================================
+   Design Token System — 全站统一 CSS 自定义属性
+   所有组件通过 var(--token) 引用，实现一键换肤
+   ============================================ */
+
+:root {
+  /* ===== Brand / Primary ===== */
+  --color-primary: #0f766e;
+  --color-primary-hover: #0d6e66;
+  --color-primary-light: #f0fdfa;
+  --color-primary-ring: rgba(15, 118, 110, 0.1);
+  --color-primary-400: #2dd4bf;
+  --color-primary-500: #14b8a6;
+
+  /* ===== Semantic Colors ===== */
+  --color-success: #16a34a;
+  --color-success-hover: #15803d;
+  --color-success-light: #f0fdf4;
+  --color-warning: #d97706;
+  --color-warning-light: #fef3c7;
+  --color-danger: #dc2626;
+  --color-danger-hover: #b91c1c;
+  --color-danger-light: #fef2f2;
+  --color-info: #3b82f6;
+
+  /* ===== Surfaces ===== */
+  --color-bg-page: #f4f6f8;
+  --color-bg-card: #ffffff;
+  --color-bg-sidebar: #111827;
+  --color-bg-sidebar-hover: #1f2937;
+  --color-bg-hover: #f9fafb;
+  --color-bg-overlay: rgba(0, 0, 0, 0.5);
+  --color-bg-input: #f9fafb;
+
+  /* ===== Borders ===== */
+  --color-border: #e5e7eb;
+  --color-border-light: #f1f5f9;
+  --color-border-input: #d1d5db;
+  --color-border-focus: #0f766e;
+
+  /* ===== Text ===== */
+  --color-text-primary: #111827;
+  --color-text-body: #374151;
+  --color-text-secondary: #64748b;
+  --color-text-muted: #9ca3af;
+  --color-text-sidebar: #cbd5e1;
+  --color-text-sidebar-label: #6b7280;
+  --color-text-white: #ffffff;
+  --color-text-placeholder: #9ca3af;
+
+  /* ===== Shadows ===== */
+  --shadow-none: 0 0 0 0 transparent;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.15);
+  --shadow-card-hover:
+    0 1px 2px rgba(15, 23, 42, 0.06),
+    0 8px 24px rgba(15, 23, 42, 0.08);
+
+  /* ===== Spacing ===== */
+  --space-sidebar: 240px;
+  --space-content-padding: 32px;
+  --space-content-padding-mobile: 20px;
+  --space-section-gap: 24px;
+
+  /* ===== Border Radius ===== */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+  --radius-2xl: 12px;
+  --radius-full: 50%;
+  --radius-pill: 9999px;
+
+  /* ===== Typography ===== */
+  --font-family: Inter, "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-md: 15px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+  --font-size-2xl: 22px;
+  --font-size-3xl: 28px;
+  --font-size-4xl: 72px;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --line-height-tight: 1.4;
+  --line-height-normal: 1.6;
+  --line-height-relaxed: 1.9;
+
+  /* ===== Transitions / Easings ===== */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --duration-fast: 100ms;
+  --duration-normal: 150ms;
+  --duration-medium: 200ms;
+  --duration-slow: 300ms;
+  --duration-page: 350ms;
+
+  /* ===== Layout ===== */
+  --navbar-height: 56px;
+  --sidebar-width: 240px;
+  --breakpoint-mobile: 780px;
+  --content-max-width: 900px;
+  --content-max-width-wide: 1100px;
+
+  /* ===== Z-Index Scale ===== */
+  --z-base: 1;
+  --z-sticky: 10;
+  --z-sidebar: 20;
+  --z-overlay: 30;
+  --z-drawer: 40;
+  --z-dropdown: 50;
+  --z-modal: 60;
+  --z-toast: 100;
+}

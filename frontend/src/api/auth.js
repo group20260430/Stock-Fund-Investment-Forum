@@ -1,0 +1,46 @@
+import { api } from '../utils/request'
+
+/** 发送验证码 */
+export function sendCode(phone, type = 'register') {
+  return api.post('/auth/send-code', { phone, type })
+}
+
+/** 手机号注册 */
+export function register(data) {
+  return api.post('/auth/register', data)
+}
+
+/** 密码登录 */
+export function loginWithPassword(phone, password) {
+  return api.post('/auth/login', { phone, password, login_type: 'password' })
+}
+
+/** 验证码登录 */
+export function loginWithCode(phone, code) {
+  return api.post('/auth/login', { phone, code, login_type: 'code' })
+}
+
+/** 刷新 Token */
+export function refreshToken() {
+  return api.post('/auth/refresh')
+}
+
+/** 获取当前用户信息 */
+export function getMe() {
+  return api.get('/auth/me')
+}
+
+/** 更新个人资料 */
+export function updateProfile(data) {
+  return api.put('/auth/profile', data)
+}
+
+/** 提交实名认证 */
+export function submitCertification(data) {
+  return api.post('/auth/certification', data)
+}
+
+/** 提交风险评估问卷 */
+export function submitRiskAssessment(answers) {
+  return api.post('/auth/risk-assessment', { answers })
+}

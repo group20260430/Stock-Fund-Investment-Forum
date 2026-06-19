@@ -15,9 +15,9 @@
 |------|---------|------|--------------|----------|
 | 1 | 项目负责人 | 贺嘉轩 | [kkk431](https://github.com/kkk431) | 项目管理、架构设计、代码整合 |
 | 2 | 后端开发 | 陶畅 | [AsimaBivcaks](https://github.com/AsimaBivcaks) | 后端API开发、数据库设计 |
-| 3 | 后端开发/测试 | 张桐尘 | [sshadow-sky](https://github.com/sshadow-sky) | 后端开发、测试用例设计、Bug记录 |
+| 3 | 后端开发/测试 | 张照炎 | [yigongwugezi](https://github.com/yigongwugezi)  | 后端开发、测试用例设计、Bug记录 |
 | 4 | 前端开发/文档 | 刘嘉成 | [Teamanmade](https://github.com/Teamanmade) | 前端页面开发、文档编写 |
-| 5 | 前端开发 | 张照炎 | [yigongwugezi](https://github.com/yigongwugezi) | 前端UI设计、前端开发 |
+| 5 | 前端开发 | 张桐尘 | [sshadow-sky](https://github.com/sshadow-sky)| 前端UI设计、前端开发 |
 | 6 | 后端开发/运维 | 杨文弢 | [Luvef](https://github.com/Luvef) | 后端开发、部署、CI/CD |
 
 **项目仓库：** https://github.com/kkk431/Stock-Fund-Investment-Forum
@@ -61,7 +61,7 @@
   - ✅ AI使用文档完成（2026-05-09）— 记录3轮AI交互过程
 - **遇到的问题：** AI生成的初稿需要多次迭代优化
 
-#### 张照炎（前端负责人）
+#### 张桐尘（前端负责人）
 - **完成工作：**
   - ✅ 需求讨论和反馈（2026-05-03）— 从UI角度提出意见
   - ✅ 用户故事优化建议（2026-05-07）— 补充前端相关验收标准
@@ -72,7 +72,7 @@
   - ✅ 需求讨论和业务流程补充（2026-05-04）— 指出内容审核等技术难点
 - **下一步计划：** 数据库ER图设计、API接口设计
 
-#### 张桐尘（测试负责人）
+#### 张照炎（测试负责人）
 - **完成工作：**
   - ✅ 参与需求讨论会（2026-05-06）— 识别高风险功能
 - **下一步计划：** 根据用户故事设计测试用例
@@ -91,7 +91,7 @@
 | 模块1 | 需求分析 | 04-30 ~ 05-10 | 刘嘉成 | user_stories.md, use_cases.md, ai.md, assign.md |
 | 模块2 | 系统设计 | 05-11 ~ 05-15 | 贺嘉轩、陶畅 | architect.md, ui_design.md, backend_api.md, db.md |
 | 模块3 | 编码实现 | 05-16 ~ 06-01 | 全体 | 可运行代码 |
-| 模块4 | 测试调试 | 05-27 ~ 06-06 | 张桐尘 | test.md |
+| 模块4 | 测试调试 | 05-27 ~ 06-06 | 张照炎 | test.md |
 | 模块5 | 部署报告 | 06-02 ~ 06-15 | 杨文弢 | install.md, user_guid.md, 课程报告 |
 
 ---
