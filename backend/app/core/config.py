@@ -6,7 +6,12 @@ class Settings(BaseSettings):
     version: str = "0.1.0"
     allowed_origins: list[str] = ["http://localhost:5173"]
 
-    # --- MySQL ---
+    # --- Database ---
+    # Set DATABASE_URL in .env to override.  Defaults to SQLite for local dev.
+    # MySQL example: mysql+pymysql://user:pass@127.0.0.1:3306/stock_fund_forum?charset=utf8mb4
+    database_url: str = "sqlite:///./stock_fund_forum.db"
+
+    # --- MySQL (used only when DATABASE_URL is not explicitly set) ---
     mysql_host: str = "127.0.0.1"
     mysql_port: int = 3306
     mysql_user: str = "forum_user"
@@ -22,16 +27,6 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 7
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
-
-    # --- Derived values ---
-    @property
-    def database_url(self) -> str:
-        return (
-            "mysql+pymysql://"
-            f"{self.mysql_user}:{self.mysql_password}"
-            f"@{self.mysql_host}:{self.mysql_port}/{self.mysql_database}"
-            "?charset=utf8mb4"
-        )
 
     @property
     def access_token_expire_seconds(self) -> int:
