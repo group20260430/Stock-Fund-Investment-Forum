@@ -2,7 +2,7 @@ import enum
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import BigInteger, Boolean, Enum, JSON, String, TIMESTAMP
+from sqlalchemy import BigInteger, Boolean, Enum, Integer, JSON, String, TIMESTAMP
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -33,6 +33,13 @@ class RiskLevel(str, enum.Enum):
     AGGRESSIVE = "aggressive"
 
 
+class RegisterType(str, enum.Enum):
+    PHONE = "phone"
+    EMAIL = "email"
+    WECHAT = "wechat"
+    WEIBO = "weibo"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -55,9 +62,16 @@ class User(Base):
     status: Mapped[UserStatus] = mapped_column(
         Enum(UserStatus), default=UserStatus.ACTIVE, nullable=False
     )
+    register_type: Mapped[RegisterType] = mapped_column(
+        Enum(RegisterType), default=RegisterType.PHONE, nullable=False
+    )
     investment_tags: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
     follow_markets: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
     is_professional: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    ban_expires_at: Mapped[Optional[datetime]] = mapped_column(TIMESTAMP, nullable=True)
+    banned_reason: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    followers_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    following_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP, server_default=func.now(), nullable=False
     )

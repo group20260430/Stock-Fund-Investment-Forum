@@ -1,3 +1,5 @@
+"""User system business logic — registration, login, refresh tokens, profiles."""
+
 import random
 import time
 from datetime import datetime, timezone
@@ -7,11 +9,16 @@ from sqlalchemy.orm import Session
 
 from app.core.security import (
     create_access_token,
+    create_refresh_token_record,
     decode_access_token,
     get_password_hash,
+    hash_refresh_token,
     verify_password,
 )
-from app.models.user import AuthLevel, RiskLevel, User, UserStatus
+from app.models.certification import Certification, CertificationStatus
+from app.models.refresh_token import RefreshToken
+from app.models.risk_assessment import RiskAssessment, RiskLevelEnum
+from app.models.user import AuthLevel, RegisterType, RiskLevel, User, UserStatus
 from app.schemas.user import (
     Achievements,
     CertificationRequest,
@@ -59,7 +66,9 @@ class VerificationCodeStore:
 class UserService:
     """User system business logic."""
 
-    # ========== Registration & Verification ==========
+    # ==================================================================
+    # Registration & Verification
+    # ==================================================================
 
     @staticmethod
     def register(db: Session, data: RegisterRequest) -> dict:
@@ -74,13 +83,24 @@ class UserService:
         # Auto-generate nickname if not provided
         nickname = data.nickname or f"用户{data.phone[-4:]}"
 
+        # Map register_type string to enum
+        rt = data.register_type or "phone"
+        try:
+            register_type = RegisterType(rt)
+        except ValueError:
+            register_type = RegisterType.PHONE
+
+        # Phone registration → auth_level = BASIC (phone-verified)
+        auth_level = AuthLevel.BASIC
+
         # Create user
         user = User(
             phone=data.phone,
             password_hash=password_hash,
             nickname=nickname,
             avatar_url=data.avatar_url,
-            auth_level=AuthLevel.NONE,
+            register_type=register_type,
+            auth_level=auth_level,
             role="user",
             status=UserStatus.ACTIVE,
         )
@@ -88,10 +108,15 @@ class UserService:
         db.commit()
         db.refresh(user)
 
-        # Generate JWT
-        token = create_access_token(data={"sub": str(user.id)})
+        # Issue tokens
+        access_token, refresh_token = UserService._issue_token_pair(db, user)
 
-        return {"user_id": user.id, "token": token}
+        return {
+            "user_id": user.id,
+            "token": access_token,
+            "refresh_token": refresh_token,
+            "expires_in": 7200,  # 2 hours (access token)
+        }
 
     @staticmethod
     def send_code(db: Session, data: SendCodeRequest) -> dict:
@@ -109,19 +134,26 @@ class UserService:
         key = f"{data.type}:{data.phone}"
         VerificationCodeStore.set(key, code, ttl_seconds=300)
 
-        # Simulated SMS
-        print(f"[SIMULATED SMS] Code for {data.phone} ({data.type}): {code}")
+        # Simulated SMS (safe — no actual PII leaked)
+        print(
+            f"[SIMULATED SMS] Code for ****{data.phone[-4:]} "
+            f"({data.type}): {code}"
+        )
 
         return {"expire_in": 300}
 
-    # ========== Login & Token Management ==========
+    # ==================================================================
+    # Login & Token Management
+    # ==================================================================
 
     @staticmethod
     def login(db: Session, data: LoginRequest) -> dict:
         user = db.query(User).filter(User.phone == data.phone).first()
 
         if data.login_type == "password":
-            if user is None or not verify_password(data.password or "", user.password_hash):
+            if user is None or not verify_password(
+                data.password or "", user.password_hash
+            ):
                 raise HTTPException(status_code=401, detail="手机号或密码错误")
         elif data.login_type == "code":
             key = f"login:{data.phone}"
@@ -130,7 +162,6 @@ class UserService:
                 raise HTTPException(status_code=401, detail="验证码错误或已过期")
             VerificationCodeStore.delete(key)
             if user is None:
-                # Auto-register via code login? No — API spec says user must exist.
                 raise HTTPException(status_code=404, detail="该手机号未注册")
         else:
             raise HTTPException(status_code=400, detail="不支持的登录方式")
@@ -138,32 +169,65 @@ class UserService:
         if user.status != UserStatus.ACTIVE:
             raise HTTPException(status_code=401, detail="账户已被禁用")
 
-        # Build token
-        token = create_access_token(data={"sub": str(user.id)})
-        expires_in = 86400  # 24 hours
+        # Issue tokens
+        access_token, refresh_token = UserService._issue_token_pair(db, user)
 
         # Build profile
         profile = UserService._build_profile(user, db)
 
         return {
             "user_id": user.id,
-            "token": token,
-            "expires_in": expires_in,
+            "token": access_token,
+            "refresh_token": refresh_token,
+            "expires_in": 7200,  # 2 hours
             "user": profile,
         }
 
     @staticmethod
-    def refresh_token(token: str) -> dict:
-        payload = decode_access_token(token)
-        try:
-            user_id = payload["sub"]
-        except KeyError:
-            raise HTTPException(status_code=401, detail="Token无效")
+    def refresh_token(raw_refresh_token: str, db: Session) -> dict:
+        """Validate refresh token, rotate (revoke old, issue new pair)."""
+        token_hash = hash_refresh_token(raw_refresh_token)
 
-        new_token = create_access_token(data={"sub": user_id})
-        return {"token": new_token, "expires_in": 86400}
+        stored = (
+            db.query(RefreshToken)
+            .filter(RefreshToken.token_hash == token_hash)
+            .first()
+        )
 
-    # ========== Profile Management ==========
+        if stored is None:
+            raise HTTPException(status_code=401, detail="Refresh Token无效")
+
+        if stored.is_revoked:
+            # Potential token reuse — revoke all tokens for this user
+            db.query(RefreshToken).filter(
+                RefreshToken.user_id == stored.user_id
+            ).update({"is_revoked": True})
+            db.commit()
+            raise HTTPException(status_code=401, detail="Refresh Token已被撤销")
+
+        if stored.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+            raise HTTPException(status_code=401, detail="Refresh Token已过期")
+
+        # Revoke the old token (rotation)
+        stored.is_revoked = True
+        db.commit()
+
+        # Issue new pair
+        user = db.query(User).filter(User.id == stored.user_id).first()
+        if user is None or user.status != UserStatus.ACTIVE:
+            raise HTTPException(status_code=401, detail="用户不存在或已被禁用")
+
+        access_token, new_refresh_token = UserService._issue_token_pair(db, user)
+
+        return {
+            "token": access_token,
+            "refresh_token": new_refresh_token,
+            "expires_in": 7200,
+        }
+
+    # ==================================================================
+    # Profile Management
+    # ==================================================================
 
     @staticmethod
     def get_profile(db: Session, user: User) -> dict:
@@ -187,52 +251,122 @@ class UserService:
         db.commit()
         db.refresh(user)
 
-    # ========== Certification & Risk Assessment ==========
+    # ==================================================================
+    # Certification & Risk Assessment
+    # ==================================================================
 
     @staticmethod
-    def submit_certification(user: User, data: CertificationRequest) -> dict:
-        # In a real app, this would create a certification record for admin review.
-        # For this course project, return simulated "pending" status.
-        print(
-            f"[SIMULATED CERT] User {user.id} ({user.nickname}) submitted "
-            f"cert for {data.real_name} ({data.id_number})"
+    def submit_certification(
+        db: Session, user: User, data: CertificationRequest
+    ) -> dict:
+        """Persist a certification application to the database.
+
+        In production the PII fields (real_name, id_number) MUST be
+        AES-256 encrypted before storage.  For the course project they
+        are stored as-is to match the schema contract.
+        """
+        cert = Certification(
+            user_id=user.id,
+            real_name=data.real_name,
+            id_number=data.id_number,
+            id_card_front=data.id_card_front,
+            id_card_back=data.id_card_back,
+            status=CertificationStatus.PENDING,
         )
-        return {"status": "pending"}
+        db.add(cert)
+        db.commit()
+        db.refresh(cert)
+
+        return {"status": "pending", "certification_id": cert.id}
 
     @staticmethod
-    def submit_risk_assessment(data: RiskAssessmentRequest) -> dict:
+    def submit_risk_assessment(
+        db: Session, user: User, data: RiskAssessmentRequest
+    ) -> dict:
+        """Persist risk assessment result and update the user's risk_level."""
         score = UserService._calculate_risk_score(data.answers)
 
         if score <= 33:
-            risk_level = "conservative"
-            suggestion = "您属于保守型投资者。建议以低风险产品为主，如货币基金、国债等，控制股票类资产比例在20%以内。"
+            risk_level = RiskLevelEnum.CONSERVATIVE
+            suggestion = (
+                "您属于保守型投资者。建议以低风险产品为主，"
+                "如货币基金、国债等，控制股票类资产比例在20%以内。"
+            )
         elif score <= 66:
-            risk_level = "moderate"
-            suggestion = "您属于中等风险承受型投资者。建议均衡配置股票、基金和固定收益类产品，可适当参与指数基金定投。"
+            risk_level = RiskLevelEnum.MODERATE
+            suggestion = (
+                "您属于中等风险承受型投资者。建议均衡配置股票、"
+                "基金和固定收益类产品，可适当参与指数基金定投。"
+            )
         else:
-            risk_level = "aggressive"
-            suggestion = "您属于进取型投资者。可承受较高波动，适合配置较高比例的权益类资产，但需注意分散投资风险。"
+            risk_level = RiskLevelEnum.AGGRESSIVE
+            suggestion = (
+                "您属于进取型投资者。可承受较高波动，适合配置"
+                "较高比例的权益类资产，但需注意分散投资风险。"
+            )
+
+        # Persist the assessment record
+        assessment = RiskAssessment(
+            user_id=user.id,
+            answers=[qa.model_dump() for qa in data.answers],
+            total_questions=len(data.answers),
+            score=score,
+            max_score=100,
+            risk_level=risk_level,
+            suggestion=suggestion,
+        )
+        db.add(assessment)
+
+        # Update the user's risk_level
+        risk_user_map = {
+            RiskLevelEnum.CONSERVATIVE: RiskLevel.CONSERVATIVE,
+            RiskLevelEnum.MODERATE: RiskLevel.MODERATE,
+            RiskLevelEnum.AGGRESSIVE: RiskLevel.AGGRESSIVE,
+        }
+        user.risk_level = risk_user_map[risk_level]
+        db.commit()
+        db.refresh(assessment)
 
         return {
-            "risk_level": risk_level,
+            "risk_level": risk_level.value,
             "score": score,
             "max_score": 100,
             "suggestion": suggestion,
         }
 
-    # ========== Internal Helpers ==========
+    # ==================================================================
+    # Internal Helpers
+    # ==================================================================
+
+    @staticmethod
+    def _issue_token_pair(db: Session, user: User) -> tuple[str, str]:
+        """Create access + refresh tokens, persist the refresh token hash.
+
+        Returns ``(access_token, refresh_token_raw)``.
+        """
+        access_token = create_access_token(data={"sub": str(user.id)})
+
+        raw_rt, rt_hash, expires_at = create_refresh_token_record(user.id)
+
+        rt_record = RefreshToken(
+            user_id=user.id,
+            token_hash=rt_hash,
+            expires_at=expires_at,
+            is_revoked=False,
+        )
+        db.add(rt_record)
+        db.commit()
+
+        return access_token, raw_rt
 
     @staticmethod
     def _build_profile(user: User, db: Session) -> UserProfile:
-        # Count user's posts
-        from app.models.user import User as U
-
         posts_count = 0
         elite_posts = 0
 
         try:
-            # Only count if tables exist
             from sqlalchemy import text
+
             result = db.execute(
                 text("SELECT COUNT(*) as cnt FROM posts WHERE user_id = :uid"),
                 {"uid": user.id},
@@ -254,31 +388,33 @@ class UserService:
             nickname=user.nickname,
             avatar_url=user.avatar_url,
             bio=user.bio,
-            phone=user.phone,  # masking handled by Pydantic validator
+            phone=user.phone,
             email=user.email,
             role=user.role.value if hasattr(user.role, "value") else str(user.role),
-            auth_level=user.auth_level.value if hasattr(user.auth_level, "value") else str(user.auth_level),
+            auth_level=user.auth_level.value
+            if hasattr(user.auth_level, "value")
+            else str(user.auth_level),
             is_professional=user.is_professional,
-            risk_level=user.risk_level.value if user.risk_level and hasattr(user.risk_level, "value") else None,
+            risk_level=user.risk_level.value
+            if user.risk_level and hasattr(user.risk_level, "value")
+            else None,
             investment_tags=user.investment_tags,
             follow_markets=user.follow_markets,
             achievements=achievements,
-            created_at=user.created_at.replace(tzinfo=timezone.utc) if user.created_at else None,
+            created_at=user.created_at.replace(tzinfo=timezone.utc)
+            if user.created_at
+            else None,
         )
         return profile
 
     @staticmethod
     def _calculate_risk_score(answers) -> int:
-        # Simplified risk assessment scoring
-        # Each answer choice maps to a score: A=1, B=2, C=3, D=4, E=5
-        # The score is normalized to 0-100 range
         if not answers:
-            return 50  # default moderate
+            return 50
 
         raw_score = 0
         max_possible = 0
         for qa in answers:
-            # Map the answer choice to a numeric value
             choice = qa.answer.upper()
             letter_scores = {"A": 1, "B": 2, "C": 3, "D": 4, "E": 5}
             raw_score += letter_scores.get(choice, 3)
