@@ -6,15 +6,23 @@ USE stock_fund_forum;
 
 CREATE TABLE IF NOT EXISTS users (
   id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
-  username VARCHAR(50) NOT NULL UNIQUE,
-  email VARCHAR(120) NOT NULL UNIQUE,
+  phone VARCHAR(11) NOT NULL UNIQUE,
+  email VARCHAR(120) NULL,
   password_hash VARCHAR(255) NOT NULL,
+  nickname VARCHAR(50) NOT NULL,
   avatar_url VARCHAR(500) NULL,
   bio VARCHAR(500) NULL,
   role ENUM('user', 'moderator', 'admin') NOT NULL DEFAULT 'user',
+  auth_level ENUM('none', 'basic', 'verified', 'professional') NOT NULL DEFAULT 'none',
+  risk_level ENUM('conservative', 'moderate', 'aggressive') NULL,
   status ENUM('active', 'disabled') NOT NULL DEFAULT 'active',
+  investment_tags JSON NULL,
+  follow_markets JSON NULL,
+  is_professional TINYINT(1) NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_users_phone (phone),
+  INDEX idx_users_status_created (status, created_at)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS categories (
