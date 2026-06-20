@@ -4,9 +4,20 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, get_optional_current_user
 from app.db.session import get_db
-from app.models.content import Attachment, Category, Post, PostStatus, PostType, VoteOption, VoteRecord
+from app.models.content import (
+    Attachment,
+    Category,
+    Favorite,
+    Like,
+    LikeTarget,
+    Post,
+    PostStatus,
+    PostType,
+    VoteOption,
+    VoteRecord,
+)
 from app.models.user import User, UserRole
 from app.schemas.content import PostCreate, PostUpdate, VoteRequest
 from app.schemas.user import ApiResponse
@@ -23,7 +34,24 @@ def _author_payload(user: User) -> dict:
     }
 
 
-def _post_payload(post: Post, detail: bool = False) -> dict:
+def _post_payload(
+    post: Post,
+    detail: bool = False,
+    user: User | None = None,
+    db: Session | None = None,
+) -> dict:
+    is_liked = False
+    is_collected = False
+    if user is not None and db is not None:
+        is_liked = db.query(Like.id).filter(
+            Like.user_id == user.id,
+            Like.target_type == LikeTarget.POST,
+            Like.target_id == post.id,
+        ).first() is not None
+        is_collected = db.query(Favorite.id).filter(
+            Favorite.user_id == user.id,
+            Favorite.post_id == post.id,
+        ).first() is not None
     data = {
         "id": post.id,
         "title": post.title,
@@ -38,8 +66,8 @@ def _post_payload(post: Post, detail: bool = False) -> dict:
         "collect_count": post.collect_count,
         "share_count": post.share_count,
         "is_elite": post.is_elite,
-        "is_liked": False,
-        "is_collected": False,
+        "is_liked": is_liked,
+        "is_collected": is_collected,
         "tags": post.tags or [],
         "created_at": post.created_at,
         "updated_at": post.updated_at,
@@ -122,6 +150,7 @@ def list_posts(
     sort: str = Query("latest", pattern="^(latest|hot|elite)$"),
     category_id: int | None = None,
     keyword: str | None = Query(None, max_length=100),
+    user: User | None = Depends(get_optional_current_user),
     db: Session = Depends(get_db),
 ):
     query = _post_query(db).filter(Post.status == PostStatus.PUBLISHED)
@@ -139,7 +168,7 @@ def list_posts(
     total = query.count()
     posts = query.offset((page - 1) * size).limit(size).all()
     return ApiResponse(code=200, message="success", data={
-        "items": [_post_payload(post) for post in posts],
+        "items": [_post_payload(post, user=user, db=db) for post in posts],
         "total": total,
         "page": page,
         "size": size,
@@ -169,14 +198,18 @@ def create_post(data: PostCreate, user: User = Depends(get_current_user), db: Se
 
 
 @router.get("/posts/{post_id}")
-def get_post(post_id: int, db: Session = Depends(get_db)):
+def get_post(
+    post_id: int,
+    user: User | None = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
+):
     post = _get_post_or_404(db, post_id)
     if post.status != PostStatus.PUBLISHED:
         raise HTTPException(status_code=404, detail="帖子不存在")
     post.view_count += 1
     db.commit()
     db.refresh(post)
-    return ApiResponse(code=200, message="success", data=_post_payload(post, detail=True))
+    return ApiResponse(code=200, message="success", data=_post_payload(post, detail=True, user=user, db=db))
 
 
 @router.put("/posts/{post_id}")

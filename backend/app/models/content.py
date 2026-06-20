@@ -22,6 +22,23 @@ class PostStatus(str, enum.Enum):
     REJECTED = "rejected"
 
 
+class CommentStatus(str, enum.Enum):
+    PUBLISHED = "published"
+    REVIEWING = "reviewing"
+    REJECTED = "rejected"
+
+
+class LikeTarget(str, enum.Enum):
+    POST = "post"
+    COMMENT = "comment"
+
+
+class ShareType(str, enum.Enum):
+    TIMELINE = "timeline"
+    MESSAGE = "message"
+    GROUP = "group"
+
+
 class Category(Base):
     __tablename__ = "categories"
 
@@ -96,3 +113,67 @@ class VoteRecord(Base):
     option_id: Mapped[int] = mapped_column(ForeignKey("vote_options.id", ondelete="CASCADE"), index=True)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+
+
+class Comment(Base):
+    __tablename__ = "comments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    post_id: Mapped[int] = mapped_column(ForeignKey("posts.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    parent_id: Mapped[int | None] = mapped_column(ForeignKey("comments.id", ondelete="CASCADE"), index=True)
+    reply_to_id: Mapped[int | None] = mapped_column(ForeignKey("comments.id", ondelete="SET NULL"))
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    like_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    status: Mapped[CommentStatus] = mapped_column(Enum(CommentStatus), default=CommentStatus.PUBLISHED, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP, server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+
+    author = relationship("User", foreign_keys=[user_id])
+    reply_to = relationship("Comment", remote_side="Comment.id", foreign_keys=[reply_to_id])
+
+
+class Like(Base):
+    __tablename__ = "likes"
+    __table_args__ = (UniqueConstraint("user_id", "target_type", "target_id", name="uq_like_target"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    target_type: Mapped[LikeTarget] = mapped_column(Enum(LikeTarget), nullable=False)
+    target_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP, server_default=func.now())
+
+
+class FavoriteFolder(Base):
+    __tablename__ = "favorite_folders"
+    __table_args__ = (UniqueConstraint("user_id", "name", name="uq_favorite_folder_name"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(50), default="默认收藏夹", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP, server_default=func.now())
+
+
+class Favorite(Base):
+    __tablename__ = "favorites"
+    __table_args__ = (UniqueConstraint("user_id", "post_id", name="uq_favorite_post"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    post_id: Mapped[int] = mapped_column(ForeignKey("posts.id", ondelete="CASCADE"), index=True)
+    folder_id: Mapped[int] = mapped_column(ForeignKey("favorite_folders.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP, server_default=func.now())
+
+    post = relationship("Post")
+    folder = relationship("FavoriteFolder")
+
+
+class Share(Base):
+    __tablename__ = "shares"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    post_id: Mapped[int] = mapped_column(ForeignKey("posts.id", ondelete="CASCADE"), index=True)
+    share_type: Mapped[ShareType] = mapped_column(Enum(ShareType), nullable=False)
+    comment: Mapped[str | None] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP, server_default=func.now())

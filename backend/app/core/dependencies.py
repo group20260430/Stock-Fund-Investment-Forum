@@ -11,6 +11,7 @@ from app.db.session import get_db
 from app.models.user import User, UserRole, UserStatus
 
 security = HTTPBearer()
+optional_security = HTTPBearer(auto_error=False)
 
 
 # ---------------------------------------------------------------------------
@@ -75,6 +76,16 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="账户已被禁用")
 
     return user
+
+
+def get_optional_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(optional_security),
+    db: Session = Depends(get_db),
+) -> User | None:
+    """Return the current user when a valid token is supplied, otherwise anonymous."""
+    if credentials is None:
+        return None
+    return get_current_user(credentials, db)
 
 
 def get_current_admin(
