@@ -8,6 +8,7 @@ from app.api.health import router as health_router
 from app.api.interactions import router as interactions_router
 from app.api.market import router as market_router
 from app.api.posts import router as posts_router
+from app.api.social_users import router as social_users_router
 from app.core.config import settings
 from app.db.base import Base
 from app.db.session import engine
@@ -19,6 +20,7 @@ import app.models.refresh_token  # noqa: F401
 import app.models.certification  # noqa: F401
 import app.models.risk_assessment  # noqa: F401
 import app.models.content  # noqa: F401
+import app.models.social  # noqa: F401
 
 
 def seed_categories() -> None:
@@ -72,6 +74,7 @@ def create_app() -> FastAPI:
     app.include_router(market_router, prefix="/api")
     app.include_router(posts_router, prefix="/api")
     app.include_router(interactions_router, prefix="/api")
+    app.include_router(social_users_router, prefix="/api")
     app.include_router(auth_router, prefix="/api")
 
     return app

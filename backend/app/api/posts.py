@@ -149,6 +149,7 @@ def list_posts(
     size: int = Query(20, ge=1, le=50),
     sort: str = Query("latest", pattern="^(latest|hot|elite)$"),
     category_id: int | None = None,
+    user_id: int | None = None,
     keyword: str | None = Query(None, max_length=100),
     user: User | None = Depends(get_optional_current_user),
     db: Session = Depends(get_db),
@@ -156,6 +157,8 @@ def list_posts(
     query = _post_query(db).filter(Post.status == PostStatus.PUBLISHED)
     if category_id is not None:
         query = query.filter(Post.category_id == category_id)
+    if user_id is not None:
+        query = query.filter(Post.user_id == user_id)
     if keyword:
         term = f"%{keyword.strip()}%"
         query = query.filter(or_(Post.title.ilike(term), Post.content.ilike(term)))
