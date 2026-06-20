@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.auth import router as auth_router
+from app.api.admin import router as admin_router
 from app.api.community import router as community_router
 from app.api.discovery import router as discovery_router
 from app.api.health import router as health_router
@@ -24,6 +25,7 @@ import app.models.risk_assessment  # noqa: F401
 import app.models.content  # noqa: F401
 import app.models.social  # noqa: F401
 import app.models.community  # noqa: F401
+import app.models.operations  # noqa: F401
 
 
 def seed_categories() -> None:
@@ -80,6 +82,7 @@ def create_app() -> FastAPI:
     app.include_router(social_users_router, prefix="/api")
     app.include_router(community_router, prefix="/api")
     app.include_router(discovery_router, prefix="/api")
+    app.include_router(admin_router, prefix="/api")
     app.include_router(auth_router, prefix="/api")
 
     return app

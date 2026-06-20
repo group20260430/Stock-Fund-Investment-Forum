@@ -21,6 +21,8 @@ from app.models.content import (
 from app.models.user import User, UserRole
 from app.schemas.content import PostCreate, PostUpdate, VoteRequest
 from app.schemas.user import ApiResponse
+from app.models.operations import ActivityType
+from app.services.activity_service import record_activity
 
 router = APIRouter(tags=["posts"])
 
@@ -195,6 +197,8 @@ def create_post(data: PostCreate, user: User = Depends(get_current_user), db: Se
     )
     _replace_children(post, data)
     db.add(post)
+    db.flush()
+    record_activity(db, user.id, ActivityType.POST, "post", post.id)
     category.post_count += 1
     db.commit()
     return ApiResponse(code=201, message="发布成功", data={"id": post.id})
@@ -284,6 +288,7 @@ def vote_post(
     for option in valid_options:
         option.vote_count += 1
         db.add(VoteRecord(user_id=user.id, post_id=post.id, option_id=option.id))
+    record_activity(db, user.id, ActivityType.VOTE, "post", post.id)
     db.commit()
     return ApiResponse(code=200, message="投票成功", data={
         "results": [

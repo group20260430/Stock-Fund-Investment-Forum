@@ -8,6 +8,8 @@ from app.models.social import Follow, StarredUser
 from app.models.user import User, UserStatus
 from app.schemas.social import StarredRequest
 from app.schemas.user import ApiResponse
+from app.models.operations import ActivityType
+from app.services.activity_service import record_activity
 
 router = APIRouter(tags=["social"])
 
@@ -96,6 +98,7 @@ def toggle_follow(
         current_user.following_count += 1
         target.followers_count += 1
         followed = True
+        record_activity(db, current_user.id, ActivityType.FOLLOW, "user", target.id)
     db.commit()
     return ApiResponse(code=200, message="success", data={
         "is_followed": followed, "followers_count": target.followers_count

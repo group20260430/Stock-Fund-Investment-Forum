@@ -18,6 +18,8 @@ from app.models.content import (
 from app.models.user import User, UserRole
 from app.schemas.interactions import CollectRequest, CommentCreate, ShareRequest
 from app.schemas.user import ApiResponse
+from app.models.operations import ActivityType
+from app.services.activity_service import record_activity
 
 router = APIRouter(tags=["interactions"])
 
@@ -111,6 +113,8 @@ def create_comment(
         content=data.content.strip(),
     )
     db.add(comment)
+    db.flush()
+    record_activity(db, user.id, ActivityType.COMMENT, "comment", comment.id)
     post.comment_count += 1
     db.commit()
     return ApiResponse(code=201, message="评论成功", data={"id": comment.id})
@@ -156,6 +160,7 @@ def toggle_comment_like(
         db.add(Like(user_id=user.id, target_type=LikeTarget.COMMENT, target_id=comment_id))
         comment.like_count += 1
         liked = True
+        record_activity(db, user.id, ActivityType.LIKE, "comment", comment_id)
     db.commit()
     return ApiResponse(code=200, message="success", data={"is_liked": liked, "like_count": comment.like_count})
 
@@ -178,6 +183,7 @@ def toggle_post_like(
         db.add(Like(user_id=user.id, target_type=LikeTarget.POST, target_id=post_id))
         post.like_count += 1
         liked = True
+        record_activity(db, user.id, ActivityType.LIKE, "post", post_id)
     db.commit()
     return ApiResponse(code=200, message="success", data={"is_liked": liked, "like_count": post.like_count})
 
@@ -243,6 +249,8 @@ def share_post(
     post = _get_post_or_404(db, post_id)
     share = Share(user_id=user.id, post_id=post_id, share_type=ShareType(data.share_type), comment=data.comment)
     db.add(share)
+    db.flush()
+    record_activity(db, user.id, ActivityType.SHARE, "post", post_id)
     post.share_count += 1
     db.commit()
     return ApiResponse(code=201, message="分享成功", data={"id": share.id, "share_count": post.share_count})

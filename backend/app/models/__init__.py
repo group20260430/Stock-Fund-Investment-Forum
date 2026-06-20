@@ -13,3 +13,60 @@ __all__ = [
     "RiskAssessment",
     "RiskLevelEnum",
 ]
+"""Import every ORM model so Base.metadata is complete for scripts and tests."""
+
+from app.models.certification import Certification
+from app.models.community import Group, GroupMember, GroupPost, Message
+from app.models.content import (
+    Attachment,
+    Category,
+    Comment,
+    Favorite,
+    FavoriteFolder,
+    Like,
+    Post,
+    Share,
+    VoteOption,
+    VoteRecord,
+)
+from app.models.operations import (
+    BanRecord,
+    DailyStat,
+    Report,
+    ReviewLog,
+    SensitiveWord,
+    UserActivityLog,
+)
+from app.models.refresh_token import RefreshToken
+from app.models.risk_assessment import RiskAssessment
+from app.models.social import Follow, StarredUser
+from app.models.user import User
+
+__all__ = [
+    "Attachment",
+    "BanRecord",
+    "Category",
+    "Certification",
+    "Comment",
+    "DailyStat",
+    "Favorite",
+    "FavoriteFolder",
+    "Follow",
+    "Group",
+    "GroupMember",
+    "GroupPost",
+    "Like",
+    "Message",
+    "Post",
+    "RefreshToken",
+    "Report",
+    "ReviewLog",
+    "RiskAssessment",
+    "SensitiveWord",
+    "Share",
+    "StarredUser",
+    "User",
+    "UserActivityLog",
+    "VoteOption",
+    "VoteRecord",
+]
