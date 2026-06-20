@@ -1,154 +1,257 @@
 from datetime import datetime, timezone
-from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from sqlalchemy import or_
+from sqlalchemy.orm import Session, joinedload
 
+from app.core.dependencies import get_current_user
+from app.db.session import get_db
+from app.models.content import Attachment, Category, Post, PostStatus, PostType, VoteOption, VoteRecord
+from app.models.user import User, UserRole
+from app.schemas.content import PostCreate, PostUpdate, VoteRequest
 from app.schemas.user import ApiResponse
 
-router = APIRouter(prefix="/posts", tags=["posts"])
+router = APIRouter(tags=["posts"])
 
-# 模拟帖子数据 — 字段名与前端 PostCard 对齐
-MOCK_POSTS = [
-    {
-        "id": 1,
-        "title": "A股市场今日讨论",
-        "author": "系统用户",
-        "category": "股票",
-        "content_summary": "今天大盘走势回顾，沪指震荡上行，成交量有所放大，市场情绪回暖。板块方面，新能源、半导体表现活跃。",
-        "like_count": 12,
-        "comment_count": 3,
-        "collect_count": 2,
-        "share_count": 1,
-        "view_count": 256,
-        "is_elite": False,
+
+def _author_payload(user: User) -> dict:
+    return {
+        "id": user.id,
+        "nickname": user.nickname,
+        "avatar_url": user.avatar_url,
+        "auth_level": user.auth_level.value,
+    }
+
+
+def _post_payload(post: Post, detail: bool = False) -> dict:
+    data = {
+        "id": post.id,
+        "title": post.title,
+        "content_summary": post.content[:160],
+        "author": _author_payload(post.author),
+        "category": {"id": post.category.id, "name": post.category.name},
+        "post_type": post.post_type.value,
+        "status": post.status.value,
+        "view_count": post.view_count,
+        "like_count": post.like_count,
+        "comment_count": post.comment_count,
+        "collect_count": post.collect_count,
+        "share_count": post.share_count,
+        "is_elite": post.is_elite,
         "is_liked": False,
         "is_collected": False,
-        "tags": ["A股", "大盘分析"],
-        "post_type": "normal",
-        "created_at": "2026-06-18T10:00:00Z",
-    },
-    {
-        "id": 2,
-        "title": "指数基金长期配置思路",
-        "author": "基金观察员",
-        "category": "基金",
-        "content_summary": "在当前市场环境下，宽基指数基金依然是长期配置的首选。建议关注沪深300和中证500的定投机会。",
-        "like_count": 21,
-        "comment_count": 7,
-        "collect_count": 5,
-        "share_count": 3,
-        "view_count": 412,
-        "is_elite": True,
-        "is_liked": False,
-        "is_collected": False,
-        "tags": ["指数基金", "定投", "配置"],
-        "post_type": "long_article",
-        "created_at": "2026-06-17T14:30:00Z",
-    },
-    {
-        "id": 3,
-        "title": "新手该怎么选基金？",
-        "author": "理财小白",
-        "category": "问答求助",
-        "content_summary": "刚工作一年，想开始理财，请问各位大佬有什么适合新手的基金推荐吗？",
-        "like_count": 8,
-        "comment_count": 15,
-        "collect_count": 10,
-        "share_count": 0,
-        "view_count": 890,
-        "is_elite": False,
-        "is_liked": False,
-        "is_collected": False,
-        "tags": ["新手", "基金入门"],
-        "post_type": "normal",
-        "created_at": "2026-06-16T09:15:00Z",
-    },
-    {
-        "id": 4,
-        "title": "2026下半年投资策略展望",
-        "author": "策略分析师",
-        "category": "投资策略",
-        "content_summary": "从宏观经济数据和市场估值水平来看，下半年A股有望迎来修复行情，重点关注消费复苏和科技创新两条主线。",
-        "like_count": 35,
-        "comment_count": 12,
-        "collect_count": 18,
-        "share_count": 6,
-        "view_count": 1200,
-        "is_elite": True,
-        "is_liked": False,
-        "is_collected": False,
-        "tags": ["投资策略", "展望", "A股"],
-        "post_type": "long_article",
-        "created_at": "2026-06-15T16:00:00Z",
-    },
-    {
-        "id": 5,
-        "title": "港股通标的分析：腾讯VS阿里",
-        "author": "港股猎手",
-        "category": "股票市场",
-        "content_summary": "对比分析腾讯和阿里当前估值、业务增长点和投资价值，供大家参考。",
-        "like_count": 18,
-        "comment_count": 9,
-        "collect_count": 7,
-        "share_count": 4,
-        "view_count": 567,
-        "is_elite": False,
-        "is_liked": False,
-        "is_collected": False,
-        "tags": ["港股", "腾讯", "阿里"],
-        "post_type": "normal",
-        "created_at": "2026-06-14T11:20:00Z",
-    },
-]
+        "tags": post.tags or [],
+        "created_at": post.created_at,
+        "updated_at": post.updated_at,
+    }
+    if detail:
+        data.update(
+            content=post.content,
+            attachments=[
+                {
+                    "id": item.id,
+                    "file_name": item.file_name,
+                    "file_url": item.file_url,
+                    "file_size": item.file_size,
+                    "file_type": item.file_type,
+                }
+                for item in post.attachments
+            ],
+            vote_options=[
+                {"id": item.id, "label": item.label, "vote_count": item.vote_count}
+                for item in post.vote_options
+            ],
+        )
+    return data
 
 
-@router.get("")
-def list_posts(
-    page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=50),
-    sort: Optional[str] = Query(None),
-    category_id: Optional[int] = Query(None),
-    keyword: Optional[str] = Query(None),
-):
-    """获取帖子列表 — 返回分页数据，字段名与前端 PostCard 对齐。"""
-    items = MOCK_POSTS
+def _post_query(db: Session):
+    return db.query(Post).options(
+        joinedload(Post.author),
+        joinedload(Post.category),
+        joinedload(Post.attachments),
+        joinedload(Post.vote_options),
+    )
 
-    # 按分类筛选
-    if category_id is not None:
-        category_map = {1: "综合讨论", 2: "股票市场", 3: "基金", 4: "问答求助", 5: "投资策略"}
-        cat_name = category_map.get(category_id)
-        if cat_name:
-            items = [p for p in items if p["category"] == cat_name]
 
-    # 关键词搜索
-    if keyword:
-        keyword_lower = keyword.lower()
-        items = [
-            p
-            for p in items
-            if keyword_lower in p["title"].lower() or keyword_lower in p["content_summary"].lower()
-        ]
+def _get_post_or_404(db: Session, post_id: int) -> Post:
+    post = _post_query(db).filter(Post.id == post_id).first()
+    if post is None:
+        raise HTTPException(status_code=404, detail="帖子不存在")
+    return post
 
-    # 排序
-    if sort == "hot":
-        items = sorted(items, key=lambda p: p["like_count"] + p["comment_count"], reverse=True)
-    elif sort == "elite":
-        items = [p for p in items if p["is_elite"]]
-    else:
-        items = sorted(items, key=lambda p: p["created_at"], reverse=True)
 
-    total = len(items)
-    start = (page - 1) * size
-    end = start + size
-    page_items = items[start:end] if start < total else []
+def _ensure_owner_or_admin(post: Post, user: User) -> None:
+    if post.user_id != user.id and user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="无权修改该帖子")
 
+
+def _replace_children(post: Post, data: PostCreate) -> None:
+    post.attachments.clear()
+    post.vote_options.clear()
+    for item in data.attachments:
+        post.attachments.append(Attachment(**item.model_dump()))
+    if data.post_type == "poll":
+        for index, item in enumerate(data.vote_options):
+            post.vote_options.append(VoteOption(label=item.label, sort_order=index))
+
+
+@router.get("/categories")
+def list_categories(db: Session = Depends(get_db)):
+    categories = db.query(Category).filter(Category.is_active.is_(True)).order_by(Category.sort_order, Category.id).all()
     return ApiResponse(
         code=200,
         message="success",
-        data={
-            "items": page_items,
-            "total": total,
-            "page": page,
-            "size": size,
-        },
+        data=[
+            {
+                "id": item.id,
+                "name": item.name,
+                "description": item.description,
+                "sort_order": item.sort_order,
+                "post_count": item.post_count,
+            }
+            for item in categories
+        ],
     )
+
+
+@router.get("/posts")
+def list_posts(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=50),
+    sort: str = Query("latest", pattern="^(latest|hot|elite)$"),
+    category_id: int | None = None,
+    keyword: str | None = Query(None, max_length=100),
+    db: Session = Depends(get_db),
+):
+    query = _post_query(db).filter(Post.status == PostStatus.PUBLISHED)
+    if category_id is not None:
+        query = query.filter(Post.category_id == category_id)
+    if keyword:
+        term = f"%{keyword.strip()}%"
+        query = query.filter(or_(Post.title.ilike(term), Post.content.ilike(term)))
+    if sort == "hot":
+        query = query.order_by((Post.like_count + Post.comment_count + Post.view_count).desc())
+    elif sort == "elite":
+        query = query.filter(Post.is_elite.is_(True)).order_by(Post.created_at.desc())
+    else:
+        query = query.order_by(Post.created_at.desc())
+    total = query.count()
+    posts = query.offset((page - 1) * size).limit(size).all()
+    return ApiResponse(code=200, message="success", data={
+        "items": [_post_payload(post) for post in posts],
+        "total": total,
+        "page": page,
+        "size": size,
+    })
+
+
+@router.post("/posts", status_code=201)
+def create_post(data: PostCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    category = db.query(Category).filter(Category.id == data.category_id, Category.is_active.is_(True)).first()
+    if category is None:
+        raise HTTPException(status_code=404, detail="板块不存在")
+    post = Post(
+        user_id=user.id,
+        category_id=data.category_id,
+        title=data.title,
+        content=data.content,
+        post_type=PostType(data.post_type),
+        status=PostStatus(data.status),
+        tags=data.tags,
+        last_activity_at=datetime.now(timezone.utc),
+    )
+    _replace_children(post, data)
+    db.add(post)
+    category.post_count += 1
+    db.commit()
+    return ApiResponse(code=201, message="发布成功", data={"id": post.id})
+
+
+@router.get("/posts/{post_id}")
+def get_post(post_id: int, db: Session = Depends(get_db)):
+    post = _get_post_or_404(db, post_id)
+    if post.status != PostStatus.PUBLISHED:
+        raise HTTPException(status_code=404, detail="帖子不存在")
+    post.view_count += 1
+    db.commit()
+    db.refresh(post)
+    return ApiResponse(code=200, message="success", data=_post_payload(post, detail=True))
+
+
+@router.put("/posts/{post_id}")
+def update_post(
+    post_id: int,
+    data: PostUpdate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    post = _get_post_or_404(db, post_id)
+    _ensure_owner_or_admin(post, user)
+    category = db.query(Category).filter(Category.id == data.category_id, Category.is_active.is_(True)).first()
+    if category is None:
+        raise HTTPException(status_code=404, detail="板块不存在")
+    if post.category_id != data.category_id:
+        post.category.post_count = max(0, post.category.post_count - 1)
+        category.post_count += 1
+    post.category_id = data.category_id
+    post.title = data.title
+    post.content = data.content
+    post.post_type = PostType(data.post_type)
+    post.status = PostStatus(data.status)
+    post.tags = data.tags
+    post.last_activity_at = datetime.now(timezone.utc)
+    _replace_children(post, data)
+    db.commit()
+    return ApiResponse(code=200, message="编辑成功", data={"id": post.id})
+
+
+@router.delete("/posts/{post_id}", status_code=204)
+def delete_post(
+    post_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    post = _get_post_or_404(db, post_id)
+    _ensure_owner_or_admin(post, user)
+    category = post.category
+    db.delete(post)
+    category.post_count = max(0, category.post_count - 1)
+    db.commit()
+    return Response(status_code=204)
+
+
+@router.post("/posts/{post_id}/vote")
+def vote_post(
+    post_id: int,
+    data: VoteRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    post = _get_post_or_404(db, post_id)
+    if post.post_type != PostType.POLL:
+        raise HTTPException(status_code=400, detail="该帖子不是投票帖")
+    option_ids = set(data.option_ids)
+    valid_options = [item for item in post.vote_options if item.id in option_ids]
+    if len(valid_options) != len(option_ids):
+        raise HTTPException(status_code=400, detail="包含无效的投票选项")
+
+    old_records = db.query(VoteRecord).filter(
+        VoteRecord.user_id == user.id, VoteRecord.post_id == post.id
+    ).all()
+    old_option_ids = {item.option_id for item in old_records}
+    for option in post.vote_options:
+        if option.id in old_option_ids:
+            option.vote_count = max(0, option.vote_count - 1)
+    for record in old_records:
+        db.delete(record)
+    for option in valid_options:
+        option.vote_count += 1
+        db.add(VoteRecord(user_id=user.id, post_id=post.id, option_id=option.id))
+    db.commit()
+    return ApiResponse(code=200, message="投票成功", data={
+        "results": [
+            {"option_id": item.id, "label": item.label, "vote_count": item.vote_count}
+            for item in post.vote_options
+        ]
+    })

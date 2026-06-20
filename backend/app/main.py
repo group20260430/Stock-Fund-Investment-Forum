@@ -17,12 +17,36 @@ import app.models.user  # noqa: F401
 import app.models.refresh_token  # noqa: F401
 import app.models.certification  # noqa: F401
 import app.models.risk_assessment  # noqa: F401
+import app.models.content  # noqa: F401
+
+
+def seed_categories() -> None:
+    from app.db.session import SessionLocal
+    from app.models.content import Category
+
+    defaults = [
+        ("综合讨论", "投资话题综合交流", 1),
+        ("股票市场", "A股、港股与海外市场", 2),
+        ("基金投资", "公募基金、ETF与定投", 3),
+        ("问答求助", "投资问题互助", 4),
+        ("投资策略", "资产配置与策略研究", 5),
+    ]
+    db = SessionLocal()
+    try:
+        if db.query(Category).count() == 0:
+            db.add_all(
+                [Category(name=name, description=description, sort_order=order) for name, description, order in defaults]
+            )
+            db.commit()
+    finally:
+        db.close()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Create all tables on startup (dev convenience — use migrations in production)."""
     Base.metadata.create_all(bind=engine)
+    seed_categories()
     yield
 
 
