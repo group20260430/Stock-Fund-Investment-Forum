@@ -340,12 +340,18 @@ Accept: application/json
 }
 ```
 
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `answers` | array | Y | 答案列表，每项包含 `question_id` (int) 和 `answer` (string, A~E) |
+| `total_questions` | int | N | 题目总数，不传则从 answers 数组长度推断 |
+
 **成功响应 (200)：**
 ```json
 {
   "code": 200,
   "message": "评估完成",
   "data": {
+    "assessment_id": 1,
     "risk_level": "moderate",
     "score": 65,
     "max_score": 100,
@@ -354,7 +360,87 @@ Accept: application/json
 }
 ```
 
+**错误示例 (400)：**
+```json
+{
+  "code": 400,
+  "message": "{\"code\": 1001, \"message\": \"题目 1 的答案 'X' 无效，只能为 A/B/C/D/E\"}",
+  "data": null
+}
+```
+
+| 错误码 | 说明 |
+|--------|------|
+| 1001 | 答案格式无效（不在 A~E 范围内） |
+| 1002 | 问卷不完整（答案数量与 total_questions 不一致） |
+
 ---
+
+#### GET /auth/risk-assessment/questions — 获取风险评估问卷
+
+**请求头：** `Authorization: Bearer <token>`
+
+**请求体：** 无
+
+**成功响应 (200)：**
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {
+      "question_id": 1,
+      "question_text": "您的年龄范围是？",
+      "choices": [
+        {"label": "A", "text": "60岁以上", "score": 1},
+        {"label": "B", "text": "51-60岁", "score": 2},
+        {"label": "C", "text": "41-50岁", "score": 3},
+        {"label": "D", "text": "31-40岁", "score": 4},
+        {"label": "E", "text": "30岁以下", "score": 5}
+      ]
+    }
+  ]
+}
+```
+
+**说明：** 问卷共 15 道题，覆盖财务状况、投资经验、风险态度和行为模式四个维度。每题 5 个选项（A~E），分值 1~5。
+
+---
+
+#### GET /auth/risk-assessment/history — 获取历史评估记录
+
+**请求头：** `Authorization: Bearer <token>`
+
+**查询参数：** `?page=1&size=20`
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `page` | int | 1 | 页码，≥1 |
+| `size` | int | 20 | 每页数量，1~50 |
+
+**成功响应 (200)：**
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "items": [
+      {
+        "id": 1,
+        "score": 65,
+        "risk_level": "moderate",
+        "total_questions": 15,
+        "created_at": "2026-06-20T10:30:00"
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "size": 20
+  }
+}
+```
+
+**说明：** 按评估时间倒序排列，支持多次评估历史追溯。
 
 ## 三、模块2：内容系统 API
 
@@ -1409,6 +1495,8 @@ JWT_EXPIRE_HOURS=24
 | | PUT | /auth/profile | 更新个人资料 | Y |
 | | POST | /auth/certification | 实名认证 | Y |
 | | POST | /auth/risk-assessment | 风险评估 | Y |
+| | GET | /auth/risk-assessment/questions | 获取风险问卷 | Y |
+| | GET | /auth/risk-assessment/history | 评估历史记录 | Y |
 | **内容** | GET | /categories | 板块列表 | N |
 | | GET | /posts | 帖子列表 | N |
 | | GET | /posts/{id} | 帖子详情 | N |

@@ -68,8 +68,49 @@ class QuestionAnswer(BaseModel):
     answer: str
 
 
+class Choice(BaseModel):
+    """A single multiple-choice option for a risk assessment question."""
+
+    label: str = Field(..., description="选项标签，如A/B/C/D/E")
+    text: str = Field(..., description="选项文本内容")
+    score: int = Field(..., ge=1, le=5, description="选项分值")
+
+
+class RiskQuestion(BaseModel):
+    """A single question in the risk assessment questionnaire."""
+
+    question_id: int = Field(..., ge=1, description="题目编号")
+    question_text: str = Field(..., description="题目内容")
+    choices: list[Choice] = Field(..., min_length=2, description="选项列表")
+
+
 class RiskAssessmentRequest(BaseModel):
     answers: list[QuestionAnswer] = Field(..., min_length=1)
+    total_questions: Optional[int] = Field(
+        None, ge=1, description="题目总数，不传则由后端从answers长度推导"
+    )
+
+
+class RiskAssessmentResponse(BaseModel):
+    """Response schema for a completed risk assessment."""
+
+    assessment_id: int = Field(..., description="评估记录ID")
+    risk_level: str = Field(..., description="风险等级")
+    score: int = Field(..., description="得分（0-100）")
+    max_score: int = Field(default=100, description="满分")
+    suggestion: str = Field(..., description="投资建议")
+
+
+class RiskHistoryItem(BaseModel):
+    """A single historical risk assessment record."""
+
+    id: int
+    score: int
+    risk_level: str
+    total_questions: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 # ==================== Response Schemas ====================

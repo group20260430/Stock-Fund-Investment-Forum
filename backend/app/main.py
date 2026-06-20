@@ -12,6 +12,7 @@ from app.db.base import Base
 from app.db.session import engine
 
 # Ensure all models are registered with SQLAlchemy's metadata before create_all
+import app.config  # noqa: F401
 import app.models.user  # noqa: F401
 import app.models.refresh_token  # noqa: F401
 import app.models.certification  # noqa: F401

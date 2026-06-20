@@ -1172,6 +1172,8 @@ INSERT INTO sensitive_words (word, level, category) VALUES
 | PUT /auth/profile | users |
 | POST /auth/certification | certifications |
 | POST /auth/risk-assessment | risk_assessments, users |
+| GET /auth/risk-assessment/questions | —（静态数据） |
+| GET /auth/risk-assessment/history | risk_assessments |
 | GET /categories | categories |
 | GET /posts | posts, users, categories |
 | GET /posts/{id} | posts, users, categories, attachments, likes, favorites |

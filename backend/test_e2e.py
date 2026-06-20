@@ -100,6 +100,64 @@ r = client.post('/api/auth/risk-assessment', json={
 }, headers={'Authorization': f'Bearer {access}'})
 check('10. Risk', 200, r)
 
+# 10b. Get risk questions (authenticated)
+r = client.get('/api/auth/risk-assessment/questions',
+               headers={'Authorization': f'Bearer {access}'})
+j = check('10b. Get Qs', 200, r)
+if r.status_code == 200 and 'data' in j:
+    q_count = len(j['data']) if isinstance(j['data'], list) else 'N/A'
+    print(f'     questions returned: {q_count}')
+
+# 10c. Get risk questions (unauthenticated)
+r = client.get('/api/auth/risk-assessment/questions')
+check('10c. Get Qs noauth', 403, r)
+
+# 10d. Risk assessment with invalid answer
+r = client.post('/api/auth/risk-assessment', json={
+    'answers': [
+        {'question_id': 1, 'answer': 'X'},
+        {'question_id': 2, 'answer': 'C'}
+    ]
+}, headers={'Authorization': f'Bearer {access}'})
+check('10d. Bad answer', 400, r)
+
+# 10e. Risk assessment with mismatched total_questions
+r = client.post('/api/auth/risk-assessment', json={
+    'answers': [
+        {'question_id': 1, 'answer': 'A'},
+        {'question_id': 2, 'answer': 'B'}
+    ],
+    'total_questions': 15
+}, headers={'Authorization': f'Bearer {access}'})
+check('10e. Mismatch', 400, r)
+
+# 10f. Risk assessment with total_questions field (full 15 questions)
+full_answers = [{'question_id': i, 'answer': chr(65 + (i % 5))} for i in range(1, 16)]
+r = client.post('/api/auth/risk-assessment', json={
+    'answers': full_answers,
+    'total_questions': 15
+}, headers={'Authorization': f'Bearer {access}'})
+check('10f. Full assessment', 200, r)
+
+# 10g. Get risk assessment history (should have 2 records now)
+r = client.get('/api/auth/risk-assessment/history',
+               headers={'Authorization': f'Bearer {access}'})
+j = check('10g. History', 200, r)
+if r.status_code == 200 and 'data' in j:
+    d = j['data']
+    if isinstance(d, dict) and 'total' in d:
+        print(f'     total records: {d["total"]}')
+
+# 10h. Get risk assessment history with pagination
+r = client.get('/api/auth/risk-assessment/history?page=1&size=1',
+               headers={'Authorization': f'Bearer {access}'})
+j = check('10h. Hist page', 200, r)
+if r.status_code == 200 and 'data' in j:
+    d = j['data']
+    if isinstance(d, dict):
+        items = d.get('items', [])
+        print(f'     page items: {len(items)}, total: {d.get("total", "N/A")}')
+
 # 11. No token
 r = client.get('/api/auth/me')
 check('11. No token', 403, r)

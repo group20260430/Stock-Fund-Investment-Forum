@@ -249,6 +249,63 @@ components:
                 type: integer
               answer:
                 type: string
+        total_questions:
+          type: integer
+          description: 题目总数，不传则从 answers 数组长度推断
+
+    RiskQuestion:
+      type: object
+      properties:
+        question_id:
+          type: integer
+        question_text:
+          type: string
+        choices:
+          type: array
+          items:
+            $ref: "#/components/schemas/Choice"
+
+    Choice:
+      type: object
+      properties:
+        label:
+          type: string
+          description: 选项标签 A/B/C/D/E
+        text:
+          type: string
+          description: 选项文本
+        score:
+          type: integer
+          description: 选项分值 1-5
+
+    RiskAssessmentResponse:
+      type: object
+      properties:
+        assessment_id:
+          type: integer
+        risk_level:
+          type: string
+        score:
+          type: integer
+        max_score:
+          type: integer
+        suggestion:
+          type: string
+
+    RiskHistoryItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        score:
+          type: integer
+        risk_level:
+          type: string
+        total_questions:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
 
     # ==================== 内容系统 ====================
     Category:
@@ -1013,6 +1070,8 @@ paths:
                       data:
                         type: object
                         properties:
+                          assessment_id:
+                            type: integer
                           risk_level:
                             type: string
                           score:
@@ -1021,6 +1080,66 @@ paths:
                             type: integer
                           suggestion:
                             type: string
+
+  /api/auth/risk-assessment/questions:
+    get:
+      tags:
+        - 用户系统
+      summary: 获取风险评估问卷
+      operationId: getRiskQuestions
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/RiskQuestion"
+
+  /api/auth/risk-assessment/history:
+    get:
+      tags:
+        - 用户系统
+      summary: 获取历史评估记录
+      operationId: getRiskAssessmentHistory
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PaginatedResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          items:
+                            type: array
+                            items:
+                              $ref: "#/components/schemas/RiskHistoryItem"
 
   # ==================== 内容系统 ====================
   /api/categories:

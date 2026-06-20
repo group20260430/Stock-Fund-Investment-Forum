@@ -19,12 +19,15 @@ from app.models.certification import Certification, CertificationStatus
 from app.models.refresh_token import RefreshToken
 from app.models.risk_assessment import RiskAssessment, RiskLevelEnum
 from app.models.user import AuthLevel, RegisterType, RiskLevel, User, UserStatus
+from app.config import RISK_QUESTIONS
 from app.schemas.user import (
     Achievements,
     CertificationRequest,
     LoginRequest,
+    PaginatedData,
     RegisterRequest,
     RiskAssessmentRequest,
+    RiskHistoryItem,
     SendCodeRequest,
     UpdateProfileRequest,
     UserProfile,
@@ -284,6 +287,35 @@ class UserService:
         db: Session, user: User, data: RiskAssessmentRequest
     ) -> dict:
         """Persist risk assessment result and update the user's risk_level."""
+        # ── Validation ────────────────────────────────────────────
+        valid_choices = {"A", "B", "C", "D", "E"}
+        for qa in data.answers:
+            if qa.answer.upper() not in valid_choices:
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "code": 1001,
+                        "message": (
+                            f"题目 {qa.question_id} 的答案 '{qa.answer}' 无效，"
+                            "只能为 A/B/C/D/E"
+                        ),
+                    },
+                )
+
+        total_questions = data.total_questions or len(data.answers)
+        if len(data.answers) != total_questions:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": 1002,
+                    "message": (
+                        f"问卷不完整：需要 {total_questions} 道题，"
+                        f"收到 {len(data.answers)} 道"
+                    ),
+                },
+            )
+
+        # ── Scoring ──────────────────────────────────────────────
         score = UserService._calculate_risk_score(data.answers)
 
         if score <= 33:
@@ -309,7 +341,7 @@ class UserService:
         assessment = RiskAssessment(
             user_id=user.id,
             answers=[qa.model_dump() for qa in data.answers],
-            total_questions=len(data.answers),
+            total_questions=total_questions,
             score=score,
             max_score=100,
             risk_level=risk_level,
@@ -328,11 +360,52 @@ class UserService:
         db.refresh(assessment)
 
         return {
+            "assessment_id": assessment.id,
             "risk_level": risk_level.value,
             "score": score,
             "max_score": 100,
             "suggestion": suggestion,
         }
+
+    @staticmethod
+    def get_risk_questions() -> list[dict]:
+        """Return the static list of risk assessment questions."""
+        return [q.model_dump() for q in RISK_QUESTIONS]
+
+    @staticmethod
+    def get_risk_assessment_history(
+        db: Session,
+        user: User,
+        page: int = 1,
+        size: int = 20,
+    ) -> dict:
+        """Return paginated risk assessment history for a user."""
+        query = (
+            db.query(RiskAssessment)
+            .filter(RiskAssessment.user_id == user.id)
+            .order_by(RiskAssessment.created_at.desc())
+        )
+
+        total = query.count()
+        items = query.offset((page - 1) * size).limit(size).all()
+
+        history_items = [
+            RiskHistoryItem(
+                id=a.id,
+                score=a.score,
+                risk_level=a.risk_level.value,
+                total_questions=a.total_questions,
+                created_at=a.created_at,
+            )
+            for a in items
+        ]
+
+        return PaginatedData(
+            items=history_items,
+            total=total,
+            page=page,
+            size=size,
+        ).model_dump()
 
     # ==================================================================
     # Internal Helpers

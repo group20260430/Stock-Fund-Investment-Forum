@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
@@ -129,3 +129,24 @@ async def risk_assessment(
     """提交风险评估问卷 — 返回风险等级和投资建议，同时持久化记录。"""
     result = UserService.submit_risk_assessment(db, current_user, data)
     return ApiResponse(code=200, message="评估完成", data=result)
+
+
+@router.get("/auth/risk-assessment/questions")
+async def get_risk_questions(
+    current_user: User = Depends(get_current_user),
+):
+    """获取风险评估问卷 — 返回完整的题目列表（含选项和分值）。"""
+    questions = UserService.get_risk_questions()
+    return ApiResponse(code=200, message="success", data=questions)
+
+
+@router.get("/auth/risk-assessment/history")
+async def get_risk_assessment_history(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    page: int = Query(1, ge=1, description="页码"),
+    size: int = Query(20, ge=1, le=50, description="每页数量"),
+):
+    """获取历史评估记录 — 支持分页，按评估时间倒序排列。"""
+    result = UserService.get_risk_assessment_history(db, current_user, page, size)
+    return ApiResponse(code=200, message="success", data=result)
