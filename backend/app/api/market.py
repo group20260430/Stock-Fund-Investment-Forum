@@ -11,6 +11,7 @@ from fastapi import APIRouter, Query
 router = APIRouter(prefix="/market", tags=["market"])
 
 EASTMONEY_QUOTE_URL = "https://push2.eastmoney.com/api/qt/ulist.np/get"
+SINA_QUOTE_URL = "https://hq.sinajs.cn/list="
 
 # 默认指数列表
 DEFAULT_INDICES = "1.000001,1.000300,0.399001"
@@ -26,6 +27,11 @@ MARKET_LABELS = {
 }
 
 logger = logging.getLogger(__name__)
+
+EASTMONEY_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+    "Referer": "https://quote.eastmoney.com/",
+}
 
 
 @router.get("/indices")
@@ -59,18 +65,18 @@ async def get_indices(
 
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
-            resp = await client.get(EASTMONEY_QUOTE_URL, params=params)
+            resp = await client.get(EASTMONEY_QUOTE_URL, params=params, headers=EASTMONEY_HEADERS)
             resp.raise_for_status()
             raw = resp.json()
     except httpx.HTTPError as exc:
         logger.error("请求东方财富行情失败: %s", exc)
-        return _build_fallback(ids)
+        return await _get_sina_fallback(ids)
     except Exception as exc:
         logger.error("解析行情数据异常: %s", exc)
-        return _build_fallback(ids)
+        return await _get_sina_fallback(ids)
 
     if raw is None or raw.get("data") is None:
-        return _build_fallback(ids)
+        return await _get_sina_fallback(ids)
 
     items = raw["data"].get("diff") or []
 
@@ -124,7 +130,7 @@ async def get_kline(
 
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
-            resp = await client.get(url, params=params)
+            resp = await client.get(url, params=params, headers=EASTMONEY_HEADERS)
             resp.raise_for_status()
             raw = resp.json()
     except Exception:
@@ -178,3 +184,49 @@ def _build_fallback(secids: str):
             }
         )
     return {"code": 200, "message": "success (fallback - API 暂时不可用)", "data": results}
+
+
+async def _get_sina_fallback(secids: str):
+    """Use Sina quotes when Eastmoney rejects the HTTP client connection."""
+    requested = [item.strip().split(".")[-1] for item in secids.split(",")]
+    symbols = [f"s_{'sh' if code.startswith(('0', '6')) else 'sz'}{code}" for code in requested]
+    headers = {
+        "User-Agent": EASTMONEY_HEADERS["User-Agent"],
+        "Referer": "https://finance.sina.com.cn/",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            response = await client.get(SINA_QUOTE_URL + ",".join(symbols), headers=headers)
+            response.raise_for_status()
+        text = response.content.decode("gb18030")
+        results = []
+        for line in text.splitlines():
+            if '="' not in line:
+                continue
+            values = line.split('="', 1)[1].rstrip('";').split(",")
+            if len(values) < 6:
+                continue
+            symbol = line.split("hq_str_s_", 1)[1].split("=", 1)[0]
+            code = symbol[2:]
+            change_pct = float(values[3])
+            results.append(
+                {
+                    "name": values[0],
+                    "code": code,
+                    "price": round(float(values[1]), 2),
+                    "change": round(float(values[2]), 2),
+                    "change_pct": round(change_pct, 2),
+                    "up": change_pct >= 0,
+                    "high": None,
+                    "low": None,
+                    "open": None,
+                    "prev_close": None,
+                    "volume": int(float(values[4])),
+                    "amount": float(values[5]),
+                }
+            )
+        if results:
+            return {"code": 200, "message": "success (sina fallback)", "data": results}
+    except Exception as exc:
+        logger.error("请求新浪备用行情失败: %s", exc)
+    return _build_fallback(secids)
