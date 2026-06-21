@@ -12,6 +12,16 @@ router = APIRouter(prefix="/market", tags=["market"])
 
 EASTMONEY_QUOTE_URL = "https://push2.eastmoney.com/api/qt/ulist.np/get"
 
+# 必须携带浏览器 UA 和 Referer，否则被 nginx 返回 502
+EASTMONEY_HEADERS: dict[str, str] = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/131.0.0.0 Safari/537.36"
+    ),
+    "Referer": "https://quote.eastmoney.com/",
+}
+
 # 默认指数列表
 DEFAULT_INDICES = "1.000001,1.000300,0.399001"
 
@@ -59,7 +69,9 @@ async def get_indices(
 
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
-            resp = await client.get(EASTMONEY_QUOTE_URL, params=params)
+            resp = await client.get(
+                EASTMONEY_QUOTE_URL, params=params, headers=EASTMONEY_HEADERS
+            )
             resp.raise_for_status()
             raw = resp.json()
     except httpx.HTTPError as exc:
@@ -90,12 +102,12 @@ async def get_indices(
                 "change": round(change_val, 2),
                 "change_pct": round(change_pct, 2),
                 "up": change_pct >= 0,
-                "high": item.get("f15"),
-                "low": item.get("f16"),
-                "open": item.get("f17"),
-                "prev_close": prev_close,
+                "high": round(item.get("f15") or 0, 2),
+                "low": round(item.get("f16") or 0, 2),
+                "open": round(item.get("f17") or 0, 2),
+                "prev_close": round(prev_close, 2),
                 "volume": item.get("f5"),
-                "amount": item.get("f6"),
+                "amount": item.get("f6") or None,
             }
         )
 
