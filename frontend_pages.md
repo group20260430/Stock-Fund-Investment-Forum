@@ -2,7 +2,7 @@
 
 **分支：** `feat/frontend/pages`  
 **基于：** `feat/frontend/core`  
-**开发者：** 刘嘉成（前端开发与文档）  
+**开发者：** 杨文弢（前端开发与文档）  
 **开始日期：** 2026年6月21日  
 **最后更新：** 2026年6月21日  
 
@@ -116,7 +116,7 @@ PostDetail 主包 ~19KB，Dashboard ECharts 分块 ~515KB。
 ```
 feat/frontend/core  ← 张桐尘（基础设施、布局、API层、通用组件）
         │
-        └── feat/frontend/pages  ← 刘嘉成（本分支，页面功能开发）
+        └── feat/frontend/pages  ← 杨文弢（本分支，页面功能开发）
 ```
 
 本分支完全基于 core 分支，未修改 core 的基础代码，仅在其基础上新增和扩展页面功能。最终将由组长合并到 `develop` 分支。
