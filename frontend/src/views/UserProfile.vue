@@ -55,7 +55,7 @@ function handlePageChange(page) {
   postsStore.loadPosts()
 }
 
-const user = userStore.profile
+const user = computed(() => userStore.profile)
 </script>
 
 <template>

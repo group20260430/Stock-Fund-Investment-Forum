@@ -24,3 +24,8 @@ export function approveGroupMember(groupId, userId) {
 export function createGroupPost(groupId, data) {
   return api.post(`/groups/${groupId}/posts`, data)
 }
+
+/** 群组帖子列表 */
+export function fetchGroupPosts(groupId, params) {
+  return api.get(`/groups/${groupId}/posts`, params)
+}

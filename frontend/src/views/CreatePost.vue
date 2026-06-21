@@ -1,13 +1,32 @@
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { fetchPostDetail } from '../api/posts'
 import AppLayout from '../components/layout/AppLayout.vue'
 import PostEditor from '../components/post/PostEditor.vue'
+import Loading from '../components/common/Loading.vue'
 
+const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
-const showEditor = ref(true)
+
+const editingPost = ref(null)
+const loadingPost = ref(false)
+const isEdit = ref(!!route.params.id && route.name === 'edit-post')
+
+onMounted(async () => {
+  if (isEdit.value) {
+    loadingPost.value = true
+    try {
+      editingPost.value = await fetchPostDetail(route.params.id)
+    } catch (err) {
+      console.error('加载帖子失败:', err.message)
+    } finally {
+      loadingPost.value = false
+    }
+  }
+})
 
 function closeEditor() {
   router.back()
@@ -23,8 +42,10 @@ function closeEditor() {
       <button class="no-auth__btn" @click="router.push('/login')">去登录</button>
     </div>
 
+    <Loading v-else-if="isEdit && loadingPost" variant="skeleton" :rows="2" />
+
     <!-- 编辑器 -->
-    <PostEditor v-else :post="null" @close="closeEditor" />
+    <PostEditor v-else :post="editingPost" @close="closeEditor" @saved="closeEditor" />
   </AppLayout>
 </template>
 

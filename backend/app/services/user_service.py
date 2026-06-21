@@ -20,6 +20,8 @@ from app.models.refresh_token import RefreshToken
 from app.models.risk_assessment import RiskAssessment, RiskLevelEnum
 from app.models.user import AuthLevel, RegisterType, RiskLevel, User, UserStatus
 from app.config import RISK_QUESTIONS
+from app.models.operations import ActivityType
+from app.services.activity_service import record_activity
 from app.schemas.user import (
     Achievements,
     CertificationRequest,
@@ -177,6 +179,9 @@ class UserService:
 
         # Build profile
         profile = UserService._build_profile(user, db)
+
+        record_activity(db, user.id, ActivityType.LOGIN)
+        db.commit()
 
         return {
             "user_id": user.id,

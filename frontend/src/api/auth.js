@@ -44,3 +44,13 @@ export function submitCertification(data) {
 export function submitRiskAssessment(answers) {
   return api.post('/auth/risk-assessment', { answers })
 }
+
+/** 获取风险评估问卷 */
+export function getRiskQuestions() {
+  return api.get('/auth/risk-assessment/questions')
+}
+
+/** 获取历史评估记录 */
+export function fetchRiskHistory(params) {
+  return api.get('/auth/risk-assessment/history', params)
+}

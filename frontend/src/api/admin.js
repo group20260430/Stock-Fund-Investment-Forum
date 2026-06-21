@@ -69,3 +69,33 @@ export function fetchMessages(params) {
 export function sendMessage(data) {
   return api.post('/messages', data)
 }
+
+/** 认证审核列表 */
+export function fetchCertifications(params) {
+  return api.get('/admin/certifications', params)
+}
+
+/** 审核认证 */
+export function reviewCertification(id, action, reason) {
+  return api.post(`/admin/certifications/${id}/review`, { action, reason })
+}
+
+/** 敏感词列表 */
+export function fetchSensitiveWords(params) {
+  return api.get('/admin/sensitive-words', params)
+}
+
+/** 添加敏感词 */
+export function addSensitiveWord(word, level) {
+  return api.post('/admin/sensitive-words', { word, level })
+}
+
+/** 删除敏感词 */
+export function deleteSensitiveWord(id) {
+  return api.delete(`/admin/sensitive-words/${id}`)
+}
+
+/** 操作日志 */
+export function fetchActivityLogs(params) {
+  return api.get('/admin/activity-logs', params)
+}

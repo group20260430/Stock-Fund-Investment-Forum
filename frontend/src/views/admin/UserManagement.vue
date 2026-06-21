@@ -4,7 +4,10 @@ import AppLayout from '../../components/layout/AppLayout.vue'
 import UserCard from '../../components/user/UserCard.vue'
 import Loading from '../../components/common/Loading.vue'
 import Pagination from '../../components/common/Pagination.vue'
+import { useToastStore } from '../../stores/toast'
 import { fetchUsers, banUser } from '../../api/admin'
+
+const toast = useToastStore()
 
 const users = ref([])
 const loading = ref(true)
@@ -31,9 +34,10 @@ async function loadUsers(page = 1) {
 async function handleBan(userId) {
   try {
     await banUser(userId, 'ban', '违规操作', 72)
+    toast.success('用户已封禁')
     await loadUsers(pagination.page)
   } catch (err) {
-    console.error('封禁失败:', err.message)
+    toast.error(err.message || '封禁失败')
   }
 }
 
