@@ -155,7 +155,7 @@ function isSelected(optionId) {
         <!-- 结果模式：进度条 -->
         <div v-if="showResults" class="poll-option__bar-wrapper">
           <div class="poll-option__info">
-            <span class="poll-option__text">{{ option.text }}</span>
+            <span class="poll-option__text">{{ option.text || option.label }}</span>
             <span class="poll-option__percent">{{ getPercentage(option.vote_count) }}%</span>
           </div>
           <div class="poll-option__track">
@@ -172,7 +172,7 @@ function isSelected(optionId) {
           <span :class="['poll-option__radio', { 'poll-option__radio--checked': isSelected(option.id) }]">
             <span v-if="isSelected(option.id)" class="poll-option__dot" />
           </span>
-          <span class="poll-option__text">{{ option.text }}</span>
+          <span class="poll-option__text">{{ option.text || option.label }}</span>
         </div>
       </div>
     </div>

@@ -17,8 +17,7 @@ from app.models.community import (
 )
 from app.models.content import Category, Post, PostStatus, PostType
 from app.models.user import User, UserStatus
-from app.schemas.community import GroupCreate, MemberReview, MessageCreate
-from app.schemas.content import PostCreate
+from app.schemas.community import GroupCreate, GroupPostCreate, MemberReview, MessageCreate
 from app.schemas.user import ApiResponse
 
 router = APIRouter(tags=["community"])
@@ -179,7 +178,7 @@ def approve_group_member_compat(
 @router.post("/groups/{group_id}/posts", status_code=201)
 def create_group_post(
     group_id: int,
-    data: PostCreate,
+    data: GroupPostCreate,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -187,19 +186,21 @@ def create_group_post(
     member = _membership(db, group_id, user.id)
     if member is None or member.status != MemberStatus.APPROVED:
         raise HTTPException(status_code=403, detail="只有群组成员可以发帖")
-    category = db.query(Category).filter(Category.id == data.category_id, Category.is_active.is_(True)).first()
+    # 群组帖自动分配到默认板块（第一个活跃板块），若不存在则创建
+    category = db.query(Category).filter(Category.is_active.is_(True)).order_by(Category.sort_order).first()
     if category is None:
-        raise HTTPException(status_code=404, detail="板块不存在")
+        category = Category(name="群组讨论", description="群组帖子默认板块", sort_order=999)
+        db.add(category)
+        db.flush()
     post = Post(
         user_id=user.id,
-        category_id=data.category_id,
+        category_id=category.id,
         title=data.title,
         content=data.content,
-        post_type=PostType(data.post_type),
-        status=PostStatus(data.status),
+        post_type=PostType.NORMAL,
+        status=PostStatus.PUBLISHED,
         tags=data.tags,
     )
-    _replace_children(post, data)
     db.add(post)
     db.flush()
     db.add(GroupPost(group_id=group_id, post_id=post.id))

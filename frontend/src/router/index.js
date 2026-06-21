@@ -16,16 +16,22 @@ const routes = [
   // ===== 需登录 =====
   { path: "/posts/new", name: "create-post", component: () => import("../views/CreatePost.vue"), meta: { requiresAuth: true } },
   { path: "/posts/:id/edit", name: "edit-post", component: () => import("../views/CreatePost.vue"), meta: { requiresAuth: true } },
+  { path: "/groups/new", name: "create-group", component: () => import("../views/CreateGroup.vue"), meta: { requiresAuth: true } },
   { path: "/groups/:id", name: "group-detail", component: () => import("../views/GroupDetail.vue"), meta: { requiresAuth: true } },
   { path: "/messages", name: "messages", component: () => import("../views/Messages.vue"), meta: { requiresAuth: true } },
   { path: "/messages/:userId", name: "messages-conversation", component: () => import("../views/Messages.vue"), meta: { requiresAuth: true } },
   { path: "/me/settings", name: "settings", component: () => import("../views/Settings.vue"), meta: { requiresAuth: true } },
+  { path: "/me/settings/certification", name: "settings-certification", component: () => import("../views/SettingsCertification.vue"), meta: { requiresAuth: true } },
+  { path: "/me/settings/assessment", name: "settings-assessment", component: () => import("../views/SettingsAssessment.vue"), meta: { requiresAuth: true } },
   { path: "/me/collections", name: "collections", component: () => import("../views/Collections.vue"), meta: { requiresAuth: true } },
 
   // ===== 管理后台 =====
   { path: "/admin", name: "admin-dashboard", component: () => import("../views/admin/Dashboard.vue"), meta: { requiresAuth: true, requiresAdmin: true } },
   { path: "/admin/review", name: "admin-review", component: () => import("../views/admin/ReviewQueue.vue"), meta: { requiresAuth: true, requiresAdmin: true } },
   { path: "/admin/users", name: "admin-users", component: () => import("../views/admin/UserManagement.vue"), meta: { requiresAuth: true, requiresAdmin: true } },
+  { path: "/admin/certifications", name: "admin-certifications", component: () => import("../views/admin/Certifications.vue"), meta: { requiresAuth: true, requiresAdmin: true } },
+  { path: "/admin/sensitive-words", name: "admin-sensitive-words", component: () => import("../views/admin/SensitiveWords.vue"), meta: { requiresAuth: true, requiresAdmin: true } },
+  { path: "/admin/logs", name: "admin-logs", component: () => import("../views/admin/ActivityLogs.vue"), meta: { requiresAuth: true, requiresAdmin: true } },
 
   // ===== 404 =====
   { path: "/:pathMatch(.*)*", name: "not-found", component: () => import("../views/NotFound.vue") },

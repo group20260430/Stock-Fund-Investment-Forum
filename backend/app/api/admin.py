@@ -231,6 +231,29 @@ def stats_overview(admin: User = Depends(get_current_admin), db: Session = Depen
         active_ids.update(
             row[0] for row in db.query(user_column).filter(func.date(time_column) == date.today().isoformat()).distinct().all()
         )
+    # 近7天趋势数据
+    dates, active_users, new_posts, new_comments = [], [], [], []
+    for offset in range(6, -1, -1):
+        current = date.today() - timedelta(days=offset)
+        key = current.isoformat()
+        active = set(
+            row[0] for row in db.query(Post.user_id).filter(func.date(Post.created_at) == key).distinct().all()
+        ) | set(
+            row[0] for row in db.query(Comment.user_id).filter(func.date(Comment.created_at) == key).distinct().all()
+        )
+        dates.append(key)
+        active_users.append(len(active))
+        new_posts.append(db.query(Post).filter(func.date(Post.created_at) == key).count())
+        new_comments.append(db.query(Comment).filter(func.date(Comment.created_at) == key).count())
+    # 热门话题
+    tag_counts: dict[str, int] = {}
+    for tags, in db.query(Post.tags).all():
+        for tag in tags or []:
+            tag_counts[tag] = tag_counts.get(tag, 0) + 1
+    hot_topics = [
+        {"name": tag, "count": count}
+        for tag, count in sorted(tag_counts.items(), key=lambda item: item[1], reverse=True)[:10]
+    ]
     return ApiResponse(code=200, message="success", data={
         "daily_active_users": len(active_ids),
         "new_users_today": _today_count(db, User, User.created_at),
@@ -239,6 +262,9 @@ def stats_overview(admin: User = Depends(get_current_admin), db: Session = Depen
         "pending_review": db.query(Post).filter(Post.status == PostStatus.REVIEWING).count()
         + db.query(Comment).filter(Comment.status == CommentStatus.REVIEWING).count(),
         "reports_today": _today_count(db, Report, Report.created_at),
+        "trend": {"dates": dates, "active_users": active_users, "new_posts": new_posts, "new_comments": new_comments},
+        "hot_topics": hot_topics,
+        "hot_stocks": [],
     })
 
 

@@ -18,11 +18,11 @@ from app.models.content import (
     VoteOption,
     VoteRecord,
 )
+from app.models.operations import ActivityType
+from app.services.activity_service import record_activity
 from app.models.user import User, UserRole
 from app.schemas.content import PostCreate, PostUpdate, VoteRequest
 from app.schemas.user import ApiResponse
-from app.models.operations import ActivityType
-from app.services.activity_service import record_activity
 
 router = APIRouter(tags=["posts"])
 
@@ -75,6 +75,30 @@ def _post_payload(
         "updated_at": post.updated_at,
     }
     if detail:
+        # 构造投票数据
+        poll_data = None
+        if post.post_type == PostType.POLL:
+            user_voted_option_ids = []
+            user_voted = False
+            if user is not None and db is not None:
+                records = db.query(VoteRecord).filter(
+                    VoteRecord.user_id == user.id, VoteRecord.post_id == post.id
+                ).all()
+                user_voted_option_ids = [r.option_id for r in records]
+                user_voted = len(records) > 0
+            total_votes = sum(opt.vote_count for opt in post.vote_options)
+            poll_data = {
+                "question": post.title,
+                "options": [
+                    {"id": item.id, "text": item.label, "vote_count": item.vote_count}
+                    for item in post.vote_options
+                ],
+                "total_votes": total_votes,
+                "vote_type": "single",
+                "user_voted_option_ids": user_voted_option_ids,
+                "user_voted": user_voted,
+                "is_expired": False,
+            }
         data.update(
             content=post.content,
             attachments=[
@@ -87,6 +111,7 @@ def _post_payload(
                 }
                 for item in post.attachments
             ],
+            poll=poll_data,
             vote_options=[
                 {"id": item.id, "label": item.label, "vote_count": item.vote_count}
                 for item in post.vote_options

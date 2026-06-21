@@ -3,6 +3,12 @@ from typing import Literal
 from pydantic import BaseModel, Field, model_validator
 
 
+class GroupPostCreate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=120)
+    content: str = Field(..., min_length=1)
+    tags: list[str] = Field(default_factory=list, max_length=10)
+
+
 class GroupCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=50)
     description: str | None = Field(None, max_length=500)

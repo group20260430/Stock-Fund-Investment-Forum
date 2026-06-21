@@ -8,8 +8,7 @@ import EmptyState from "../components/common/EmptyState.vue"
 import Pagination from "../components/common/Pagination.vue"
 import { usePostsStore } from "../stores/posts"
 import { useToastStore } from "../stores/toast"
-import { fetchGroups, joinGroup, createGroupPost } from "../api/groups"
-import { fetchPosts } from "../api/posts"
+import { fetchGroups, joinGroup, createGroupPost, fetchGroupPosts } from "../api/groups"
 
 const route = useRoute()
 const postsStore = usePostsStore()
@@ -47,7 +46,7 @@ onMounted(async () => {
 async function loadPosts(p = 1) {
   postsLoading.value = true
   try {
-    const data = await fetchPosts({ group_id: route.params.id, page: p, size: 20 })
+    const data = await fetchGroupPosts(route.params.id, { page: p, size: 20 })
     posts.value = data.items || []
     postsTotal.value = data.total || 0
     postsPage.value = p

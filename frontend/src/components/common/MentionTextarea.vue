@@ -53,7 +53,7 @@ async function fetchSuggestions(keyword) {
   debounceTimer = setTimeout(async () => {
     try {
       const data = await searchSuggestions(keyword, "user")
-      suggestions.value = (data?.items || data || []).slice(0, 8)
+      suggestions.value = (data?.users || []).slice(0, 8)
       selectedIndex.value = 0
       showDropdown.value = suggestions.value.length > 0
     } catch { suggestions.value = []; showDropdown.value = false }
