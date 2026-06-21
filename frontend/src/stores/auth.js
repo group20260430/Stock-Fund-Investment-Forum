@@ -23,7 +23,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (credentials.login_type === 'code' || credentials.code) {
       result = await loginCodeApi(credentials.phone, credentials.code)
     } else {
-      result = await loginWithPassword(credentials.phone, credentials.password)
+      result = await loginApi(credentials.phone, credentials.password)
     }
     return commitLogin(result)
   }

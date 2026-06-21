@@ -1,16 +1,118 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
+import { useToastStore } from '../../stores/toast'
+import { createPost, updatePost, fetchCategories } from '../../api/posts'
 import AppIcon from '../common/AppIcon.vue'
 
 const props = defineProps({
-  post: { type: Object, required: true },
+  post: { type: Object, default: null },
 })
 
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'saved'])
+const toast = useToastStore()
+
 const isPreview = ref(false)
+const submitting = ref(false)
+const categories = ref([])
+const tagInput = ref('')
+
+const form = reactive({
+  category_id: '',
+  title: '',
+  content: '',
+  post_type: 'normal',
+  tags: [],
+  vote_options: [],
+})
+
+const voteOptionInputs = ref(['', ''])
+
+onMounted(async () => {
+  try {
+    categories.value = await fetchCategories()
+    if (categories.value.length) form.category_id = categories.value[0].id
+  } catch { /* ignore */ }
+  // 编辑模式：回填数据
+  if (props.post) {
+    form.category_id = props.post.category_id || props.post.category?.id || ''
+    form.title = props.post.title || ''
+    form.content = props.post.content || ''
+    form.post_type = props.post.post_type || 'normal'
+    form.tags = props.post.tags || []
+    if (props.post.poll?.options) {
+      voteOptionInputs.value = props.post.poll.options.map(o => o.text || o.label || '')
+      form.vote_options = props.post.poll.options.map(o => ({ label: o.text || o.label || '' }))
+    } else if (props.post.vote_options) {
+      voteOptionInputs.value = props.post.vote_options.map(o => o.label || '')
+      form.vote_options = props.post.vote_options.map(o => ({ label: o.label }))
+    }
+  }
+})
 
 function togglePreview() {
   isPreview.value = !isPreview.value
+}
+
+function selectType(type) {
+  form.post_type = type
+}
+
+function addTag(e) {
+  const val = e.target.value.trim()
+  if (val && !form.tags.includes(val)) {
+    form.tags.push(val)
+  }
+  tagInput.value = ''
+}
+
+function removeTag(idx) {
+  form.tags.splice(idx, 1)
+}
+
+function addVoteOption() {
+  voteOptionInputs.value.push('')
+}
+
+function removeVoteOption(idx) {
+  if (voteOptionInputs.value.length <= 2) return
+  voteOptionInputs.value.splice(idx, 1)
+}
+
+async function handleSubmit() {
+  if (!form.title.trim()) { toast.warning('请输入标题'); return }
+  if (!form.content.trim()) { toast.warning('请输入内容'); return }
+  if (!form.category_id) { toast.warning('请选择板块'); return }
+
+  const data = {
+    category_id: Number(form.category_id),
+    title: form.title.trim(),
+    content: form.content.trim(),
+    post_type: form.post_type,
+    tags: form.tags,
+  }
+
+  if (form.post_type === 'poll') {
+    const options = voteOptionInputs.value.filter(v => v.trim()).map(v => ({ label: v.trim() }))
+    if (options.length < 2) { toast.warning('投票帖至少需要2个选项'); return }
+    data.vote_options = options
+  }
+
+  submitting.value = true
+  try {
+    if (props.post?.id) {
+      await updatePost(props.post.id, data)
+      toast.success('帖子已更新')
+    } else {
+      await createPost(data)
+      toast.success('发布成功')
+    }
+    emit('saved')
+    emit('close')
+  } catch (err) {
+    toast.error(err.message || '发布失败')
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 
@@ -26,12 +128,8 @@ function togglePreview() {
         <!-- 板块选择 -->
         <div class="editor__field">
           <label>选择板块</label>
-          <select class="editor__select">
-            <option>综合讨论</option>
-            <option>股票市场</option>
-            <option>基金投资</option>
-            <option>问答求助</option>
-            <option>投资策略</option>
+          <select v-model="form.category_id" class="editor__select">
+            <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
         </div>
 
@@ -39,16 +137,16 @@ function togglePreview() {
         <div class="editor__field">
           <label>帖子类型</label>
           <div class="editor__type-tabs">
-            <button class="type-tab type-tab--active">普通帖</button>
-            <button class="type-tab">长文</button>
-            <button class="type-tab">投票</button>
-            <button class="type-tab">实时讨论</button>
+            <button :class="['type-tab', { 'type-tab--active': form.post_type === 'normal' }]" @click="selectType('normal')">普通帖</button>
+            <button :class="['type-tab', { 'type-tab--active': form.post_type === 'long_article' }]" @click="selectType('long_article')">长文</button>
+            <button :class="['type-tab', { 'type-tab--active': form.post_type === 'poll' }]" @click="selectType('poll')">投票</button>
           </div>
         </div>
 
         <!-- 标题 -->
         <div class="editor__field">
           <input
+            v-model="form.title"
             class="editor__input"
             type="text"
             placeholder="请输入帖子标题 (1-120字)"
@@ -71,19 +169,37 @@ function togglePreview() {
             <button title="附件"><AppIcon name="attachment" :size="16" /></button>
           </div>
           <textarea
+            v-model="form.content"
             class="editor__textarea"
             placeholder="在这里输入正文内容..."
             rows="12"
           />
         </div>
 
+        <!-- 投票选项 -->
+        <div v-if="form.post_type === 'poll'" class="editor__field">
+          <label>投票选项（至少2项）</label>
+          <div v-for="(opt, idx) in voteOptionInputs" :key="idx" class="editor__vote-option">
+            <input v-model="voteOptionInputs[idx]" class="editor__input" :placeholder="'选项 ' + (idx + 1)" maxlength="200" />
+            <button v-if="voteOptionInputs.length > 2" class="editor__vote-remove" @click="removeVoteOption(idx)">&times;</button>
+          </div>
+          <button class="editor__add-vote" @click="addVoteOption">+ 添加选项</button>
+        </div>
+
         <!-- 标签 -->
         <div class="editor__field">
           <label>标签</label>
+          <div class="editor__tags">
+            <span v-for="(tag, idx) in form.tags" :key="idx" class="editor__tag">
+              {{ tag }} <button class="editor__tag-remove" @click="removeTag(idx)">&times;</button>
+            </span>
+          </div>
           <input
+            v-model="tagInput"
             class="editor__input"
             type="text"
             placeholder="输入标签，回车添加"
+            @keyup.enter="addTag"
           >
         </div>
 
@@ -91,16 +207,18 @@ function togglePreview() {
         <div class="editor__field">
           <label>附件</label>
           <div class="editor__attachments">
-            <button class="editor__attach-btn"><AppIcon name="attachment" :size="14" /> 添加附件 (PDF/Excel, 最大10MB)</button>
+            <span class="editor__attach-hint">附件功能：目前支持填写文件 URL</span>
           </div>
         </div>
       </div>
 
       <footer class="editor__footer">
-        <button class="editor__btn editor__btn--secondary">存草稿</button>
+        <button class="editor__btn editor__btn--secondary" @click="emit('close')">取消</button>
         <div class="editor__footer-right">
           <button class="editor__btn editor__btn--secondary" @click="togglePreview">预览</button>
-          <button class="editor__btn editor__btn--primary">发布</button>
+          <button class="editor__btn editor__btn--primary" :disabled="submitting" @click="handleSubmit">
+            {{ submitting ? '发布中...' : (props.post?.id ? '保存修改' : '发布') }}
+          </button>
         </div>
       </footer>
 
@@ -361,4 +479,13 @@ function togglePreview() {
   color: var(--color-text-muted);
   margin-bottom: 20px;
 }
+
+.editor__vote-option { display: flex; gap: 8px; align-items: center; }
+.editor__vote-remove { background: none; border: 0; color: var(--color-danger); cursor: pointer; font-size: 20px; padding: 4px; }
+.editor__add-vote { background: none; border: 1px dashed var(--color-border-input); border-radius: 6px; color: var(--color-primary); cursor: pointer; font: inherit; font-size: 13px; padding: 8px; width: 100%; }
+.editor__add-vote:hover { background: var(--color-primary-light); }
+.editor__tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.editor__tag { background: var(--color-primary-light); border-radius: 4px; color: var(--color-primary); font-size: 12px; padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; }
+.editor__tag-remove { background: none; border: 0; color: var(--color-primary); cursor: pointer; font-size: 14px; padding: 0; line-height: 1; }
+.editor__attach-hint { color: var(--color-text-muted); font-size: 13px; }
 </style>

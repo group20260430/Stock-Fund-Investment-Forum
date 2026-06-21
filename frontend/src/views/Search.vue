@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { ref, onMounted, watch } from "vue"
+import { ref, computed, onMounted, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import AppLayout from "../components/layout/AppLayout.vue"
 import PostCard from "../components/post/PostCard.vue"

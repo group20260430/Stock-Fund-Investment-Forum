@@ -7,9 +7,11 @@ import Loading from '../components/common/Loading.vue'
 import EmptyState from '../components/common/EmptyState.vue'
 import Pagination from '../components/common/Pagination.vue'
 import { usePostsStore } from '../stores/posts'
+import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
 const postsStore = usePostsStore()
+const auth = useAuthStore()
 
 onMounted(() => {
   postsStore.pagination.page = 1
@@ -17,6 +19,7 @@ onMounted(() => {
 })
 
 async function handleLike(postId) {
+  if (!auth.isLoggedIn) return
   await postsStore.togglePostLike(postId)
 }
 

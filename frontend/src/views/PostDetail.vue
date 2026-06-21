@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { ref, onMounted } from "vue"
+import { ref, computed, onMounted } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { useAuthStore } from "../stores/auth"
 import { usePostsStore } from "../stores/posts"
@@ -166,7 +166,7 @@ function handleCommentsPageChange(page) {
   document.querySelector(".comments-section")?.scrollIntoView({ behavior: "smooth" })
 }
 
-const post = postsStore.currentPost
+const post = computed(() => postsStore.currentPost)
 </script>
 
 <template>
