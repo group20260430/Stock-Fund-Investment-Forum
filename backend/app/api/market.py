@@ -96,12 +96,12 @@ async def get_indices(
                 "change": round(change_val, 2),
                 "change_pct": round(change_pct, 2),
                 "up": change_pct >= 0,
-                "high": item.get("f15"),
-                "low": item.get("f16"),
-                "open": item.get("f17"),
-                "prev_close": prev_close,
+                "high": round(item.get("f15") or 0, 2),
+                "low": round(item.get("f16") or 0, 2),
+                "open": round(item.get("f17") or 0, 2),
+                "prev_close": round(prev_close, 2),
                 "volume": item.get("f5"),
-                "amount": item.get("f6"),
+                "amount": item.get("f6") or None,
             }
         )
 
