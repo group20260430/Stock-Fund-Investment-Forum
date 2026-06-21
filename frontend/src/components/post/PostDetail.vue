@@ -1,22 +1,23 @@
-<script setup>
-import { timeAgo } from '../../utils/format'
-import AppIcon from '../common/AppIcon.vue'
+﻿<script setup>
+import { timeAgo } from "../../utils/format"
+import AppIcon from "../common/AppIcon.vue"
+import PollWidget from "./PollWidget.vue"
 
-
-defineProps({
+const props = defineProps({
   post: { type: Object, required: true },
 })
+
+const emit = defineEmits(["voted"])
 </script>
 
 <template>
-  <!-- 帖子正文 -->
   <article class="post-detail">
-    <!-- 标题区 -->
     <header class="post-detail__header">
       <div class="post-detail__badges">
         <span v-if="post.category" class="post-detail__category">
-          {{ typeof post.category === 'object' ? post.category.name : post.category }}
+          {{ typeof post.category === "object" ? post.category.name : post.category }}
         </span>
+        <span v-if="post.post_type === 'poll'" class="post-detail__badge post-detail__badge--poll">投票</span>
         <span v-if="post.is_elite" class="post-detail__badge post-detail__badge--elite">精华</span>
       </div>
       <h1 class="post-detail__title">{{ post.title }}</h1>
@@ -29,30 +30,28 @@ defineProps({
         >
         <div>
           <strong class="post-detail__author">
-            {{ typeof post.author === 'object' ? post.author.nickname : post.author }}
+            {{ typeof post.author === "object" ? post.author.nickname : post.author }}
           </strong>
-          <span
-            v-if="post.author && post.author.auth_level === 'professional'"
-            class="auth-badge auth-badge--pro"
-            title="专业认证"
-          >V</span>
-          <span
-            v-else-if="post.author && post.author.auth_level === 'verified'"
-            class="auth-badge auth-badge--verified"
-            title="实名认证"
-          >V</span>
+          <span v-if="post.author && post.author.auth_level === 'professional'" class="auth-badge auth-badge--pro" title="专业认证">V</span>
+          <span v-else-if="post.author && post.author.auth_level === 'verified'" class="auth-badge auth-badge--verified" title="实名认证">V</span>
         </div>
-        <span class="post-detail__dot">·</span>
+        <span class="post-detail__dot">.</span>
         <span class="post-detail__time">{{ timeAgo(post.created_at) }}</span>
-        <span class="post-detail__dot">·</span>
+        <span class="post-detail__dot">.</span>
         <span class="post-detail__views">{{ post.view_count || 0 }} 次阅读</span>
       </div>
     </header>
 
-    <!-- 正文内容 -->
+    <!-- 投票组件 -->
+    <PollWidget
+      v-if="post.post_type === 'poll' && post.poll"
+      :post-id="post.id"
+      :poll="post.poll"
+      @voted="emit('voted', $event)"
+    />
+
     <div class="post-detail__content" v-html="post.content" />
 
-    <!-- 附件区 -->
     <div v-if="post.attachments && post.attachments.length" class="post-detail__attachments">
       <h4>附件</h4>
       <div v-for="att in post.attachments" :key="att.file_name" class="attachment-item">
@@ -63,12 +62,10 @@ defineProps({
       </div>
     </div>
 
-    <!-- 标签 -->
     <div v-if="post.tags && post.tags.length" class="post-detail__tags">
       <span v-for="tag in post.tags" :key="tag" class="post-detail__tag">{{ tag }}</span>
     </div>
 
-    <!-- 互动统计 -->
     <div class="post-detail__stats">
       <span>👍 {{ post.like_count || 0 }}</span>
       <span>💬 {{ post.comment_count || 0 }}</span>
@@ -87,9 +84,7 @@ defineProps({
   padding: 32px;
 }
 
-.post-detail__header {
-  margin-bottom: 24px;
-}
+.post-detail__header { margin-bottom: 24px; }
 
 .post-detail__badges {
   display: flex;
@@ -110,6 +105,15 @@ defineProps({
   background: var(--color-warning-light);
   border-radius: 4px;
   color: var(--color-warning);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 3px 10px;
+}
+
+.post-detail__badge--poll {
+  background: var(--color-info);
+  border-radius: 4px;
+  color: #fff;
   font-size: 13px;
   font-weight: 600;
   padding: 3px 10px;
@@ -138,9 +142,7 @@ defineProps({
   width: 32px;
 }
 
-.post-detail__author {
-  color: var(--color-text-body);
-}
+.post-detail__author { color: var(--color-text-body); }
 
 .auth-badge {
   border-radius: 50%;
@@ -154,19 +156,9 @@ defineProps({
   vertical-align: middle;
 }
 
-.auth-badge--pro {
-  background: var(--color-info);
-  color: var(--color-bg-card);
-}
-
-.auth-badge--verified {
-  background: var(--color-warning);
-  color: var(--color-bg-card);
-}
-
-.post-detail__dot {
-  color: var(--color-border-input);
-}
+.auth-badge--pro { background: var(--color-info); color: var(--color-bg-card); }
+.auth-badge--verified { background: var(--color-warning); color: var(--color-bg-card); }
+.post-detail__dot { color: var(--color-border-input); }
 
 .post-detail__content {
   color: var(--color-text-body);
@@ -183,11 +175,7 @@ defineProps({
   padding: 16px;
 }
 
-.post-detail__attachments h4 {
-  color: var(--color-text-body);
-  font-size: 14px;
-  margin: 0 0 12px;
-}
+.post-detail__attachments h4 { color: var(--color-text-body); font-size: 14px; margin: 0 0 12px; }
 
 .attachment-item {
   align-items: center;
@@ -197,34 +185,13 @@ defineProps({
   padding: 6px 0;
 }
 
-.attachment-item__icon {
-  font-size: 18px;
-}
+.attachment-item__icon { font-size: 18px; }
+.attachment-item__name { color: var(--color-text-body); flex: 1; }
+.attachment-item__size { color: var(--color-text-muted); }
+.attachment-item__download { color: var(--color-primary); text-decoration: none; }
+.attachment-item__download:hover { text-decoration: underline; }
 
-.attachment-item__name {
-  color: var(--color-text-body);
-  flex: 1;
-}
-
-.attachment-item__size {
-  color: var(--color-text-muted);
-}
-
-.attachment-item__download {
-  color: var(--color-primary);
-  text-decoration: none;
-}
-
-.attachment-item__download:hover {
-  text-decoration: underline;
-}
-
-.post-detail__tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 16px;
-}
+.post-detail__tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
 
 .post-detail__tag {
   background: var(--color-border-light);
@@ -244,12 +211,7 @@ defineProps({
 }
 
 @media (max-width: 780px) {
-  .post-detail {
-    padding: 20px;
-  }
-
-  .post-detail__title {
-    font-size: 22px;
-  }
+  .post-detail { padding: 20px; }
+  .post-detail__title { font-size: 22px; }
 }
 </style>
