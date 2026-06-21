@@ -20,6 +20,7 @@ from app.schemas.interactions import CollectRequest, CommentCreate, ShareRequest
 from app.schemas.user import ApiResponse
 from app.models.operations import ActivityType
 from app.services.activity_service import record_activity
+from app.services.sensitive_word_service import check_sensitive_texts
 
 router = APIRouter(tags=["interactions"])
 
@@ -105,12 +106,16 @@ def create_comment(
         reply_to = db.query(Comment).filter(Comment.id == data.reply_to_id, Comment.post_id == post_id).first()
         if reply_to is None:
             raise HTTPException(status_code=400, detail="被回复评论不存在")
+    sensitive_result = check_sensitive_texts(db, [data.content])
+    if sensitive_result.should_block:
+        raise HTTPException(status_code=400, detail="内容包含禁止发布的敏感词")
     comment = Comment(
         post_id=post_id,
         user_id=user.id,
         parent_id=parent.id if parent else None,
         reply_to_id=data.reply_to_id,
         content=data.content.strip(),
+        status=CommentStatus.REVIEWING if sensitive_result.should_review else CommentStatus.PUBLISHED,
     )
     db.add(comment)
     db.flush()

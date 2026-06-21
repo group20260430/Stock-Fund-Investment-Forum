@@ -20,6 +20,7 @@ from app.models.content import (
 )
 from app.models.operations import ActivityType
 from app.services.activity_service import record_activity
+from app.services.sensitive_word_service import check_sensitive_texts
 from app.models.user import User, UserRole
 from app.schemas.content import PostCreate, PostUpdate, VoteRequest
 from app.schemas.user import ApiResponse
@@ -210,13 +211,16 @@ def create_post(data: PostCreate, user: User = Depends(get_current_user), db: Se
     category = db.query(Category).filter(Category.id == data.category_id, Category.is_active.is_(True)).first()
     if category is None:
         raise HTTPException(status_code=404, detail="板块不存在")
+    sensitive_result = check_sensitive_texts(db, [data.title, data.content])
+    if sensitive_result.should_block:
+        raise HTTPException(status_code=400, detail="内容包含禁止发布的敏感词")
     post = Post(
         user_id=user.id,
         category_id=data.category_id,
         title=data.title,
         content=data.content,
         post_type=PostType(data.post_type),
-        status=PostStatus(data.status),
+        status=PostStatus.REVIEWING if sensitive_result.should_review else PostStatus(data.status),
         tags=data.tags,
         last_activity_at=datetime.now(timezone.utc),
     )
