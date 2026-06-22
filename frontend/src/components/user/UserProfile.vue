@@ -1,5 +1,7 @@
 <script setup>
-import { getUserRole } from '../../utils/auth'
+import { ref } from 'vue'
+import { useAuthStore } from '../../stores/auth'
+import { useToastStore } from '../../stores/toast'
 import AppIcon from '../common/AppIcon.vue'
 
 const props = defineProps({
@@ -7,7 +9,64 @@ const props = defineProps({
   isOwn: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['follow', 'message', 'edit'])
+const emit = defineEmits(['follow', 'message', 'edit', 'avatarUpdated'])
+const auth = useAuthStore()
+const toast = useToastStore()
+
+const uploadingAvatar = ref(false)
+const avatarInputRef = ref(null)
+
+function triggerAvatarUpload() {
+  avatarInputRef.value?.click()
+}
+
+async function handleAvatarSelected(e) {
+  const files = e.target.files
+  if (!files || !files.length) return
+  const file = files[0]
+
+  if (!file.type.startsWith('image/')) {
+    toast.warning('请选择图片文件')
+    e.target.value = ''
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    toast.warning('头像图片不能超过 5MB')
+    e.target.value = ''
+    return
+  }
+
+  uploadingAvatar.value = true
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const token = localStorage.getItem('token')
+    const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
+    const response = await fetch(`${API_BASE}/uploads`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error(err.message || `上传失败 (${response.status})`)
+    }
+
+    const result = await response.json()
+    const avatarUrl = result.data.file_url
+
+    await auth.updateProfile({ avatar_url: avatarUrl })
+    toast.success('头像已更新')
+    emit('avatarUpdated', avatarUrl)
+  } catch (err) {
+    toast.error(err.message || '头像上传失败')
+  } finally {
+    uploadingAvatar.value = false
+    e.target.value = ''
+  }
+}
 </script>
 
 <template>
@@ -19,12 +78,32 @@ const emit = defineEmits(['follow', 'message', 'edit'])
 
     <!-- 信息区 -->
     <div class="profile-header__info">
-      <img
-        :src="user.avatar_url || ''"
-        :alt="user.nickname"
-        class="profile-header__avatar"
-        @error="$event.target.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 80 80%22%3E%3Ccircle fill=%22%23d1d5db%22 cx=%2240%22 cy=%2240%22 r=%2240%22/%3E%3C/svg%3E'"
-      >
+      <div class="profile-header__avatar-wrap" :class="{ 'profile-header__avatar-wrap--uploading': uploadingAvatar }">
+        <img
+          :src="user.avatar_url || ''"
+          :alt="user.nickname"
+          class="profile-header__avatar"
+          @error="$event.target.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 80 80%22%3E%3Ccircle fill=%22%23d1d5db%22 cx=%2240%22 cy=%2240%22 r=%2240%22/%3E%3C/svg%3E'"
+        >
+        <!-- 自己的主页：可点击上传头像 -->
+        <button
+          v-if="isOwn"
+          class="profile-header__avatar-overlay"
+          :disabled="uploadingAvatar"
+          @click="triggerAvatarUpload"
+          :title="uploadingAvatar ? '上传中...' : '更换头像'"
+        >
+          <AppIcon name="image" :size="16" />
+        </button>
+        <input
+          v-if="isOwn"
+          ref="avatarInputRef"
+          type="file"
+          accept="image/*"
+          style="display: none"
+          @change="handleAvatarSelected"
+        >
+      </div>
       <div class="profile-header__details">
         <div class="profile-header__name-row">
           <h1>{{ user.nickname }}</h1>
@@ -111,11 +190,46 @@ const emit = defineEmits(['follow', 'message', 'edit'])
   border: 4px solid var(--color-bg-card);
   border-radius: 50%;
   box-shadow: 0 2px 8px var(--color-bg-overlay);
+  display: block;
+  height: 80px;
+  object-fit: cover;
+  width: 80px;
+}
+
+.profile-header__avatar-wrap {
   flex-shrink: 0;
   height: 80px;
   margin-top: -40px;
-  object-fit: cover;
+  position: relative;
   width: 80px;
+}
+
+.profile-header__avatar-wrap--uploading .profile-header__avatar {
+  opacity: 0.5;
+}
+
+.profile-header__avatar-overlay {
+  align-items: center;
+  background: rgba(0, 0, 0, 0.4);
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  inset: 4px;
+  justify-content: center;
+  opacity: 0;
+  position: absolute;
+  transition: opacity 0.2s;
+}
+
+.profile-header__avatar-wrap:hover .profile-header__avatar-overlay {
+  opacity: 1;
+}
+
+.profile-header__avatar-overlay:disabled {
+  cursor: not-allowed;
+  opacity: 1;
 }
 
 .profile-header__details {
@@ -241,8 +355,13 @@ const emit = defineEmits(['follow', 'message', 'edit'])
     text-align: center;
   }
 
-  .profile-header__avatar {
+  .profile-header__avatar-wrap {
     margin-top: -40px;
+    height: 64px;
+    width: 64px;
+  }
+
+  .profile-header__avatar {
     height: 64px;
     width: 64px;
   }

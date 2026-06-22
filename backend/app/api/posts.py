@@ -27,6 +27,21 @@ from app.schemas.user import ApiResponse
 
 router = APIRouter(tags=["posts"])
 
+import re
+
+def _extract_content_images(content: str, limit: int = 4) -> dict:
+    """从 Markdown/HTML 内容中提取前 limit 张图片的 URL 及总数"""
+    if not content:
+        return {"urls": [], "total": 0}
+    # 匹配 Markdown 图片语法 ![alt](url) 和 HTML <img src="url">
+    md_imgs = re.findall(r'!\[.*?\]\(([^)]+)\)', content)
+    html_imgs = re.findall(r'<img[^>]+src=["\']([^"\']+)["\']', content, re.IGNORECASE)
+    all_urls = md_imgs + html_imgs
+    return {
+        "urls": all_urls[:limit],
+        "total": len(all_urls),
+    }
+
 
 def _author_payload(user: User) -> dict:
     return {
@@ -59,6 +74,8 @@ def _post_payload(
         "id": post.id,
         "title": post.title,
         "content_summary": post.content[:200],
+        "content": post.content if detail else post.content,
+        "content_images": _extract_content_images(post.content) if not detail else [],
         "author": _author_payload(post.author),
         "category": {"id": post.category.id, "name": post.category.name},
         "post_type": post.post_type.value,

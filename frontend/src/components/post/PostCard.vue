@@ -1,5 +1,7 @@
 <script setup>
+import { computed } from 'vue'
 import { timeAgo, formatCount, truncate } from '../../utils/format'
+import { extractImages } from '../../utils/markdown'
 import AppIcon from '../common/AppIcon.vue'
 
 const props = defineProps({
@@ -10,6 +12,27 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['like', 'collect', 'share'])
+
+// 从帖子内容中提取前 4 张图片（优先用后端预提取的 content_images）
+const imageInfo = computed(() => {
+  // 后端已在列表接口中预提取 content_images，包含 urls 和 total
+  if (props.post.content_images) {
+    return props.post.content_images
+  }
+  // 兜底：前端自行提取（详情页等场景传了完整 content）
+  return extractImages(props.post.content || props.post.content_summary || '', 4)
+})
+
+const authorName = computed(() => {
+  return typeof props.post.author === 'object' ? props.post.author.nickname : props.post.author
+})
+
+const authorAvatar = computed(() => {
+  if (typeof props.post.author === 'object') {
+    return props.post.author.avatar_url || ''
+  }
+  return ''
+})
 
 function handleLike() {
   emit('like', props.post.id)
@@ -28,13 +51,27 @@ function handleShare() {
   <article class="post-card">
     <!-- 元信息行 -->
     <div class="post-card__meta">
+      <!-- 作者头像 -->
+      <img
+        v-if="authorAvatar"
+        :src="authorAvatar"
+        :alt="authorName"
+        class="post-card__author-avatar"
+        @error="$event.target.style.display = 'none'"
+      >
+      <span
+        v-else
+        class="post-card__author-avatar post-card__author-avatar--placeholder"
+        :title="authorName"
+      >
+        {{ authorName?.charAt(0) || '?' }}
+      </span>
+
       <span v-if="post.category" class="post-card__category">
         {{ typeof post.category === 'object' ? post.category.name : post.category }}
       </span>
       <span v-if="post.is_elite" class="post-card__badge post-card__badge--elite">精</span>
-      <span class="post-card__author">
-        {{ typeof post.author === 'object' ? post.author.nickname : post.author }}
-      </span>
+      <span class="post-card__author">{{ authorName }}</span>
       <span class="dot">·</span>
       <span class="post-card__time">{{ timeAgo(post.created_at) }}</span>
     </div>
@@ -48,6 +85,20 @@ function handleShare() {
     <p v-if="post.content_summary" class="post-card__summary">
       {{ truncate(post.content_summary, 120) }}
     </p>
+
+    <!-- 图片预览网格 -->
+    <div v-if="imageInfo.urls.length" class="post-card__images">
+      <div class="post-card__images-grid">
+        <div
+          v-for="(url, idx) in imageInfo.urls"
+          :key="idx"
+          class="post-card__image-cell"
+        >
+          <img :src="url" :alt="'图片 ' + (idx + 1)" loading="lazy" />
+        </div>
+      </div>
+      <span class="post-card__images-count">共 {{ imageInfo.total }} 张</span>
+    </div>
 
     <!-- 标签 -->
     <div v-if="post.tags && post.tags.length" class="post-card__tags">
@@ -104,6 +155,24 @@ function handleShare() {
   margin-bottom: 8px;
 }
 
+.post-card__author-avatar {
+  border-radius: 50%;
+  flex-shrink: 0;
+  height: 22px;
+  object-fit: cover;
+  width: 22px;
+}
+
+.post-card__author-avatar--placeholder {
+  align-items: center;
+  background: var(--color-border);
+  color: var(--color-text-muted);
+  display: inline-flex;
+  font-size: 10px;
+  font-weight: 700;
+  justify-content: center;
+}
+
 .post-card__category {
   background: var(--color-primary-light);
   border-radius: 4px;
@@ -149,6 +218,43 @@ function handleShare() {
   font-size: 14px;
   line-height: 1.7;
   margin: 0 0 10px;
+}
+
+/* 图片预览网格 */
+.post-card__images {
+  margin-bottom: 10px;
+  position: relative;
+}
+
+.post-card__images-grid {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.post-card__image-cell {
+  aspect-ratio: 1 / 1;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.post-card__image-cell img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.post-card__images-count {
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  position: absolute;
+  right: 4px;
+  top: 4px;
 }
 
 .post-card__tags {

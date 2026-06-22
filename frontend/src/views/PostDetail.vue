@@ -14,6 +14,7 @@ import MentionTextarea from "../components/common/MentionTextarea.vue"
 import Loading from "../components/common/Loading.vue"
 import ErrorState from "../components/common/ErrorState.vue"
 import Pagination from "../components/common/Pagination.vue"
+import AppIcon from "../components/common/AppIcon.vue"
 
 const route = useRoute()
 const router = useRouter()
@@ -105,12 +106,14 @@ async function handleCommentDelete(commentId) {
 
 async function handleLikePost() {
   if (!auth.isLoggedIn) return
-  await postsStore.togglePostLike(route.params.id)
+  const id = Number(route.params.id)
+  await postsStore.togglePostLike(id)
 }
 
 async function handleCollectPost() {
   if (!auth.isLoggedIn) return
-  await postsStore.togglePostCollect(route.params.id)
+  const id = Number(route.params.id)
+  await postsStore.togglePostCollect(id)
 }
 
 async function handleShare() {
@@ -180,11 +183,26 @@ const post = computed(() => postsStore.currentPost)
       <PostDetailComponent :post="post" />
 
       <div class="action-bar">
-        <button :class="['action-btn', { 'action-btn--active': post.is_liked }]" @click="handleLikePost">👍 {{ post.like_count || 0 }}</button>
-        <button :class="['action-btn', { 'action-btn--active': post.is_collected }]" @click="handleCollectPost">⭐ {{ post.collect_count || 0 }}</button>
-        <button class="action-btn" :disabled="sharing" @click="handleShare">↗ {{ post.share_count || 0 }}</button>
-        <button class="action-btn" @click="router.push('/posts/' + post.id + '#comments')">💬 {{ post.comment_count || 0 }}</button>
-        <button v-if="auth.isLoggedIn" class="action-btn action-btn--report" @click="showReportDialog = true">🚩 举报</button>
+        <button :class="['action-btn', { 'action-btn--active': post.is_liked }]" @click="handleLikePost">
+          <AppIcon name="like" :solid="post.is_liked" :size="18" />
+          <span>{{ post.like_count || 0 }}</span>
+        </button>
+        <button :class="['action-btn', { 'action-btn--active': post.is_collected }]" @click="handleCollectPost">
+          <AppIcon name="collect" :solid="post.is_collected" :size="18" />
+          <span>{{ post.collect_count || 0 }}</span>
+        </button>
+        <button class="action-btn" :disabled="sharing" @click="handleShare">
+          <AppIcon name="share" :size="18" />
+          <span>{{ post.share_count || 0 }}</span>
+        </button>
+        <button class="action-btn" @click="router.push('/posts/' + post.id + '#comments')">
+          <AppIcon name="comment" :size="18" />
+          <span>{{ post.comment_count || 0 }}</span>
+        </button>
+        <button v-if="auth.isLoggedIn" class="action-btn action-btn--report" @click="showReportDialog = true">
+          <AppIcon name="flag" :size="16" />
+          <span>举报</span>
+        </button>
       </div>
 
       <!-- 举报对话框 -->
@@ -259,8 +277,8 @@ const post = computed(() => postsStore.currentPost)
 .action-bar { background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 10px; display: flex; gap: 8px; margin-bottom: 32px; padding: 12px 20px; }
 .action-btn { align-items: center; background: none; border: 0; border-radius: 8px; color: var(--color-text-secondary); cursor: pointer; display: inline-flex; font: inherit; font-size: 15px; gap: 6px; padding: 8px 16px; transition: background 0.15s, color 0.15s; }
 .action-btn:hover { background: var(--color-border-light); color: var(--color-primary); }
-.action-btn--active { color: var(--color-primary); }
-.action-btn--report { margin-left: auto; color: var(--color-text-muted); font-size: 13px; }
+.action-btn--active { color: var(--color-primary); font-weight: 600; }
+.action-btn--report { margin-left: auto; color: var(--color-text-muted); font-size: 14px; }
 .action-btn--report:hover { color: var(--color-danger) !important; }
 
 .report-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; }

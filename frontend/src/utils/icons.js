@@ -62,4 +62,5 @@ export const iconMap = {
   arrowUp:    'heroicons-outline:arrow-trending-up',
   arrowDown:  'heroicons-outline:arrow-trending-down',
   external:   'heroicons-outline:arrow-top-right-on-square',
+  flag:       'heroicons-outline:flag',
 }

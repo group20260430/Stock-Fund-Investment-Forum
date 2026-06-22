@@ -21,21 +21,34 @@ const postsStore = usePostsStore()
 const activeTab = ref('posts') // posts | collections | achievements
 
 const isOwnProfile = computed(() => {
-  return auth.user && (route.params.id === 'me' || String(auth.user.id) === String(route.params.id))
+  if (!auth.user) return false
+  return route.params.id === 'me' || String(auth.user.id) === String(route.params.id)
 })
 
 onMounted(async () => {
-  const userId = route.params.id === 'me' && auth.user ? auth.user.id : route.params.id
+  let userId
+  if (route.params.id === 'me') {
+    if (auth.user) {
+      userId = auth.user.id
+    } else {
+      // 未登录时访问 "me" — 先跳转登录
+      return
+    }
+  } else {
+    userId = Number(route.params.id)
+    // 如果转换后是 NaN（如用户手动输入了非数字路径），也直接跳过
+    if (isNaN(userId)) return
+  }
   await userStore.loadUserProfile(userId)
   if (userStore.profile) {
-    await postsStore.loadPosts({ /* 可按用户筛选 */ })
+    await postsStore.loadPosts({ user_id: route.params.id })
   }
 })
 
 async function handleFollow(userId) {
   if (!auth.isLoggedIn) return
   try {
-    const result = await toggleFollow(userId)
+    const result = await toggleFollow(Number(userId))
     if (userStore.profile) {
       userStore.profile.is_followed = result.is_followed
       userStore.profile.followers_count = result.followers_count
@@ -55,6 +68,12 @@ function handlePageChange(page) {
   postsStore.loadPosts()
 }
 
+function handleAvatarUpdated(avatarUrl) {
+  if (userStore.profile) {
+    userStore.profile.avatar_url = avatarUrl
+  }
+}
+
 const user = computed(() => userStore.profile)
 </script>
 
@@ -72,6 +91,7 @@ const user = computed(() => userStore.profile)
         :is-own="isOwnProfile"
         @follow="handleFollow"
         @edit="$router.push('/me/settings')"
+        @avatar-updated="handleAvatarUpdated"
       />
 
       <!-- 标签页 -->

@@ -28,3 +28,28 @@ export function renderMarkdown(raw) {
   const html = marked.parse(raw)
   return DOMPurify.sanitize(html)
 }
+
+/**
+ * 从 Markdown / HTML 内容中提取前 N 张图片的 URL
+ * @param {string} content - 原始内容（Markdown 或 HTML）
+ * @param {number} [limit=4] - 最多提取几张
+ * @returns {{ urls: string[], total: number }} 图片 URL 数组和总数
+ */
+export function extractImages(content, limit = 4) {
+  if (!content) return { urls: [], total: 0 }
+
+  // 先渲染为 HTML，方便统一用 DOM 解析
+  const html = renderMarkdown(content)
+  if (!html) return { urls: [], total: 0 }
+
+  // 用 DOMParser 解析 HTML 并提取 img 标签
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(html, 'text/html')
+  const imgs = doc.querySelectorAll('img')
+  const allUrls = Array.from(imgs).map(img => img.getAttribute('src')).filter(Boolean)
+
+  return {
+    urls: allUrls.slice(0, limit),
+    total: allUrls.length,
+  }
+}

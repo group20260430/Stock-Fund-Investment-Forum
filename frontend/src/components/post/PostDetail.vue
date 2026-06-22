@@ -69,13 +69,6 @@ const renderedContent = computed(() => renderMarkdown(props.post.content || ''))
     <div v-if="post.tags && post.tags.length" class="post-detail__tags">
       <span v-for="tag in post.tags" :key="tag" class="post-detail__tag">{{ tag }}</span>
     </div>
-
-    <div class="post-detail__stats">
-      <span>👍 {{ post.like_count || 0 }}</span>
-      <span>💬 {{ post.comment_count || 0 }}</span>
-      <span>⭐ {{ post.collect_count || 0 }}</span>
-      <span>↗ {{ post.share_count || 0 }}</span>
-    </div>
   </article>
 </template>
 
@@ -274,15 +267,6 @@ const renderedContent = computed(() => renderMarkdown(props.post.content || ''))
   color: var(--color-text-secondary);
   font-size: 12px;
   padding: 3px 10px;
-}
-
-.post-detail__stats {
-  border-top: 1px solid var(--color-border);
-  color: var(--color-text-secondary);
-  display: flex;
-  font-size: 14px;
-  gap: 24px;
-  padding-top: 16px;
 }
 
 @media (max-width: 780px) {
