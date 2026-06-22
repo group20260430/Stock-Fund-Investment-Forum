@@ -17,6 +17,14 @@ class GroupCreate(BaseModel):
     need_approval: bool = False
 
 
+class GroupUpdate(BaseModel):
+    name: str | None = Field(None, min_length=2, max_length=50)
+    description: str | None = Field(None, max_length=500)
+    avatar_url: str | None = Field(None, max_length=500)
+    visibility: Literal["public", "private"] | None = None
+    need_approval: bool | None = None
+
+
 class MemberReview(BaseModel):
     user_id: int
     action: Literal["approve", "reject"]

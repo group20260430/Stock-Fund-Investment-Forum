@@ -845,6 +845,118 @@ components:
           type: integer
           description: 封禁时长（小时）
 
+    # ==================== 群组更新 ====================
+    UpdateGroupRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 50
+        description:
+          type: string
+          maxLength: 500
+        avatar_url:
+          type: string
+          maxLength: 500
+        visibility:
+          type: string
+          enum: [public, private]
+        need_approval:
+          type: boolean
+
+    # ==================== 群组帖子 ====================
+    CreateGroupPostRequest:
+      type: object
+      required: [title, content]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        content:
+          type: string
+          minLength: 1
+        tags:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+
+    # ==================== 通知系统 ====================
+    NotificationSender:
+      type: object
+      properties:
+        id:
+          type: integer
+        nickname:
+          type: string
+        avatar_url:
+          type: string
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [follow, group_invite, group_join_request, group_approved, group_rejected, new_message, system]
+        title:
+          type: string
+        content:
+          type: string
+        is_read:
+          type: boolean
+        target_type:
+          type: string
+        target_id:
+          type: integer
+        sender:
+          $ref: "#/components/schemas/NotificationSender"
+        created_at:
+          type: string
+          format: date-time
+
+    NotificationList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Notification"
+        total:
+          type: integer
+        page:
+          type: integer
+        size:
+          type: integer
+
+    MarkReadRequest:
+      type: object
+      properties:
+        notification_ids:
+          type: array
+          items:
+            type: integer
+
+    UnreadCountResponse:
+      type: object
+      properties:
+        unread_count:
+          type: integer
+
+    # ==================== 关注响应 ====================
+    FollowResponse:
+      type: object
+      properties:
+        is_followed:
+          type: boolean
+        followers_count:
+          type: integer
+        following_count:
+          type: integer
+
 paths:
   # ==================== 用户系统 ====================
   /api/auth/register:
@@ -1717,6 +1829,247 @@ paths:
       responses:
         "201":
           description: 发送成功
+
+  /api/messages/{id}:
+    delete:
+      tags:
+        - 社交系统
+      summary: 删除私信
+      operationId: deleteMessage
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: 消息已删除
+        "403":
+          description: 只能删除自己发送的消息
+        "404":
+          description: 消息不存在
+
+  # ==================== 群组扩展端点 ====================
+  /api/groups/{id}/posts:
+    get:
+      tags:
+        - 社交系统
+      summary: 获取群组帖子列表
+      operationId: listGroupPosts
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: 成功
+        "403":
+          description: 非群组成员不可查看
+    post:
+      tags:
+        - 社交系统
+      summary: 在群组内发帖
+      operationId: createGroupPost
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGroupPostRequest"
+      responses:
+        "201":
+          description: 群组帖子发布成功
+        "403":
+          description: 非群组成员不可发帖
+
+  /api/groups/{id}/leave:
+    post:
+      tags:
+        - 社交系统
+      summary: 退出群组
+      operationId: leaveGroup
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: 已退出群组
+        "400":
+          description: 群主不能直接退出
+
+  /api/groups/{id}/members/{user_id}:
+    delete:
+      tags:
+        - 社交系统
+      summary: 移出群组成员
+      operationId: removeGroupMember
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: 已移出成员
+        "400":
+          description: 不能移出群主
+        "403":
+          description: 需要群组管理权限
+
+  /api/groups/{id}:
+    put:
+      tags:
+        - 社交系统
+      summary: 编辑群组信息
+      operationId: updateGroup
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGroupRequest"
+      responses:
+        "200":
+          description: 群组信息已更新
+        "403":
+          description: 需要群组管理权限
+        "409":
+          description: 群组名称已存在
+    delete:
+      tags:
+        - 社交系统
+      summary: 解散群组
+      operationId: deleteGroup
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: 群组已解散
+        "403":
+          description: 只有群主可以解散
+
+  # ==================== 通知系统 ====================
+  /api/notifications:
+    get:
+      tags:
+        - 社交系统
+      summary: 获取通知列表
+      operationId: listNotifications
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [follow, group_invite, group_join_request, group_approved, group_rejected, new_message, system]
+        - name: unread_only
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationList"
+
+  /api/notifications/read:
+    put:
+      tags:
+        - 社交系统
+      summary: 标记通知为已读
+      operationId: markNotificationsRead
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarkReadRequest"
+      responses:
+        "200":
+          description: 已标记
+
+  /api/notifications/unread-count:
+    get:
+      tags:
+        - 社交系统
+      summary: 获取未读通知数量
+      operationId: unreadNotificationCount
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnreadCountResponse"
 
   # ==================== 信息整合系统 ====================
   /api/feed:

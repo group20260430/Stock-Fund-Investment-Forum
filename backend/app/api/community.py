@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, joinedload
 
+from app.api.notifications import create_notification
 from app.api.posts import _post_payload, _replace_children
 from app.core.dependencies import get_current_user, get_optional_current_user
 from app.db.session import get_db
@@ -16,8 +17,9 @@ from app.models.community import (
     MessageType,
 )
 from app.models.content import Category, Post, PostStatus, PostType
+from app.models.notification import NotificationType
 from app.models.user import User, UserStatus
-from app.schemas.community import GroupCreate, GroupPostCreate, MemberReview, MessageCreate
+from app.schemas.community import GroupCreate, GroupPostCreate, GroupUpdate, MemberReview, MessageCreate
 from app.schemas.user import ApiResponse
 
 router = APIRouter(tags=["community"])
@@ -136,8 +138,33 @@ def join_group(
         db.add(GroupMember(group_id=group_id, user_id=user.id, status=status))
     if status == MemberStatus.APPROVED:
         group.member_count += 1
+    elif status == MemberStatus.PENDING:
+        create_notification(
+            db, group.creator_id, NotificationType.GROUP_JOIN_REQUEST,
+            title="新的加群申请",
+            content=f"{user.nickname} 申请加入 {group.name}",
+            target_type="group", target_id=group.id, sender_id=user.id,
+        )
     db.commit()
     return ApiResponse(code=200, message="申请已提交" if status == MemberStatus.PENDING else "加入成功", data={"status": status.value})
+
+
+@router.post("/groups/{group_id}/leave")
+def leave_group(
+    group_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    group = _group_or_404(db, group_id)
+    member = _membership(db, group_id, user.id)
+    if member is None or member.status != MemberStatus.APPROVED:
+        raise HTTPException(status_code=400, detail="您不是该群组成员")
+    if member.role == GroupRole.OWNER:
+        raise HTTPException(status_code=400, detail="群主不能直接退出，请先转让群主或解散群组")
+    db.delete(member)
+    group.member_count = max(0, group.member_count - 1)
+    db.commit()
+    return ApiResponse(code=200, message="已退出群组", data={"status": "left"})
 
 
 def _review_member(group_id: int, target_user_id: int, action: str, reviewer: User, db: Session):
@@ -146,11 +173,26 @@ def _review_member(group_id: int, target_user_id: int, action: str, reviewer: Us
     if reviewer_member is None or reviewer_member.role not in (GroupRole.OWNER, GroupRole.ADMIN):
         raise HTTPException(status_code=403, detail="需要群组管理权限")
     member = _membership(db, group_id, target_user_id)
-    if member is None or member.status != MemberStatus.PENDING:
-        raise HTTPException(status_code=404, detail="待审核申请不存在")
+    if member is None:
+        raise HTTPException(status_code=404, detail="成员不存在")
+    if member.status != MemberStatus.PENDING:
+        raise HTTPException(status_code=400, detail="该申请已处理")
     member.status = MemberStatus.APPROVED if action == "approve" else MemberStatus.REJECTED
     if member.status == MemberStatus.APPROVED:
         group.member_count += 1
+        create_notification(
+            db, target_user_id, NotificationType.GROUP_APPROVED,
+            title="加群申请已通过",
+            content=f"你已成功加入 {group.name}",
+            target_type="group", target_id=group.id, sender_id=reviewer.id,
+        )
+    else:
+        create_notification(
+            db, target_user_id, NotificationType.GROUP_REJECTED,
+            title="加群申请被拒绝",
+            content=f"你申请加入 {group.name} 的请求已被拒绝",
+            target_type="group", target_id=group.id, sender_id=reviewer.id,
+        )
     db.commit()
     return ApiResponse(code=200, message="审核完成", data={"status": member.status.value})
 
@@ -173,6 +215,71 @@ def approve_group_member_compat(
     db: Session = Depends(get_db),
 ):
     return _review_member(group_id, user_id, "approve", reviewer, db)
+
+
+@router.delete("/groups/{group_id}/members/{user_id}")
+def remove_group_member(
+    group_id: int,
+    user_id: int,
+    reviewer: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    group = _group_or_404(db, group_id)
+    reviewer_member = _membership(db, group_id, reviewer.id)
+    if reviewer_member is None or reviewer_member.role not in (GroupRole.OWNER, GroupRole.ADMIN):
+        raise HTTPException(status_code=403, detail="需要群组管理权限")
+    target = _membership(db, group_id, user_id)
+    if target is None:
+        raise HTTPException(status_code=404, detail="该用户不在群组中")
+    if target.role == GroupRole.OWNER:
+        raise HTTPException(status_code=400, detail="不能移出群主")
+    db.delete(target)
+    group.member_count = max(0, group.member_count - 1)
+    db.commit()
+    return ApiResponse(code=200, message="已移出成员", data={"status": "removed"})
+
+
+@router.delete("/groups/{group_id}")
+def delete_group(
+    group_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    group = _group_or_404(db, group_id)
+    member = _membership(db, group_id, user.id)
+    if member is None or member.role != GroupRole.OWNER:
+        raise HTTPException(status_code=403, detail="只有群主可以解散群组")
+    db.delete(group)
+    db.commit()
+    return ApiResponse(code=200, message="群组已解散", data={"status": "deleted"})
+
+
+@router.put("/groups/{group_id}")
+def update_group(
+    group_id: int,
+    data: GroupUpdate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    group = _group_or_404(db, group_id)
+    member = _membership(db, group_id, user.id)
+    if member is None or member.role not in (GroupRole.OWNER, GroupRole.ADMIN):
+        raise HTTPException(status_code=403, detail="需要群组管理权限")
+    if data.name is not None:
+        existing = db.query(Group).filter(Group.name == data.name, Group.id != group_id).first()
+        if existing:
+            raise HTTPException(status_code=409, detail="群组名称已存在")
+        group.name = data.name
+    if data.description is not None:
+        group.description = data.description
+    if data.avatar_url is not None:
+        group.avatar_url = data.avatar_url
+    if data.visibility is not None:
+        group.visibility = GroupVisibility(data.visibility)
+    if data.need_approval is not None:
+        group.need_approval = data.need_approval
+    db.commit()
+    return ApiResponse(code=200, message="群组信息已更新", data=_group_payload(group, member))
 
 
 @router.post("/groups/{group_id}/posts", status_code=201)
@@ -266,6 +373,13 @@ def send_message(
         attachment_url=data.attachment_url,
     )
     db.add(message)
+    db.flush()
+    create_notification(
+        db, receiver.id, NotificationType.NEW_MESSAGE,
+        title="收到新私信",
+        content=f"{user.nickname}: {message.content[:50]}{'...' if len(message.content) > 50 else ''}",
+        target_type="message", target_id=message.id, sender_id=user.id,
+    )
     db.commit()
     db.refresh(message)
     return ApiResponse(code=201, message="发送成功", data={"id": message.id})
@@ -287,12 +401,23 @@ def list_messages(
             and_(Message.sender_id == user.id, Message.receiver_id == other_user_id),
             and_(Message.sender_id == other_user_id, Message.receiver_id == user.id),
         ))
-        base.filter(Message.receiver_id == user.id, Message.is_read.is_(False)).update(
-            {Message.is_read: True}, synchronize_session=False
-        )
-        db.commit()
     total = base.count()
     messages = base.order_by(Message.created_at.desc()).offset((page - 1) * size).limit(size).all()
+    # 仅标记当前页中属于当前用户的未读消息为已读
+    if other_user_id is not None:
+        unread_ids = [
+            m.id for m in messages
+            if m.receiver_id == user.id and m.is_read is False
+        ]
+        if unread_ids:
+            db.query(Message).filter(Message.id.in_(unread_ids)).update(
+                {Message.is_read: True}, synchronize_session=False
+            )
+            db.commit()
+            # 刷新当前页消息的 is_read 状态
+            for m in messages:
+                if m.id in unread_ids:
+                    m.is_read = True
     if other_user_id is None:
         latest: dict[int, Message] = {}
         for message in messages:
@@ -303,3 +428,19 @@ def list_messages(
         "items": [_message_payload(item, user.id) for item in messages],
         "total": total, "page": page, "size": size,
     })
+
+
+@router.delete("/messages/{message_id}")
+def delete_message(
+    message_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    message = db.query(Message).filter(Message.id == message_id).first()
+    if message is None:
+        raise HTTPException(status_code=404, detail="消息不存在")
+    if message.sender_id != user.id:
+        raise HTTPException(status_code=403, detail="只能删除自己发送的消息")
+    db.delete(message)
+    db.commit()
+    return ApiResponse(code=200, message="消息已删除", data={"status": "deleted"})

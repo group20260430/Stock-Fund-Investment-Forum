@@ -987,6 +987,206 @@ Accept: application/json
 
 #### POST /groups/{id}/posts — 在群组内发帖
 
+**请求头：** `Authorization: Bearer <token>`
+
+**请求体：**
+```json
+{
+  "title": "群内分享帖",
+  "content": "帖子内容...",
+  "tags": ["投资", "A股"]
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `title` | string | Y | 帖子标题，1~120字符 |
+| `content` | string | Y | 帖子正文 |
+| `tags` | string[] | N | 标签列表，最多10个 |
+
+**成功响应 (201)：**
+```json
+{
+  "code": 201,
+  "message": "群组帖子发布成功",
+  "data": { "id": 1 }
+}
+```
+
+---
+
+#### GET /groups/{id}/posts — 获取群组帖子列表
+
+**请求头：** `Authorization: Bearer <token>`（仅群组成员可查看）
+
+**查询参数：** `?page=1&size=20`
+
+**成功响应 (200)：** 同帖子列表格式，`data.items` 为帖子对象数组。
+
+---
+
+#### POST /groups/{id}/leave — 退出群组
+
+**请求头：** `Authorization: Bearer <token>`
+
+**说明：** 群主不能直接退出，需先转让群主或解散群组。
+
+**成功响应 (200)：**
+```json
+{
+  "code": 200,
+  "message": "已退出群组",
+  "data": { "status": "left" }
+}
+```
+
+---
+
+#### PUT /groups/{id} — 编辑群组信息
+
+**请求头：** `Authorization: Bearer <token>`（需群主或管理员权限）
+
+**请求体（所有字段可选）：**
+```json
+{
+  "name": "新群组名称",
+  "description": "新描述",
+  "avatar_url": "https://...",
+  "visibility": "private",
+  "need_approval": false
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `name` | string | N | 群组名称，2~50字符，不可与已有群组重名 |
+| `description` | string | N | 群组描述，≤500字符 |
+| `avatar_url` | string | N | 群组头像URL |
+| `visibility` | string | N | `public` / `private` |
+| `need_approval` | bool | N | 加入是否需要审核 |
+
+**成功响应 (200)：** 同群组详情格式。
+
+---
+
+#### DELETE /groups/{id}/members/{user_id} — 移出成员（踢人）
+
+**请求头：** `Authorization: Bearer <token>`（需群主或管理员权限）
+
+**说明：** 不能移出群主。
+
+**成功响应 (200)：**
+```json
+{
+  "code": 200,
+  "message": "已移出成员",
+  "data": { "status": "removed" }
+}
+```
+
+---
+
+#### DELETE /groups/{id} — 解散群组
+
+**请求头：** `Authorization: Bearer <token>`（仅限群主）
+
+**说明：** 解散群组将级联删除所有成员记录和群组帖子关联（帖子本身不会被删除）。
+
+**成功响应 (200)：**
+```json
+{
+  "code": 200,
+  "message": "群组已解散",
+  "data": { "status": "deleted" }
+}
+```
+
+---
+
+### 4.3 通知功能
+
+---
+
+#### GET /notifications — 获取通知列表
+
+**请求头：** `Authorization: Bearer <token>`
+
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `page` | int | N | 页码，默认 1 |
+| `size` | int | N | 每页数量，默认 20，最大 50 |
+| `type` | string | N | 筛选类型：`follow` / `group_join_request` / `group_approved` / `group_rejected` / `new_message` / `system` |
+| `unread_only` | bool | N | 仅显示未读通知，默认 false |
+
+**成功响应 (200)：**
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "items": [
+      {
+        "id": 1,
+        "type": "follow",
+        "title": "新关注",
+        "content": "Alice 关注了你",
+        "is_read": false,
+        "target_type": "user",
+        "target_id": 2,
+        "sender": { "id": 2, "nickname": "Alice", "avatar_url": "..." },
+        "created_at": "2026-06-22T10:00:00"
+      }
+    ],
+    "total": 10,
+    "page": 1,
+    "size": 20
+  }
+}
+```
+
+---
+
+#### PUT /notifications/read — 标记通知为已读
+
+**请求头：** `Authorization: Bearer <token>`
+
+**请求体：**
+```json
+{
+  "notification_ids": [1, 2, 3]
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `notification_ids` | int[] | N | 要标记的通知ID列表，不传则标记全部未读通知 |
+
+**成功响应 (200)：**
+```json
+{
+  "code": 200,
+  "message": "已标记 3 条通知为已读",
+  "data": { "marked_count": 3 }
+}
+```
+
+---
+
+#### GET /notifications/unread-count — 获取未读通知数量
+
+**请求头：** `Authorization: Bearer <token>`
+
+**成功响应 (200)：**
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": { "unread_count": 5 }
+}
+```
+
 ---
 
 ## 五、模块4：信息整合系统 API
@@ -1143,6 +1343,21 @@ Accept: application/json
     "id": 1,
     "created_at": "2026-06-01T10:00:00Z"
   }
+}
+```
+
+---
+
+#### DELETE /messages/{id} — 删除私信
+
+**请求头：** `Authorization: Bearer <token>`（仅限发送者本人）
+
+**成功响应 (200)：**
+```json
+{
+  "code": 200,
+  "message": "消息已删除",
+  "data": { "status": "deleted" }
 }
 ```
 
@@ -1517,9 +1732,19 @@ JWT_EXPIRE_HOURS=24
 | | POST | /groups | 创建群组 | Y |
 | | GET | /groups | 群组列表 | N |
 | | POST | /groups/{id}/join | 加入群组 | Y |
+| | POST | /groups/{id}/leave | 退出群组 | Y |
+| | PUT | /groups/{id} | 编辑群组 | Y |
+| | DELETE | /groups/{id} | 解散群组 | Y |
 | | POST | /groups/{id}/members/approve | 审核成员 | Y |
+| | DELETE | /groups/{id}/members/{user_id} | 移出成员 | Y |
+| | POST | /groups/{id}/posts | 群内发帖 | Y |
+| | GET | /groups/{id}/posts | 群内帖子列表 | Y |
 | | GET | /messages | 私信列表 | Y |
 | | POST | /messages | 发送私信 | Y |
+| | DELETE | /messages/{id} | 删除私信 | Y |
+| | GET | /notifications | 通知列表 | Y |
+| | PUT | /notifications/read | 标记已读 | Y |
+| | GET | /notifications/unread-count | 未读数量 | Y |
 | **信息整合** | GET | /feed | 个性化推荐 | Y |
 | | GET | /hot | 热榜 | N |
 | | GET | /search | 搜索 | N |

@@ -22,7 +22,7 @@
 | 默认字符集 | `utf8mb4` |
 | 默认排序规则 | `utf8mb4_unicode_ci` |
 | 存储引擎 | InnoDB（支持事务、外键、行级锁） |
-| 总计表数 | **27 张表** |
+| 总计表数 | **29 张表** |
 
 ### 1.2 设计原则
 
@@ -55,12 +55,14 @@ stock_fund_forum
 │   ├── shares                  转发记录
 │   ├── vote_options            投票选项
 │   └── vote_records            投票记录
-├── 社交系统 (5 表)
+├── 社交系统 (7 表)
 │   ├── follows                 关注关系
 │   ├── starred_users           星标用户
 │   ├── groups                  投资群组
 │   ├── group_members           群组成员
-│   └── messages                私信
+│   ├── group_posts             群组帖子关联
+│   ├── messages                私信
+│   └── notifications           通知
 ├── 管理运营 (4 表)
 │   ├── reports                 举报记录
 │   ├── review_logs             审核日志
@@ -858,6 +860,98 @@ CREATE TABLE IF NOT EXISTS messages (
 
 ---
 
+#### 3.3.6 `group_posts` — 群组帖子关联表
+
+**说明：** 记录群组与帖子的多对多关联关系。
+
+```sql
+CREATE TABLE IF NOT EXISTS group_posts (
+  id              BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT  COMMENT '记录ID',
+  group_id        BIGINT UNSIGNED NOT NULL                    COMMENT '群组ID',
+  post_id         BIGINT UNSIGNED NOT NULL                    COMMENT '帖子ID',
+  created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '关联时间',
+
+  CONSTRAINT fk_gp_group
+    FOREIGN KEY (group_id) REFERENCES `groups`(id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_gp_post
+    FOREIGN KEY (post_id) REFERENCES posts(id)
+    ON DELETE CASCADE,
+
+  UNIQUE INDEX idx_gp_unique (group_id, post_id),
+  INDEX idx_gp_post           (post_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='群组帖子关联表';
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | BIGINT UNSIGNED | 主键，自增 |
+| `group_id` | BIGINT UNSIGNED | 群组ID，外键 → groups.id |
+| `post_id` | BIGINT UNSIGNED | 帖子ID，外键 → posts.id |
+| `created_at` | TIMESTAMP | 关联时间 |
+
+> **使用场景：** 用户在某群组内发帖时，在 group_posts 中创建一条关联记录。删除群组时级联删除关联，删除帖子时级联删除关联。
+
+---
+
+#### 3.3.7 `notifications` — 通知表
+
+**说明：** 存储用户的通知消息，涵盖关注、群组、私信等场景。
+
+```sql
+CREATE TABLE IF NOT EXISTS notifications (
+  id              BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT  COMMENT '通知ID',
+  user_id         BIGINT UNSIGNED NOT NULL                    COMMENT '接收用户ID',
+  type            ENUM('follow','group_invite','group_join_request',
+                       'group_approved','group_rejected',
+                       'new_message','system')
+                                  NOT NULL                    COMMENT '通知类型',
+  title           VARCHAR(200)    NOT NULL                    COMMENT '通知标题',
+  content         VARCHAR(500)    NOT NULL                    COMMENT '通知内容',
+  is_read         TINYINT(1)     NOT NULL DEFAULT 0            COMMENT '是否已读',
+  target_type     VARCHAR(20)     NULL                         COMMENT '关联目标类型',
+  target_id       BIGINT UNSIGNED NULL                         COMMENT '关联目标ID',
+  sender_id       BIGINT UNSIGNED NULL                         COMMENT '触发者用户ID',
+  created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '通知时间',
+
+  CONSTRAINT fk_notif_user
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_notif_sender
+    FOREIGN KEY (sender_id) REFERENCES users(id)
+    ON DELETE SET NULL,
+
+  INDEX idx_notif_user_unread (user_id, is_read, created_at),
+  INDEX idx_notif_type        (type),
+  INDEX idx_notif_created     (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='通知表';
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | BIGINT UNSIGNED | 主键，自增 |
+| `user_id` | BIGINT UNSIGNED | 接收通知的用户ID，外键 → users.id |
+| `type` | ENUM | 通知类型：follow / group_invite / group_join_request / group_approved / group_rejected / new_message / system |
+| `title` | VARCHAR(200) | 通知标题 |
+| `content` | VARCHAR(500) | 通知内容 |
+| `is_read` | TINYINT(1) | 是否已读，默认 0 |
+| `target_type` | VARCHAR(20) | 关联目标类型（user / group / message 等） |
+| `target_id` | BIGINT UNSIGNED | 关联目标ID |
+| `sender_id` | BIGINT UNSIGNED | 触发者用户ID，外键 → users.id，ON DELETE SET NULL |
+| `created_at` | TIMESTAMP | 通知时间 |
+
+> **通知触发场景：**
+> - `follow`：有人关注了你（sender 为关注者）
+> - `group_join_request`：有人申请加入你创建的群组
+> - `group_approved`：你的加群申请被通过
+> - `group_rejected`：你的加群申请被拒绝
+> - `new_message`：收到新的私信
+> - `system`：系统通知（预留）
+
+---
+
 ### 模块4：管理运营系统 (Admin & Operations)
 
 ---
@@ -1194,9 +1288,19 @@ INSERT INTO sensitive_words (word, level, category) VALUES
 | POST /groups | groups, group_members |
 | GET /groups | groups, group_members |
 | POST /groups/{id}/join | group_members |
+| POST /groups/{id}/leave | group_members |
+| PUT /groups/{id} | groups |
+| DELETE /groups/{id} | groups, group_members, group_posts |
 | POST /groups/{id}/members/approve | group_members |
+| DELETE /groups/{id}/members/{user_id} | group_members |
+| POST /groups/{id}/posts | group_posts, posts |
+| GET /groups/{id}/posts | group_posts, posts |
 | GET /messages | messages |
 | POST /messages | messages |
+| DELETE /messages/{id} | messages |
+| GET /notifications | notifications |
+| PUT /notifications/read | notifications |
+| GET /notifications/unread-count | notifications |
 | GET /feed | posts, follows, users |
 | GET /hot | posts (按 last_activity_at 排序) |
 | GET /search | posts (FULLTEXT), users |

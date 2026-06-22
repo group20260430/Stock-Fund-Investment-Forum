@@ -6,6 +6,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.posts import _post_payload
+from app.api.social_users import _user_card
 from app.core.dependencies import get_current_user, get_optional_current_user
 from app.db.session import get_db
 from app.models.content import Post, PostStatus
@@ -114,14 +115,7 @@ def search(
         total = query.count()
         users = query.offset((page - 1) * size).limit(size).all()
         items = [
-            {
-                "id": user.id,
-                "nickname": user.nickname,
-                "avatar_url": user.avatar_url,
-                "bio": user.bio,
-                "followers_count": user.followers_count,
-                "result_type": "user",
-            }
+            dict(_user_card(user, db, viewer), result_type="user")
             for user in users
         ]
     elif type == "stock":

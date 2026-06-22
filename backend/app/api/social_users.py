@@ -8,6 +8,8 @@ from app.models.social import Follow, StarredUser
 from app.models.user import User, UserStatus
 from app.schemas.social import StarredRequest
 from app.schemas.user import ApiResponse
+from app.api.notifications import create_notification
+from app.models.notification import NotificationType
 from app.models.operations import ActivityType
 from app.services.activity_service import record_activity
 
@@ -93,15 +95,24 @@ def toggle_follow(
         current_user.following_count = max(0, current_user.following_count - 1)
         target.followers_count = max(0, target.followers_count - 1)
         followed = False
+        record_activity(db, current_user.id, ActivityType.UNFOLLOW, "user", target.id)
     else:
         db.add(Follow(follower_id=current_user.id, following_id=target.id))
         current_user.following_count += 1
         target.followers_count += 1
         followed = True
         record_activity(db, current_user.id, ActivityType.FOLLOW, "user", target.id)
+        create_notification(
+            db, target.id, NotificationType.FOLLOW,
+            title="新关注",
+            content=f"{current_user.nickname} 关注了你",
+            target_type="user", target_id=current_user.id, sender_id=current_user.id,
+        )
     db.commit()
     return ApiResponse(code=200, message="success", data={
-        "is_followed": followed, "followers_count": target.followers_count
+        "is_followed": followed,
+        "followers_count": target.followers_count,
+        "following_count": current_user.following_count,
     })
 
 

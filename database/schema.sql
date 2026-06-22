@@ -528,6 +528,27 @@ CREATE TABLE IF NOT EXISTS group_members (
   COMMENT='群组成员表';
 
 -- ----------------------------------------------------------------------------
+-- 20b. group_posts — 群组帖子关联表
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS group_posts (
+  id              BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT  COMMENT '记录ID',
+  group_id        BIGINT UNSIGNED NOT NULL                    COMMENT '群组ID',
+  post_id         BIGINT UNSIGNED NOT NULL                    COMMENT '帖子ID',
+  created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '关联时间',
+
+  CONSTRAINT fk_gp_group
+    FOREIGN KEY (group_id) REFERENCES `groups`(id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_gp_post
+    FOREIGN KEY (post_id) REFERENCES posts(id)
+    ON DELETE CASCADE,
+
+  UNIQUE INDEX idx_gp_unique (group_id, post_id),
+  INDEX idx_gp_post           (post_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='群组帖子关联表';
+
+-- ----------------------------------------------------------------------------
 -- 21. messages — 私信表
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS messages (
@@ -553,6 +574,35 @@ CREATE TABLE IF NOT EXISTS messages (
   INDEX idx_msg_created         (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='私信表';
+
+-- ----------------------------------------------------------------------------
+-- 22. notifications — 通知表
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS notifications (
+  id              BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT  COMMENT '通知ID',
+  user_id         BIGINT UNSIGNED NOT NULL                    COMMENT '接收用户ID',
+  type            ENUM('follow','group_invite','group_join_request','group_approved','group_rejected','new_message','system')
+                                  NOT NULL                    COMMENT '通知类型',
+  title           VARCHAR(200)    NOT NULL                    COMMENT '通知标题',
+  content         VARCHAR(500)    NOT NULL                    COMMENT '通知内容',
+  is_read         TINYINT(1)     NOT NULL DEFAULT 0            COMMENT '是否已读',
+  target_type     VARCHAR(20)     NULL                         COMMENT '关联目标类型',
+  target_id       BIGINT UNSIGNED NULL                         COMMENT '关联目标ID',
+  sender_id       BIGINT UNSIGNED NULL                         COMMENT '触发者用户ID',
+  created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '通知时间',
+
+  CONSTRAINT fk_notif_user
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_notif_sender
+    FOREIGN KEY (sender_id) REFERENCES users(id)
+    ON DELETE SET NULL,
+
+  INDEX idx_notif_user_unread (user_id, is_read, created_at),
+  INDEX idx_notif_type        (type),
+  INDEX idx_notif_created     (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='通知表';
 
 
 -- ============================================================================

@@ -11,6 +11,7 @@ from app.api.discovery import router as discovery_router
 from app.api.health import router as health_router
 from app.api.interactions import router as interactions_router
 from app.api.market import router as market_router
+from app.api.notifications import router as notifications_router
 from app.api.posts import router as posts_router
 from app.api.social_users import router as social_users_router
 from app.core.config import settings
@@ -26,6 +27,7 @@ import app.models.risk_assessment  # noqa: F401
 import app.models.content  # noqa: F401
 import app.models.social  # noqa: F401
 import app.models.community  # noqa: F401
+import app.models.notification  # noqa: F401
 import app.models.operations  # noqa: F401
 
 
@@ -138,6 +140,7 @@ def create_app() -> FastAPI:
     app.include_router(posts_router, prefix="/api")
     app.include_router(interactions_router, prefix="/api")
     app.include_router(social_users_router, prefix="/api")
+    app.include_router(notifications_router, prefix="/api")
     app.include_router(community_router, prefix="/api")
     app.include_router(discovery_router, prefix="/api")
     app.include_router(admin_router, prefix="/api")

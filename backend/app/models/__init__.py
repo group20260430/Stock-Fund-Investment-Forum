@@ -17,6 +17,7 @@ __all__ = [
 
 from app.models.certification import Certification
 from app.models.community import Group, GroupMember, GroupPost, Message
+from app.models.notification import Notification, NotificationType
 from app.models.content import (
     Attachment,
     Category,
@@ -57,6 +58,8 @@ __all__ = [
     "GroupPost",
     "Like",
     "Message",
+    "Notification",
+    "NotificationType",
     "Post",
     "RefreshToken",
     "Report",

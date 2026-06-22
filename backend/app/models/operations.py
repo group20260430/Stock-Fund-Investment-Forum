@@ -56,6 +56,7 @@ class ActivityType(str, enum.Enum):
     COMMENT = "comment"
     LIKE = "like"
     FOLLOW = "follow"
+    UNFOLLOW = "unfollow"
     SHARE = "share"
     VOTE = "vote"
 
