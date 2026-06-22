@@ -10,7 +10,7 @@
 * 分支：`feat/backend/forum-api`
 * 后端：Python 3.13，`backend\.venv313`
 * 前端：Node `v24.15.0`，npm `11.12.1`
-* 最新提交：`73a5e74 test: include e2e in backend test runner`
+* 最新提交：`d865c1b fix: add missing marked dependency`
 
 ## 3. 后端验证
 
@@ -48,8 +48,9 @@ npm run build
 结果：
 
 * 成功
-* 前端生产构建通过，已补齐 `marked` 和 `dompurify` 依赖
-* Vite 产物已生成，构建过程仅出现 chunk size 和动态导入 warning
+* 前端生产构建通过
+* 已补齐 Markdown 渲染相关依赖 `marked` / `dompurify`
+* 仍存在 Vite 非阻塞 warning，例如 chunk size 和动态导入提示，不影响本次 build 通过
 
 ## 5. 已知边界
 
@@ -60,4 +61,4 @@ npm run build
 
 ## 6. 结论
 
-当前分支完成一次基础全项目冒烟验证：后端一键测试通过，前端生产构建通过，未发现阻塞性构建或后端回归问题。
+当前分支完成最终基础全项目冒烟复验：后端一键测试通过，前端生产构建通过，未发现阻塞性构建或后端回归问题。
