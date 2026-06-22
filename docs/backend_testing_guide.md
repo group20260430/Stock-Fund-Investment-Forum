@@ -1,4 +1,4 @@
-# 后端测试使用指南
+﻿# 后端测试使用指南
 
 ## 1. 测试入口
 
@@ -24,13 +24,14 @@ python backend\run_backend_tests.py
 * `test_discovery_api.py`：搜索/发现/热榜
 * `test_community_api.py`：群组/私信
 * `test_social_api.py`：关注/用户社交
+* `test_e2e.py`：端到端流程测试
 
 ## 3. 预期输出
 
 当前正常结果为：
 
 ```text
-RESULTS: 7 passed, 0 failed
+RESULTS: 8 passed, 0 failed
 ```
 
 ## 4. Windows 测试注意事项

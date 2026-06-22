@@ -1,4 +1,4 @@
-# 张照炎后端质量保障交付总结
+﻿# 张照炎后端质量保障交付总结
 
 ## 1. 负责方向
 
@@ -60,11 +60,11 @@
 
 ### 2.6 后端一键测试入口
 
-已新增 `backend/run_backend_tests.py`，支持在 `backend` 目录或项目根目录运行，顺序执行 7 个主要后端测试脚本并输出统一汇总结果。
+已新增 `backend/run_backend_tests.py`，支持在 `backend` 目录或项目根目录运行，顺序执行 8 个主要后端测试脚本并输出统一汇总结果。
 
 当前验证结果：
 
-* `RESULTS: 7 passed, 0 failed`
+* `RESULTS: 8 passed, 0 failed`
 
 关联提交：
 
@@ -73,7 +73,7 @@
 ## 3. 当前验证结果
 
 ```text
-RESULTS: 7 passed, 0 failed
+RESULTS: 8 passed, 0 failed
 ```
 
 覆盖测试：
@@ -85,6 +85,7 @@ RESULTS: 7 passed, 0 failed
 * `test_discovery_api.py`
 * `test_community_api.py`
 * `test_social_api.py`
+* `test_e2e.py`
 
 ## 4. 价值说明
 
@@ -97,5 +98,5 @@ RESULTS: 7 passed, 0 failed
 ## 5. 边界说明
 
 * 本阶段没有改动隐私设置、积分等级、@提及等其他同学负责的功能
-* 一键测试入口不能替代完整系统测试、前端联调测试和生产环境数据库测试
+* 一键测试入口不能替代完整系统测试、前端联调测试和生产数据库测试
 * 后续如果继续扩展新接口，应同步补充到 `run_backend_tests.py` 和冒烟测试报告中

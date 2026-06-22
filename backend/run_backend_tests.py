@@ -15,6 +15,7 @@ TEST_SCRIPTS = [
     "test_discovery_api.py",
     "test_community_api.py",
     "test_social_api.py",
+    "test_e2e.py",
 ]
 
 
