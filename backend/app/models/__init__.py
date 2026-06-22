@@ -38,6 +38,7 @@ from app.models.operations import (
     SensitiveWord,
     UserActivityLog,
 )
+from app.models.points import PointsHistory
 from app.models.refresh_token import RefreshToken
 from app.models.risk_assessment import RiskAssessment
 from app.models.social import Follow, StarredUser
@@ -60,6 +61,7 @@ __all__ = [
     "Message",
     "Notification",
     "NotificationType",
+    "PointsHistory",
     "Post",
     "RefreshToken",
     "Report",

@@ -18,6 +18,7 @@ from app.models.community import (
 )
 from app.models.content import Category, Post, PostStatus, PostType
 from app.models.notification import NotificationType
+from app.models.social import Follow
 from app.models.user import User, UserStatus
 from app.schemas.community import GroupCreate, GroupPostCreate, GroupUpdate, MemberReview, MessageCreate
 from app.schemas.user import ApiResponse
@@ -365,6 +366,19 @@ def send_message(
     receiver = db.query(User).filter(User.id == data.receiver_id, User.status == UserStatus.ACTIVE).first()
     if receiver is None:
         raise HTTPException(status_code=404, detail="接收用户不存在")
+
+    # ── Privacy: message_permission ──
+    receiver_privacy = receiver.privacy_settings or {}
+    msg_permission = receiver_privacy.get("message_permission", "everyone")
+    if msg_permission == "none":
+        raise HTTPException(status_code=403, detail="该用户已关闭私信功能")
+    if msg_permission == "followers_only":
+        is_follower = db.query(Follow).filter(
+            Follow.follower_id == user.id, Follow.following_id == receiver.id,
+        ).first() is not None
+        if not is_follower:
+            raise HTTPException(status_code=403, detail="仅粉丝可发送私信")
+
     message = Message(
         sender_id=user.id,
         receiver_id=receiver.id,

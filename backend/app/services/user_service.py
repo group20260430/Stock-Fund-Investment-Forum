@@ -21,7 +21,9 @@ from app.models.risk_assessment import RiskAssessment, RiskLevelEnum
 from app.models.user import AuthLevel, RegisterType, RiskLevel, User, UserStatus
 from app.config import RISK_QUESTIONS
 from app.models.operations import ActivityType
+from app.models.points import PointsHistory
 from app.services.activity_service import record_activity
+from app.services.points_service import award_points
 from app.schemas.user import (
     Achievements,
     CertificationRequest,
@@ -181,6 +183,21 @@ class UserService:
         profile = UserService._build_profile(user, db)
 
         record_activity(db, user.id, ActivityType.LOGIN)
+
+        # ── Points: +1 daily login (once per day) ──
+        from datetime import date
+
+        from sqlalchemy import func as sa_func
+
+        today = date.today()
+        already_awarded = db.query(PointsHistory).filter(
+            PointsHistory.user_id == user.id,
+            PointsHistory.reason == "daily_login",
+            sa_func.date(PointsHistory.created_at) == today,
+        ).first() is not None
+        if not already_awarded:
+            award_points(db, user.id, 1, "daily_login")
+
         db.commit()
 
         return {
@@ -479,6 +496,9 @@ class UserService:
             investment_tags=user.investment_tags,
             follow_markets=user.follow_markets,
             achievements=achievements,
+            points=user.points or 0,
+            level=user.level or 1,
+            privacy_settings=user.privacy_settings,
             created_at=user.created_at.replace(tzinfo=timezone.utc)
             if user.created_at
             else None,

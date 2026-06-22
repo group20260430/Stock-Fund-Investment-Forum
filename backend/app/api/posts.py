@@ -20,6 +20,12 @@ from app.models.content import (
 )
 from app.models.operations import ActivityType
 from app.services.activity_service import record_activity
+from app.services.mention_service import (
+    create_mention_notifications,
+    parse_mentions,
+    validate_mentions,
+)
+from app.services.points_service import award_points
 from app.services.sensitive_word_service import check_sensitive_texts
 from app.models.user import User, UserRole
 from app.schemas.content import PostCreate, PostUpdate, VoteRequest
@@ -245,6 +251,15 @@ def create_post(data: PostCreate, user: User = Depends(get_current_user), db: Se
     db.add(post)
     db.flush()
     record_activity(db, user.id, ActivityType.POST, "post", post.id)
+    # ── Points: +5 for creating a post ──
+    award_points(db, user.id, 5, "create_post", "post", post.id)
+    # ── @mention detection ──
+    mentioned = parse_mentions(data.content)
+    mentioned_users = validate_mentions(db, mentioned)
+    if mentioned_users:
+        create_mention_notifications(
+            db, list(mentioned_users.values()), user.id, "post", post.id
+        )
     category.post_count += 1
     db.commit()
     return ApiResponse(code=201, message="发布成功", data={"id": post.id})
@@ -288,6 +303,13 @@ def update_post(
     post.tags = data.tags
     post.last_activity_at = datetime.now(timezone.utc)
     _replace_children(post, data)
+    # ── @mention detection (new mentions from edit) ──
+    mentioned = parse_mentions(data.content)
+    mentioned_users = validate_mentions(db, mentioned)
+    if mentioned_users:
+        create_mention_notifications(
+            db, list(mentioned_users.values()), user.id, "post", post.id
+        )
     db.commit()
     return ApiResponse(code=200, message="编辑成功", data={"id": post.id})
 
@@ -301,6 +323,8 @@ def delete_post(
     post = _get_post_or_404(db, post_id)
     _ensure_owner_or_admin(post, user)
     category = post.category
+    # ── Points: deduct for deleting post ──
+    award_points(db, post.user_id, -5, "delete_post", "post", post.id)
     db.delete(post)
     category.post_count = max(0, category.post_count - 1)
     db.commit()

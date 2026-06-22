@@ -6,6 +6,8 @@ from app.core.dependencies import RateLimiter, get_current_user, security
 from app.core.security import decode_access_token
 from app.db.session import get_db
 from app.models.user import User
+from app.models.points import PointsHistory
+from app.schemas.privacy import PrivacySettingsSchema
 from app.schemas.user import (
     ApiResponse,
     CertificationRequest,
@@ -106,6 +108,39 @@ async def update_profile(
     return ApiResponse(code=200, message="更新成功", data=result)
 
 
+# ==================== 隐私设置 ====================
+
+
+@router.get("/auth/privacy")
+async def get_privacy_settings(
+    current_user: User = Depends(get_current_user),
+):
+    """获取当前用户的隐私设置 — 返回合并默认值后的完整设置。"""
+    defaults = PrivacySettingsSchema().model_dump()
+    stored = current_user.privacy_settings or {}
+    merged = {**defaults, **stored}
+    return ApiResponse(code=200, message="success", data=merged)
+
+
+@router.put("/auth/privacy")
+async def update_privacy_settings(
+    data: PrivacySettingsSchema,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """更新隐私设置 — 支持部分更新，未传字段保持原值。"""
+    stored = current_user.privacy_settings or {}
+    # Only update fields that differ from defaults (partial update)
+    update_data = data.model_dump(exclude_unset=True)
+    stored.update(update_data)
+    current_user.privacy_settings = stored
+    db.commit()
+    # Return merged with defaults
+    defaults = PrivacySettingsSchema().model_dump()
+    merged = {**defaults, **stored}
+    return ApiResponse(code=200, message="隐私设置已更新", data=merged)
+
+
 # ==================== 实名认证 & 风险评估 ====================
 
 
@@ -150,3 +185,40 @@ async def get_risk_assessment_history(
     """获取历史评估记录 — 支持分页，按评估时间倒序排列。"""
     result = UserService.get_risk_assessment_history(db, current_user, page, size)
     return ApiResponse(code=200, message="success", data=result)
+
+
+# ==================== 积分与等级 ====================
+
+
+@router.get("/auth/points/history")
+async def get_points_history(
+    page: int = Query(1, ge=1, description="页码"),
+    size: int = Query(20, ge=1, le=50, description="每页数量"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """获取当前用户的积分变动记录 — 支持分页，按时间倒序排列。"""
+    query = db.query(PointsHistory).filter(PointsHistory.user_id == current_user.id)
+    total = query.count()
+    items = (
+        query.order_by(PointsHistory.created_at.desc())
+        .offset((page - 1) * size)
+        .limit(size)
+        .all()
+    )
+    return ApiResponse(code=200, message="success", data={
+        "items": [
+            {
+                "id": item.id,
+                "points_change": item.points_change,
+                "reason": item.reason,
+                "reference_type": item.reference_type,
+                "reference_id": item.reference_id,
+                "created_at": item.created_at,
+            }
+            for item in items
+        ],
+        "total": total,
+        "page": page,
+        "size": size,
+    })

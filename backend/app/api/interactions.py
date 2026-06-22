@@ -20,6 +20,12 @@ from app.schemas.interactions import CollectRequest, CommentCreate, ShareRequest
 from app.schemas.user import ApiResponse
 from app.models.operations import ActivityType
 from app.services.activity_service import record_activity
+from app.services.mention_service import (
+    create_mention_notifications,
+    parse_mentions,
+    validate_mentions,
+)
+from app.services.points_service import award_points
 from app.services.sensitive_word_service import check_sensitive_texts
 
 router = APIRouter(tags=["interactions"])
@@ -120,6 +126,15 @@ def create_comment(
     db.add(comment)
     db.flush()
     record_activity(db, user.id, ActivityType.COMMENT, "comment", comment.id)
+    # ── Points: +2 for creating a comment ──
+    award_points(db, user.id, 2, "create_comment", "comment", comment.id)
+    # ── @mention detection ──
+    mentioned = parse_mentions(data.content)
+    mentioned_users = validate_mentions(db, mentioned)
+    if mentioned_users:
+        create_mention_notifications(
+            db, list(mentioned_users.values()), user.id, "comment", comment.id
+        )
     post.comment_count += 1
     db.commit()
     return ApiResponse(code=201, message="评论成功", data={"id": comment.id})
@@ -138,6 +153,8 @@ def delete_comment(
         raise HTTPException(status_code=403, detail="无权删除该评论")
     post = db.query(Post).filter(Post.id == comment.post_id).first()
     child_count = db.query(Comment).filter(Comment.parent_id == comment.id).count()
+    # ── Points: deduct for deleting comment ──
+    award_points(db, comment.user_id, -2, "delete_comment", "comment", comment.id)
     db.delete(comment)
     if post:
         post.comment_count = max(0, post.comment_count - child_count - 1)
@@ -161,11 +178,17 @@ def toggle_comment_like(
         db.delete(existing)
         comment.like_count = max(0, comment.like_count - 1)
         liked = False
+        # ── Points: deduct for unlike ──
+        if comment.user_id != user.id:
+            award_points(db, comment.user_id, -1, "comment_unliked", "comment", comment_id)
     else:
         db.add(Like(user_id=user.id, target_type=LikeTarget.COMMENT, target_id=comment_id))
         comment.like_count += 1
         liked = True
         record_activity(db, user.id, ActivityType.LIKE, "comment", comment_id)
+        # ── Points: +1 to comment author ──
+        if comment.user_id != user.id:
+            award_points(db, comment.user_id, 1, "comment_liked", "comment", comment_id)
     db.commit()
     return ApiResponse(code=200, message="success", data={"is_liked": liked, "like_count": comment.like_count})
 
@@ -184,11 +207,17 @@ def toggle_post_like(
         db.delete(existing)
         post.like_count = max(0, post.like_count - 1)
         liked = False
+        # ── Points: deduct for unlike ──
+        if post.user_id != user.id:
+            award_points(db, post.user_id, -1, "post_unliked", "post", post_id)
     else:
         db.add(Like(user_id=user.id, target_type=LikeTarget.POST, target_id=post_id))
         post.like_count += 1
         liked = True
         record_activity(db, user.id, ActivityType.LIKE, "post", post_id)
+        # ── Points: +1 to post author ──
+        if post.user_id != user.id:
+            award_points(db, post.user_id, 1, "post_liked", "post", post_id)
     db.commit()
     return ApiResponse(code=200, message="success", data={"is_liked": liked, "like_count": post.like_count})
 
@@ -256,6 +285,9 @@ def share_post(
     db.add(share)
     db.flush()
     record_activity(db, user.id, ActivityType.SHARE, "post", post_id)
+    # ── Points: +3 to post author ──
+    if post.user_id != user.id:
+        award_points(db, post.user_id, 3, "post_shared", "post", post_id)
     post.share_count += 1
     db.commit()
     return ApiResponse(code=201, message="分享成功", data={"id": share.id, "share_count": post.share_count})

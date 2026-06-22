@@ -1,4 +1,6 @@
 import os
+import gc
+import time
 from pathlib import Path
 
 os.environ["DATABASE_URL"] = "sqlite:///./test_social.db"
@@ -6,6 +8,7 @@ Path("test_social.db").unlink(missing_ok=True)
 
 from fastapi.testclient import TestClient
 
+from app.db.session import engine
 from app.main import app
 
 
@@ -108,9 +111,24 @@ def run() -> None:
         assert anon_profile.json()["data"]["is_followed"] is False
 
 
+def _cleanup_db(db_path: Path) -> None:
+    engine.dispose()
+    gc.collect()
+    for attempt in range(3):
+        try:
+            db_path.unlink(missing_ok=True)
+            return
+        except PermissionError:
+            if attempt == 2:
+                print(f"WARNING | cleanup failed for {db_path.name}")
+                return
+            time.sleep(0.2)
+            gc.collect()
+
+
 if __name__ == "__main__":
     try:
         run()
         print("social API tests passed")
     finally:
-        Path("test_social.db").unlink(missing_ok=True)
+        _cleanup_db(Path("test_social.db"))
