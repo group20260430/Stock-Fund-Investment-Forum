@@ -26,7 +26,7 @@ const discoverItems = [
 const personalItems = computed(() => {
   if (!auth.isLoggedIn) return []
   return [
-    { label: '我的动态', to: '/', icon: 'feed' },
+    { label: '我的动态', to: '/', query: { tab: 'feed' }, icon: 'feed' },
     { label: '我的收藏', to: '/me/collections', icon: 'collections' },
     { label: '关注列表', to: `/users/${auth.user?.id || 'me'}/follow`, icon: 'followers' },
     { label: '我的群组', to: '/groups', icon: 'groups' },
@@ -34,12 +34,20 @@ const personalItems = computed(() => {
 })
 
 function isActive(item) {
-  if (item.to === '/') return route.path === '/'
+  if (item.to === '/') {
+    // 如果有 query 参数，需要同时匹配 path 和 query
+    if (item.query) {
+      return route.path === '/' && Object.entries(item.query).every(
+        ([key, val]) => route.query[key] === val
+      )
+    }
+    return route.path === '/'
+  }
   return route.path.startsWith(item.to.split('?')[0])
 }
 
 function navigate(item) {
-  router.push(item.to)
+  router.push({ path: item.to, query: item.query })
   showMobileMenu.value = false
 }
 </script>

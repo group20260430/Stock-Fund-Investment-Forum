@@ -10,10 +10,14 @@ import Pagination from "../components/common/Pagination.vue"
 import AppIcon from "../components/common/AppIcon.vue"
 import { search as searchApi, searchSuggestions } from "../api/search"
 import { usePostsStore } from "../stores/posts"
+import { useAuthStore } from "../stores/auth"
+import { useToastStore } from "../stores/toast"
 
 const route = useRoute()
 const router = useRouter()
 const postsStore = usePostsStore()
+const auth = useAuthStore()
+const toast = useToastStore()
 
 const keyword = ref(route.query.keyword || "")
 const searchType = ref(route.query.type || "all")
@@ -147,6 +151,21 @@ function onFilterChange() {
 }
 
 function handleLike(postId) { postsStore.togglePostLike(postId) }
+function handleCollect(postId) { postsStore.togglePostCollect(postId) }
+async function handleShare(postId) {
+  if (!auth.isLoggedIn) { toast.info('请先登录'); return }
+  const post = results.value.find(p => p.id === postId)
+  if (post) post.share_count = (post.share_count || 0) + 1
+  try {
+    const { sharePost } = await import('../api/posts')
+    const data = await sharePost(postId, 'timeline', '')
+    if (post && data) post.share_count = data.share_count
+    toast.success('已转发到动态')
+  } catch (err) {
+    if (post) post.share_count = (post.share_count || 1) - 1
+    toast.error(err.message || '转发失败')
+  }
+}
 function handlePageChange(p) { doSearch(p) }
 
 function clearHistory() {
@@ -299,6 +318,8 @@ function clearHistory() {
               :key="item.id"
               :post="item"
               @like="handleLike"
+              @collect="handleCollect"
+              @share="handleShare"
             />
           </div>
         </template>

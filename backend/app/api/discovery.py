@@ -9,7 +9,7 @@ from app.api.posts import _post_payload
 from app.api.social_users import _user_card
 from app.core.dependencies import get_current_user, get_optional_current_user
 from app.db.session import get_db
-from app.models.content import Post, PostStatus
+from app.models.content import Post, PostStatus, Share
 from app.models.social import Follow, StarredUser
 from app.models.user import User, UserStatus
 from app.schemas.user import ApiResponse
@@ -49,13 +49,36 @@ def personalized_feed(
         item.starred_user_id for item in db.query(StarredUser).filter(StarredUser.user_id == user.id).all()
     }
     author_ids = followed_ids | starred_ids | {user.id}
-    query = _base_posts(db).filter(Post.user_id.in_(author_ids))
-    if query.count() == 0:
-        query = _base_posts(db)
-    total = query.count()
-    posts = query.order_by(Post.created_at.desc()).offset((page - 1) * size).limit(size).all()
+    # 关注的人的帖子
+    followed_posts = _base_posts(db).filter(Post.user_id.in_(author_ids)).all()
+    followed_post_ids = {p.id for p in followed_posts}
+    # 关注的人分享过的、且不在上述帖子列表中的帖子
+    shared_post_ids = {
+        s.post_id for s in db.query(Share).filter(Share.user_id.in_(author_ids)).all()
+        if s.post_id not in followed_post_ids
+    }
+    shared_posts = _base_posts(db).filter(Post.id.in_(shared_post_ids)).all() if shared_post_ids else []
+    # 合并并按时间排序
+    all_posts = followed_posts + shared_posts
+    all_posts.sort(key=lambda p: p.created_at or datetime.min, reverse=True)
+    total = len(all_posts)
+    page_posts = all_posts[(page - 1) * size: page * size]
+    payloads = []
+    for post in page_posts:
+        pdata = _post_payload(post, user=user, db=db)
+        # 标记是否来自他人分享
+        share = db.query(Share).filter(
+            Share.post_id == post.id, Share.user_id.in_(author_ids)
+        ).order_by(Share.created_at.desc()).first()
+        if share:
+            if share.user_id == user.id:
+                pdata["shared_by"] = "__self__"
+            else:
+                sharer = db.query(User).filter(User.id == share.user_id).first()
+                pdata["shared_by"] = sharer.nickname if sharer else None
+        payloads.append(pdata)
     return ApiResponse(code=200, message="success", data={
-        "items": [_post_payload(post, user=user, db=db) for post in posts],
+        "items": payloads,
         "total": total, "page": page, "size": size,
     })
 
@@ -66,17 +89,34 @@ def hot_ranking(
     market: str = Query("all", pattern="^(all|a_stock|hk_stock|fund)$"),
     db: Session = Depends(get_db),
 ):
-    cutoff = _cutoff(period)
-    # 只取热度最高的前200篇帖子做聚合，防止全表扫描
-    top_posts = (
-        _base_posts(db)
-        .filter(Post.created_at >= cutoff)
-        .order_by(
-            (Post.view_count + Post.like_count * 5 + Post.comment_count * 8 + Post.collect_count * 4).desc()
-        )
-        .limit(200)
-        .all()
-    )
+    periods = ["daily", "weekly", "monthly"]
+    # 按顺序尝试：daily -> weekly -> monthly -> 全部，直到有结果
+    start_idx = periods.index(period)
+    top_posts = []
+    for i in range(start_idx, len(periods) + 1):
+        if i < len(periods):
+            cutoff = _cutoff(periods[i])
+            top_posts = (
+                _base_posts(db)
+                .filter(Post.created_at >= cutoff)
+                .order_by(
+                    (Post.view_count + Post.like_count * 5 + Post.comment_count * 8 + Post.collect_count * 4).desc()
+                )
+                .limit(200)
+                .all()
+            )
+        else:
+            # 最后一次尝试：不限时间
+            top_posts = (
+                _base_posts(db)
+                .order_by(
+                    (Post.view_count + Post.like_count * 5 + Post.comment_count * 8 + Post.collect_count * 4).desc()
+                )
+                .limit(200)
+                .all()
+            )
+        if top_posts:
+            break
     tag_stats: dict[str, dict] = {}
     for post in top_posts:
         tags = post.tags or [post.category.name]

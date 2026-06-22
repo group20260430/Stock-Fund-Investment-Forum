@@ -54,9 +54,15 @@ async function request(url, options = {}) {
         window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`
       }
     }
-    // 抛出后端错误信息
-    const msg = result.message || `请求失败 (${response.status})`
-    throw new Error(msg)
+    // 提取后端错误信息（兼容标准 ApiResponse 和 FastAPI 422 验证错误格式）
+    let msg = result.message || ''
+    if (!msg && Array.isArray(result.detail)) {
+      // FastAPI 422 验证错误: {"detail": [{"loc":[], "msg":"...", "type":"..."}]}
+      msg = result.detail.map(d => d.msg).filter(Boolean).join('；')
+    } else if (!msg && typeof result.detail === 'string') {
+      msg = result.detail
+    }
+    throw new Error(msg || `请求失败 (${response.status})`)
   }
 
   // 成功 — 解包 data 字段

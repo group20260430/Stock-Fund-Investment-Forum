@@ -149,6 +149,21 @@ async function handleCreatePost() {
 }
 
 function handleLike(postId) { postsStore.togglePostLike(postId) }
+function handleCollect(postId) { postsStore.togglePostCollect(postId) }
+async function handleShare(postId) {
+  if (!auth.isLoggedIn) { toast.info('请先登录'); return }
+  const post = posts.find(p => p.id === postId)
+  if (post) post.share_count = (post.share_count || 0) + 1
+  try {
+    const { sharePost } = await import('../api/posts')
+    const data = await sharePost(postId, 'timeline', '')
+    if (post && data) post.share_count = data.share_count
+    toast.success('已转发到动态')
+  } catch (err) {
+    if (post) post.share_count = (post.share_count || 1) - 1
+    toast.error(err.message || '转发失败')
+  }
+}
 function handlePostsPageChange(p) { loadPosts(p); window.scrollTo({ top: 400, behavior: "smooth" }) }
 </script>
 
@@ -244,6 +259,8 @@ function handlePostsPageChange(p) { loadPosts(p); window.scrollTo({ top: 400, be
             :key="post.id"
             :post="post"
             @like="handleLike"
+            @collect="handleCollect"
+            @share="handleShare"
           />
         </div>
 

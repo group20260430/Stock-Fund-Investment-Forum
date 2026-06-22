@@ -80,6 +80,26 @@ async function handleLike(postId) {
   await postsStore.togglePostLike(postId)
 }
 
+async function handleCollect(postId) {
+  if (!auth.isLoggedIn) return
+  await postsStore.togglePostCollect(postId)
+}
+
+async function handleShare(postId) {
+  if (!auth.isLoggedIn) { toast.info('请先登录'); return }
+  const post = postsStore.list.find(p => p.id === postId)
+  if (post) post.share_count = (post.share_count || 0) + 1
+  try {
+    const { sharePost } = await import('../api/posts')
+    const data = await sharePost(postId, 'timeline', '')
+    if (post && data) post.share_count = data.share_count
+    toast.success('已转发到动态')
+  } catch (err) {
+    if (post) post.share_count = (post.share_count || 1) - 1
+    toast.error(err.message || '转发失败')
+  }
+}
+
 function handlePageChange(page) {
   postsStore.pagination.page = page
   postsStore.loadPosts()
@@ -129,7 +149,7 @@ const user = computed(() => userStore.profile)
           @action="$router.push('/posts/new')"
         />
         <div v-else class="post-list">
-          <PostCard v-for="post in postsStore.list" :key="post.id" :post="post" @like="handleLike" />
+          <PostCard v-for="post in postsStore.list" :key="post.id" :post="post" @like="handleLike" @collect="handleCollect" @share="handleShare" />
         </div>
         <Pagination
           v-if="postsStore.pagination.total > postsStore.pagination.size"

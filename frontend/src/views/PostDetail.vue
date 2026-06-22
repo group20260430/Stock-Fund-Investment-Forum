@@ -28,9 +28,6 @@ const commentsTotal = ref(0)
 const commentsLoading = ref(false)
 const commentText = ref("")
 const submittingComment = ref(false)
-const showReportDialog = ref(false)
-const reportReason = ref("")
-const reporting = ref(false)
 const sharing = ref(false)
 
 // 举报
@@ -174,7 +171,7 @@ async function handleReport() {
       reason: reportReason.value.trim(),
     })
     toast.success('举报已提交，我们会尽快处理')
-    showReportDialog.value = false
+    showReport.value = false
     reportReason.value = ''
   } catch (err) {
     toast.error(err.message || '举报失败')
@@ -229,16 +226,10 @@ const post = computed(() => postsStore.currentPost)
           <AppIcon name="comment" :size="18" />
           <span>{{ post.comment_count || 0 }}</span>
         </button>
-        <button v-if="auth.isLoggedIn" class="action-btn action-btn--report" @click="showReportDialog = true">
+        <button v-if="auth.isLoggedIn" class="action-btn action-btn--report" @click="showReport = !showReport">
           <AppIcon name="flag" :size="16" />
           <span>举报</span>
         </button>
-=======
-        <button :class="['action-btn', { 'action-btn--active': post.is_liked }]" @click="handleLikePost">👍 {{ post.like_count || 0 }}</button>
-        <button :class="['action-btn', { 'action-btn--active': post.is_collected }]" @click="handleCollectPost">⭐ {{ post.collect_count || 0 }}</button>
-        <button class="action-btn">↗ {{ post.share_count || 0 }}</button>
-        <button class="action-btn">💬 {{ post.comment_count || 0 }}</button>
-        <button v-if="auth.isLoggedIn" class="action-btn action-btn--report" @click="showReport = !showReport">⚠ 举报</button>
       </div>
 
       <!-- 举报弹窗 -->
@@ -256,25 +247,6 @@ const post = computed(() => postsStore.currentPost)
           <button class="report-dialog__submit" :disabled="!reportReason || reporting" @click="handleSubmitReport">{{ reporting ? "提交中..." : "提交举报" }}</button>
         </div>
       </div>
-        <div v-if="showReportDialog" class="report-overlay" @click.self="showReportDialog = false">
-          <div class="report-dialog">
-            <h3>举报该帖子</h3>
-            <textarea
-              v-model="reportReason"
-              class="report-textarea"
-              placeholder="请详细描述举报原因..."
-              rows="4"
-              maxlength="500"
-            />
-            <div class="report-dialog__actions">
-              <button class="report-cancel" @click="showReportDialog = false; reportReason = ''">取消</button>
-              <button class="report-submit" :disabled="reporting || !reportReason.trim()" @click="handleReport">
-                {{ reporting ? '提交中...' : '提交举报' }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </Teleport>
 
       <section id="comments" class="comments-section">
         <h3>{{ commentsTotal }} 条评论</h3>
@@ -306,21 +278,6 @@ const post = computed(() => postsStore.currentPost)
 .action-btn:hover { background: var(--color-border-light); color: var(--color-primary); }
 .action-btn--active { color: var(--color-primary); font-weight: 600; }
 .action-btn--report { margin-left: auto; color: var(--color-text-muted); font-size: 14px; }
-.action-btn--report:hover { color: var(--color-danger) !important; }
-
-.report-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-.report-dialog { background: var(--color-bg-card); border-radius: 12px; padding: 24px; width: 400px; max-width: 90vw; }
-.report-dialog h3 { margin: 0 0 12px; font-size: 18px; }
-.report-textarea { border: 1px solid var(--color-border-input); border-radius: 8px; font: inherit; font-size: 14px; padding: 10px 14px; width: 100%; resize: vertical; box-sizing: border-box; }
-.report-textarea:focus { border-color: var(--color-primary); outline: none; }
-.report-dialog__actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
-.report-cancel { background: var(--color-bg-hover); border: 0; border-radius: 6px; cursor: pointer; font: inherit; font-size: 14px; padding: 8px 16px; }
-.report-submit { background: var(--color-danger); border: 0; border-radius: 6px; color: #fff; cursor: pointer; font: inherit; font-size: 14px; padding: 8px 16px; }
-.report-submit:disabled { opacity: 0.5; }
-.action-btn--report { color: var(--color-text-muted); margin-left: auto; }
-.action-btn--report:hover { color: var(--color-danger); background: var(--color-danger-light); }
-
-/* 举报弹窗 */
 .report-dialog {
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);

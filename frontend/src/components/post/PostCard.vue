@@ -76,6 +76,12 @@ function handleShare() {
       <span class="post-card__time">{{ timeAgo(post.created_at) }}</span>
     </div>
 
+    <!-- 分享来源提示 -->
+    <div v-if="post.shared_by" class="post-card__shared-by">
+      <AppIcon name="share" :size="12" />
+      {{ post.shared_by === '__self__' ? '你分享了这篇帖子' : post.shared_by + ' 分享了这篇帖子' }}
+    </div>
+
     <!-- 标题 -->
     <h3 class="post-card__title">
       <router-link :to="`/posts/${post.id}`">{{ post.title }}</router-link>
@@ -113,9 +119,9 @@ function handleShare() {
       >
         <AppIcon :name="post.is_liked ? 'like' : 'like'" :solid="post.is_liked" :size="14" /> {{ formatCount(post.like_count || 0) }}
       </button>
-      <span class="stat-item">
+      <button class="stat-btn" @click.stop="$router.push('/posts/' + post.id + '#comments')">
         <AppIcon name="comment" :size="14" /> {{ formatCount(post.comment_count || 0) }}
-      </span>
+      </button>
       <button
         :class="['stat-btn', { 'stat-btn--active': post.is_collected }]"
         @click.stop="handleCollect"
@@ -195,6 +201,15 @@ function handleShare() {
 
 .dot {
   color: var(--color-border-input);
+}
+
+.post-card__shared-by {
+  align-items: center;
+  color: var(--color-primary);
+  display: flex;
+  font-size: 12px;
+  gap: 4px;
+  margin-bottom: 6px;
 }
 
 .post-card__title {
