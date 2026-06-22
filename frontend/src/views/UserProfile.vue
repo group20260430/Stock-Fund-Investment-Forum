@@ -1,34 +1,37 @@
-<script setup>
-import { ref, onMounted, computed } from 'vue'
-import { useRoute } from 'vue-router'
-import { useAuthStore } from '../stores/auth'
-import { useUserStore } from '../stores/user'
-import { usePostsStore } from '../stores/posts'
-import { toggleFollow } from '../api/users'
-import AppLayout from '../components/layout/AppLayout.vue'
-import UserProfileComponent from '../components/user/UserProfile.vue'
-import PostCard from '../components/post/PostCard.vue'
-import Loading from '../components/common/Loading.vue'
-import ErrorState from '../components/common/ErrorState.vue'
-import EmptyState from '../components/common/EmptyState.vue'
-import Pagination from '../components/common/Pagination.vue'
+﻿<script setup>
+import { ref, onMounted, computed } from "vue"
+import { useRoute } from "vue-router"
+import { useAuthStore } from "../stores/auth"
+import { useUserStore } from "../stores/user"
+import { usePostsStore } from "../stores/posts"
+import { useToastStore } from "../stores/toast"
+import { toggleFollow, setStarred } from "../api/users"
+import AppLayout from "../components/layout/AppLayout.vue"
+import UserProfileComponent from "../components/user/UserProfile.vue"
+import PostCard from "../components/post/PostCard.vue"
+import Loading from "../components/common/Loading.vue"
+import ErrorState from "../components/common/ErrorState.vue"
+import EmptyState from "../components/common/EmptyState.vue"
+import Pagination from "../components/common/Pagination.vue"
 
 const route = useRoute()
 const auth = useAuthStore()
 const userStore = useUserStore()
 const postsStore = usePostsStore()
+const toast = useToastStore()
 
-const activeTab = ref('posts') // posts | collections | achievements
+const activeTab = ref("posts")
+const starring = ref(false)
 
 const isOwnProfile = computed(() => {
-  return auth.user && (route.params.id === 'me' || String(auth.user.id) === String(route.params.id))
+  return auth.user && (route.params.id === "me" || String(auth.user.id) === String(route.params.id))
 })
 
 onMounted(async () => {
-  const userId = route.params.id === 'me' && auth.user ? auth.user.id : route.params.id
+  const userId = route.params.id === "me" && auth.user ? auth.user.id : route.params.id
   await userStore.loadUserProfile(userId)
   if (userStore.profile) {
-    await postsStore.loadPosts({ /* 可按用户筛选 */ })
+    await postsStore.loadPosts({})
   }
 })
 
@@ -41,7 +44,22 @@ async function handleFollow(userId) {
       userStore.profile.followers_count = result.followers_count
     }
   } catch (err) {
-    console.error('关注失败:', err.message)
+    console.error("关注失败:", err.message)
+  }
+}
+
+async function handleStar(userId) {
+  if (!auth.isLoggedIn || starring.value) return
+  starring.value = true
+  try {
+    const isStarred = !userStore.profile.is_starred
+    await setStarred(userId, isStarred)
+    userStore.profile.is_starred = isStarred
+    toast.success(isStarred ? "已设为星标用户" : "已取消星标")
+  } catch (err) {
+    toast.error(err.message || "操作失败")
+  } finally {
+    starring.value = false
   }
 }
 
@@ -71,23 +89,17 @@ const user = userStore.profile
         :user="user"
         :is-own="isOwnProfile"
         @follow="handleFollow"
+        @star="handleStar"
         @edit="$router.push('/me/settings')"
       />
 
       <!-- 标签页 -->
       <div class="tabs">
-        <button :class="['tab', { 'tab--active': activeTab === 'posts' }]" @click="activeTab = 'posts'">
-          帖子
-        </button>
-        <button :class="['tab', { 'tab--active': activeTab === 'collections' }]" @click="activeTab = 'collections'">
-          收藏
-        </button>
-        <button :class="['tab', { 'tab--active': activeTab === 'achievements' }]" @click="activeTab = 'achievements'">
-          成就
-        </button>
+        <button :class="['tab', { 'tab--active': activeTab === 'posts' }]" @click="activeTab = 'posts'">帖子</button>
+        <button :class="['tab', { 'tab--active': activeTab === 'collections' }]" @click="activeTab = 'collections'">收藏</button>
+        <button :class="['tab', { 'tab--active': activeTab === 'achievements' }]" @click="activeTab = 'achievements'">成就</button>
       </div>
 
-      <!-- 帖子列表 -->
       <template v-if="activeTab === 'posts'">
         <Loading v-if="postsStore.loading" variant="skeleton" :rows="2" />
         <EmptyState
@@ -98,12 +110,7 @@ const user = userStore.profile
           @action="$router.push('/posts/new')"
         />
         <div v-else class="post-list">
-          <PostCard
-            v-for="post in postsStore.list"
-            :key="post.id"
-            :post="post"
-            @like="handleLike"
-          />
+          <PostCard v-for="post in postsStore.list" :key="post.id" :post="post" @like="handleLike" />
         </div>
         <Pagination
           v-if="postsStore.pagination.total > postsStore.pagination.size"
@@ -114,10 +121,8 @@ const user = userStore.profile
         />
       </template>
 
-      <!-- 收藏 (TODO) -->
       <EmptyState v-else-if="activeTab === 'collections'" icon="⭐" title="收藏列表" description="功能开发中" />
 
-      <!-- 成就 -->
       <div v-else class="achievements">
         <div v-if="user.achievements?.badges?.length" class="badges-grid">
           <div v-for="badge in user.achievements.badges" :key="badge" class="badge-card">
