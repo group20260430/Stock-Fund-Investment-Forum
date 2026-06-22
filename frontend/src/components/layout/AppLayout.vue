@@ -49,10 +49,13 @@ function toggleMobileMenu() {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  height: 100vh;
+  overflow-y: auto;
 }
 
 .app-layout__content {
   padding: var(--space-content-padding);
+  flex: 1;
 }
 
 .app-layout__overlay {

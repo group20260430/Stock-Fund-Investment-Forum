@@ -133,9 +133,11 @@ function navigate(item) {
   padding: 28px 20px;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  position: relative;
+  height: 100vh;
+  position: sticky;
+  top: 0;
   z-index: 20;
+  overflow-y: auto;
 }
 
 .brand {
