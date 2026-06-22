@@ -71,12 +71,10 @@ async function handleAvatarSelected(e) {
 
 <template>
   <div class="profile-header">
-    <!-- 背景横幅 -->
     <div class="profile-header__banner">
       <div class="profile-header__banner-placeholder" />
     </div>
 
-    <!-- 信息区 -->
     <div class="profile-header__info">
       <div class="profile-header__avatar-wrap" :class="{ 'profile-header__avatar-wrap--uploading': uploadingAvatar }">
         <img
@@ -107,33 +105,25 @@ async function handleAvatarSelected(e) {
       <div class="profile-header__details">
         <div class="profile-header__name-row">
           <h1>{{ user.nickname }}</h1>
-          <span
-            v-if="user.auth_level === 'professional'"
-            class="auth-badge auth-badge--pro"
-            title="专业认证"
-          >V</span>
-          <span
-            v-else-if="user.auth_level === 'verified'"
-            class="auth-badge auth-badge--verified"
-            title="实名认证"
-          >V</span>
+          <span v-if="user.is_starred" class="star-badge" title="星标用户">⭐</span>
+          <span v-if="user.auth_level === 'professional'" class="auth-badge auth-badge--pro" title="专业认证">V</span>
+          <span v-else-if="user.auth_level === 'verified'" class="auth-badge auth-badge--verified" title="实名认证">V</span>
         </div>
         <p v-if="user.bio" class="profile-header__bio">{{ user.bio }}</p>
         <div class="profile-header__stats">
-          <router-link :to="`/users/${user.id}/followers`">
+          <router-link :to="'/users/' + user.id + '/follow?tab=following'">
             <strong>{{ user.achievements?.posts_count || 0 }}</strong> 帖子
           </router-link>
-          <router-link :to="`/users/${user.id}/followers`">
+          <router-link :to="'/users/' + user.id + '/follow?tab=followers'">
             <strong>{{ user.followers_count || 0 }}</strong> 粉丝
           </router-link>
-          <router-link :to="`/users/${user.id}/following`">
+          <router-link :to="'/users/' + user.id + '/follow?tab=following'">
             <strong>{{ user.following_count || 0 }}</strong> 关注
           </router-link>
           <span>
             <strong>{{ user.achievements?.influence_score || 0 }}</strong> 影响力
           </span>
         </div>
-        <!-- 徽章 -->
         <div v-if="user.achievements?.badges && user.achievements.badges.length" class="profile-header__badges">
           <span v-for="badge in user.achievements.badges" :key="badge" class="badge-item">
             <AppIcon name="badge" :size="14" /> {{ badge }}
@@ -141,20 +131,20 @@ async function handleAvatarSelected(e) {
         </div>
       </div>
 
-      <!-- 操作按钮 -->
       <div class="profile-header__actions">
         <template v-if="isOwn">
-          <button class="action-btn action-btn--secondary" @click="emit('edit')">
-            编辑资料
-          </button>
+          <button class="action-btn action-btn--secondary" @click="emit('edit')">编辑资料</button>
         </template>
         <template v-else>
           <button
             :class="['action-btn', { 'action-btn--active': user.is_followed }]"
             @click="emit('follow', user.id)"
-          >
-            {{ user.is_followed ? '已关注' : '+ 关注' }}
-          </button>
+          >{{ user.is_followed ? "已关注" : "+ 关注" }}</button>
+          <button
+            :class="['action-btn action-btn--secondary', { 'star-btn--active': user.is_starred }]"
+            :title="user.is_starred ? '取消星标' : '设为星标'"
+            @click="emit('star', user.id)"
+          >{{ user.is_starred ? "⭐ 已星标" : "☆ 星标" }}</button>
           <button class="action-btn action-btn--secondary" @click="emit('message', user.id)">
             <AppIcon name="message" :size="14" /> 私信
           </button>
@@ -245,10 +235,9 @@ async function handleAvatarSelected(e) {
   margin-bottom: 4px;
 }
 
-.profile-header__name-row h1 {
-  font-size: 22px;
-  margin: 0;
-}
+.profile-header__name-row h1 { font-size: 22px; margin: 0; }
+
+.star-badge { font-size: 16px; }
 
 .auth-badge {
   border-radius: 50%;
@@ -261,15 +250,8 @@ async function handleAvatarSelected(e) {
   width: 20px;
 }
 
-.auth-badge--pro {
-  background: var(--color-info);
-  color: var(--color-bg-card);
-}
-
-.auth-badge--verified {
-  background: var(--color-warning);
-  color: var(--color-bg-card);
-}
+.auth-badge--pro { background: var(--color-info); color: var(--color-bg-card); }
+.auth-badge--verified { background: var(--color-warning); color: var(--color-bg-card); }
 
 .profile-header__bio {
   color: var(--color-text-secondary);
@@ -285,14 +267,9 @@ async function handleAvatarSelected(e) {
 }
 
 .profile-header__stats a,
-.profile-header__stats span {
-  color: inherit;
-  text-decoration: none;
-}
+.profile-header__stats span { color: inherit; text-decoration: none; }
 
-.profile-header__stats strong {
-  color: var(--color-text-primary);
-}
+.profile-header__stats strong { color: var(--color-text-primary); }
 
 .profile-header__badges {
   display: flex;
@@ -328,9 +305,7 @@ async function handleAvatarSelected(e) {
   white-space: nowrap;
 }
 
-.action-btn:hover {
-  background: var(--color-primary-hover);
-}
+.action-btn:hover { background: var(--color-primary-hover); }
 
 .action-btn--active {
   background: var(--color-bg-card);
@@ -344,8 +319,12 @@ async function handleAvatarSelected(e) {
   color: var(--color-text-body);
 }
 
-.action-btn--secondary:hover {
-  background: var(--color-bg-hover);
+.action-btn--secondary:hover { background: var(--color-bg-hover); }
+
+.star-btn--active {
+  background: var(--color-warning-light);
+  border-color: var(--color-warning);
+  color: var(--color-warning);
 }
 
 @media (max-width: 780px) {
@@ -381,5 +360,12 @@ async function handleAvatarSelected(e) {
   .profile-header__actions {
     justify-content: center;
   }
+=======
+  .profile-header__info { flex-direction: column; align-items: center; text-align: center; }
+  .profile-header__avatar { margin-top: -40px; height: 64px; width: 64px; }
+  .profile-header__name-row { justify-content: center; }
+  .profile-header__stats { justify-content: center; }
+  .profile-header__badges { justify-content: center; }
+  .profile-header__actions { justify-content: center; }
 }
 </style>

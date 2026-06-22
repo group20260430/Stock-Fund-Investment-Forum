@@ -1,6 +1,6 @@
 ﻿<script setup>
-import { ref, onMounted } from "vue"
-import { useRoute } from "vue-router"
+import { ref, onMounted, computed } from "vue"
+import { useRoute, useRouter } from "vue-router"
 import AppLayout from "../components/layout/AppLayout.vue"
 import PostCard from "../components/post/PostCard.vue"
 import Loading from "../components/common/Loading.vue"
@@ -8,11 +8,15 @@ import EmptyState from "../components/common/EmptyState.vue"
 import Pagination from "../components/common/Pagination.vue"
 import { usePostsStore } from "../stores/posts"
 import { useToastStore } from "../stores/toast"
-import { fetchGroups, joinGroup, createGroupPost, fetchGroupPosts } from "../api/groups"
+import { useAuthStore } from "../stores/auth"
+import { fetchGroups, joinGroup, createGroupPost, approveGroupMember, fetchGroupPosts } from "../api/groups"
+import { fetchPosts } from "../api/posts"
 
 const route = useRoute()
+const router = useRouter()
 const postsStore = usePostsStore()
 const toast = useToastStore()
+const auth = useAuthStore()
 
 const group = ref(null)
 const loading = ref(true)
@@ -29,13 +33,27 @@ const postTitle = ref("")
 const postContent = ref("")
 const posting = ref(false)
 
+// 成员管理
+const showMembers = ref(false)
+const pendingMembers = ref([])
+const membersLoading = ref(false)
+const approving = ref({})
+
+const isAdmin = computed(() => {
+  if (!group.value || !auth.user) return false
+  return group.value.owner_id === auth.user.id || group.value.admins?.includes(auth.user.id) || group.value.is_admin
+})
+
 onMounted(async () => {
   loading.value = true
   try {
     const data = await fetchGroups({ type: "my" })
     const list = Array.isArray(data) ? data : (data?.items || [])
     group.value = list.find(g => String(g.id) === String(route.params.id))
-    if (group.value) await loadPosts()
+    if (group.value) {
+      await loadPosts()
+      if (isAdmin.value) await loadPendingMembers()
+    }
   } catch (err) {
     console.error("加载群组详情失败:", err.message)
   } finally {
@@ -55,6 +73,46 @@ async function loadPosts(p = 1) {
   } finally {
     postsLoading.value = false
   }
+}
+
+async function loadPendingMembers() {
+  membersLoading.value = true
+  try {
+    // 从群组数据中获取待审核成员，或尝试拉取成员列表
+    if (group.value.pending_members) {
+      pendingMembers.value = group.value.pending_members
+    } else if (group.value.members) {
+      pendingMembers.value = group.value.members.filter(m => m.status === "pending")
+    }
+  } catch (err) {
+    console.error("加载待审核成员失败:", err.message)
+  } finally {
+    membersLoading.value = false
+  }
+}
+
+async function handleApproveMember(userId) {
+  approving.value[userId] = true
+  try {
+    await approveGroupMember(route.params.id, userId)
+    pendingMembers.value = pendingMembers.value.filter(m => {
+      const mid = typeof m === "object" ? m.id : m
+      return String(mid) !== String(userId)
+    })
+    toast.success("已通过")
+  } catch (err) {
+    toast.error(err.message || "操作失败")
+  } finally {
+    approving.value[userId] = false
+  }
+}
+
+function memberName(m) {
+  return typeof m === "object" ? (m.nickname || m.username || m.name || "") : String(m)
+}
+
+function memberId(m) {
+  return typeof m === "object" ? m.id : m
 }
 
 async function handleJoin() {
@@ -117,6 +175,24 @@ function handlePostsPageChange(p) { loadPosts(p); window.scrollTo({ top: 400, be
           @click="handleJoin"
         >{{ joining ? "加入中..." : "+ 加入群组" }}</button>
       </header>
+
+      <!-- 管理员：成员审核 -->
+      <div v-if="isAdmin && pendingMembers.length" class="member-section">
+        <div class="member-section__header" @click="showMembers = !showMembers">
+          <h3>⏳ 待审核成员 ({{ pendingMembers.length }})</h3>
+          <span class="member-section__toggle">{{ showMembers ? "收起" : "展开" }}</span>
+        </div>
+        <div v-if="showMembers" class="member-list">
+          <div v-for="m in pendingMembers" :key="memberId(m)" class="member-item">
+            <span class="member-item__name">{{ memberName(m) }}</span>
+            <button
+              class="member-item__approve"
+              :disabled="approving[memberId(m)]"
+              @click="handleApproveMember(memberId(m))"
+            >{{ approving[memberId(m)] ? "处理中..." : "✓ 通过" }}</button>
+          </div>
+        </div>
+      </div>
 
       <!-- 发帖区 -->
       <div v-if="group.is_member" class="group-post-form">
@@ -237,6 +313,72 @@ function handlePostsPageChange(p) { loadPosts(p); window.scrollTo({ top: 400, be
 
 .join-btn:hover:not(:disabled) { background: var(--color-primary-hover); }
 .join-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* 成员审核 */
+.member-section {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-xl);
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+
+.member-section__header {
+  align-items: center;
+  background: var(--color-warning-light);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  padding: 16px 20px;
+}
+
+.member-section__header h3 {
+  color: var(--color-warning);
+  font-size: var(--font-size-base);
+  margin: 0;
+}
+
+.member-section__toggle {
+  color: var(--color-warning);
+  font-size: var(--font-size-sm);
+}
+
+.member-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.member-item {
+  align-items: center;
+  border-top: 1px solid var(--color-border-light);
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 12px 20px;
+}
+
+.member-item__name {
+  color: var(--color-text-body);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+}
+
+.member-item__approve {
+  background: var(--color-success);
+  border: 0;
+  border-radius: var(--radius-md);
+  color: var(--color-bg-card);
+  cursor: pointer;
+  flex-shrink: 0;
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  padding: 6px 16px;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.member-item__approve:hover:not(:disabled) { background: var(--color-success-hover); }
+.member-item__approve:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* 发帖表单 */
 .group-post-form {
