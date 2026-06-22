@@ -3,6 +3,8 @@ import secrets
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 from app.api.auth import router as auth_router
 from app.api.admin import router as admin_router
@@ -14,6 +16,7 @@ from app.api.market import router as market_router
 from app.api.notifications import router as notifications_router
 from app.api.posts import router as posts_router
 from app.api.social_users import router as social_users_router
+from app.api.uploads import router as uploads_router
 from app.core.config import settings
 from app.db.base import Base
 from app.db.session import engine
@@ -145,6 +148,12 @@ def create_app() -> FastAPI:
     app.include_router(discovery_router, prefix="/api")
     app.include_router(admin_router, prefix="/api")
     app.include_router(auth_router, prefix="/api")
+    app.include_router(uploads_router, prefix="/api")
+
+    # 静态文件服务（上传的附件）
+    uploads_dir = Path(__file__).resolve().parent.parent / "uploads"
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
     return app
 

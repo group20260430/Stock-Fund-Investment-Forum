@@ -58,7 +58,7 @@ def _post_payload(
     data = {
         "id": post.id,
         "title": post.title,
-        "content_summary": post.content[:160],
+        "content_summary": post.content[:200],
         "author": _author_payload(post.author),
         "category": {"id": post.category.id, "name": post.category.name},
         "post_type": post.post_type.value,

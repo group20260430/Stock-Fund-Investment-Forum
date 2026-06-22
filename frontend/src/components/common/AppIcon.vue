@@ -2,7 +2,7 @@
 /**
  * AppIcon — 统一图标组件
  *
- * 基于 unplugin-icons 的构建时 SVG 内联。
+ * 基于 @iconify/vue 的运行时 SVG 加载。
  * 用法：<AppIcon name="like" :size="20" />
  *       <AppIcon name="like" :size="20" solid />
  *
@@ -11,6 +11,7 @@
  * @param {boolean} solid - 是否使用实心变体，默认 false
  */
 import { computed } from 'vue'
+import { Icon } from '@iconify/vue'
 import { iconMap } from '../../utils/icons'
 
 const props = defineProps({

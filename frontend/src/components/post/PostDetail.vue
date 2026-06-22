@@ -1,5 +1,7 @@
 ﻿<script setup>
+import { computed } from 'vue'
 import { timeAgo } from "../../utils/format"
+import { renderMarkdown } from "../../utils/markdown"
 import AppIcon from "../common/AppIcon.vue"
 import PollWidget from "./PollWidget.vue"
 
@@ -8,6 +10,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(["voted"])
+
+const renderedContent = computed(() => renderMarkdown(props.post.content || ''))
 </script>
 
 <template>
@@ -50,7 +54,7 @@ const emit = defineEmits(["voted"])
       @voted="emit('voted', $event)"
     />
 
-    <div class="post-detail__content" v-html="post.content" />
+    <div class="post-detail__content" v-html="renderedContent" />
 
     <div v-if="post.attachments && post.attachments.length" class="post-detail__attachments">
       <h4>附件</h4>
@@ -166,6 +170,77 @@ const emit = defineEmits(["voted"])
   line-height: 1.9;
   margin-bottom: 24px;
   word-break: break-word;
+}
+
+/* Markdown 渲染后 HTML 的样式 */
+.post-detail__content :deep(h1),
+.post-detail__content :deep(h2),
+.post-detail__content :deep(h3) {
+  margin: 1.2em 0 0.6em;
+}
+
+.post-detail__content :deep(h1) { font-size: 1.6em; }
+.post-detail__content :deep(h2) { font-size: 1.35em; }
+.post-detail__content :deep(h3) { font-size: 1.15em; }
+
+.post-detail__content :deep(p) { margin: 0.6em 0; }
+
+.post-detail__content :deep(ul),
+.post-detail__content :deep(ol) {
+  padding-left: 1.5em;
+}
+
+.post-detail__content :deep(li) { margin: 0.3em 0; }
+
+.post-detail__content :deep(blockquote) {
+  border-left: 3px solid var(--color-primary);
+  color: var(--color-text-secondary);
+  margin: 0.8em 0;
+  padding: 0.4em 1em;
+}
+
+.post-detail__content :deep(code) {
+  background: var(--color-bg-hover);
+  border-radius: 4px;
+  font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 0.9em;
+  padding: 2px 6px;
+}
+
+.post-detail__content :deep(pre) {
+  background: var(--color-bg-hover);
+  border-radius: 8px;
+  overflow-x: auto;
+  padding: 16px;
+}
+
+.post-detail__content :deep(pre code) {
+  background: none;
+  padding: 0;
+}
+
+.post-detail__content :deep(table) {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.post-detail__content :deep(th),
+.post-detail__content :deep(td) {
+  border: 1px solid var(--color-border);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.post-detail__content :deep(th) {
+  background: var(--color-bg-hover);
+  font-weight: 600;
+}
+
+.post-detail__content :deep(a) { color: var(--color-primary); }
+
+.post-detail__content :deep(img) {
+  max-width: 100%;
+  border-radius: 6px;
 }
 
 .post-detail__attachments {
