@@ -153,6 +153,8 @@ def delete_comment(
         raise HTTPException(status_code=403, detail="无权删除该评论")
     post = db.query(Post).filter(Post.id == comment.post_id).first()
     child_count = db.query(Comment).filter(Comment.parent_id == comment.id).count()
+    # ── Points: deduct for deleting comment ──
+    award_points(db, comment.user_id, -2, "delete_comment", "comment", comment.id)
     db.delete(comment)
     if post:
         post.comment_count = max(0, post.comment_count - child_count - 1)
@@ -176,6 +178,9 @@ def toggle_comment_like(
         db.delete(existing)
         comment.like_count = max(0, comment.like_count - 1)
         liked = False
+        # ── Points: deduct for unlike ──
+        if comment.user_id != user.id:
+            award_points(db, comment.user_id, -1, "comment_unliked", "comment", comment_id)
     else:
         db.add(Like(user_id=user.id, target_type=LikeTarget.COMMENT, target_id=comment_id))
         comment.like_count += 1
@@ -202,6 +207,9 @@ def toggle_post_like(
         db.delete(existing)
         post.like_count = max(0, post.like_count - 1)
         liked = False
+        # ── Points: deduct for unlike ──
+        if post.user_id != user.id:
+            award_points(db, post.user_id, -1, "post_unliked", "post", post_id)
     else:
         db.add(Like(user_id=user.id, target_type=LikeTarget.POST, target_id=post_id))
         post.like_count += 1

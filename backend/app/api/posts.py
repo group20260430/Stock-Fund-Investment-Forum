@@ -323,6 +323,8 @@ def delete_post(
     post = _get_post_or_404(db, post_id)
     _ensure_owner_or_admin(post, user)
     category = post.category
+    # ── Points: deduct for deleting post ──
+    award_points(db, post.user_id, -5, "delete_post", "post", post.id)
     db.delete(post)
     category.post_count = max(0, category.post_count - 1)
     db.commit()

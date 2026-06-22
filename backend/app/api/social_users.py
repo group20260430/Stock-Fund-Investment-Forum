@@ -106,6 +106,15 @@ def get_public_profile(
         data["investment_tags"] = None
         data["follow_markets"] = None
 
+    # ── Privacy: hide activity status from non-owners ──
+    if not is_self and not _get_privacy(user, "show_activity_status", True):
+        data["achievements"] = {
+            "posts_count": 0,
+            "elite_posts": 0,
+            "influence_score": 0,
+            "badges": [],
+        }
+
     return ApiResponse(code=200, message="success", data=data)
 
 
@@ -127,6 +136,8 @@ def toggle_follow(
         target.followers_count = max(0, target.followers_count - 1)
         followed = False
         record_activity(db, current_user.id, ActivityType.UNFOLLOW, "user", target.id)
+        # ── Points: deduct for unfollow ──
+        award_points(db, target.id, -1, "lost_follower", "user", current_user.id)
     else:
         db.add(Follow(follower_id=current_user.id, following_id=target.id))
         current_user.following_count += 1

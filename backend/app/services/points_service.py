@@ -1,4 +1,11 @@
-"""Points and level system — award points and calculate user levels."""
+"""Points and level system — award points and calculate user levels.
+
+Valid award_points reason values:
+  Positive: daily_login, create_post, create_comment, post_liked,
+            comment_liked, post_shared, gained_follower
+  Negative: delete_post, delete_comment, post_unliked,
+            comment_unliked, lost_follower
+"""
 
 from sqlalchemy.orm import Session
 
