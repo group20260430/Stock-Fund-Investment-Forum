@@ -33,6 +33,10 @@ export const iconMap = {
   add:        'heroicons-outline:plus',
   ellipsis:   'heroicons-outline:ellipsis-horizontal',
 
+  // === 编辑器工具栏 ===
+  'list-bullet':  'heroicons-outline:list-bullet',
+  'list-ordered': 'heroicons-outline:queue-list',
+
   // === 状态/反馈 ===
   empty:      'heroicons-outline:inbox',
   error:      'heroicons-outline:exclamation-triangle',

@@ -1,7 +1,9 @@
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useToastStore } from '../../stores/toast'
 import { createPost, updatePost, fetchCategories } from '../../api/posts'
+import { renderMarkdown } from '../../utils/markdown'
+import { insertAtCursor, insertAtLineStart } from '../../utils/editor'
 import AppIcon from '../common/AppIcon.vue'
 
 const props = defineProps({
@@ -11,10 +13,14 @@ const props = defineProps({
 const emit = defineEmits(['close', 'saved'])
 const toast = useToastStore()
 
-const isPreview = ref(false)
 const submitting = ref(false)
 const categories = ref([])
 const tagInput = ref('')
+const textareaRef = ref(null)
+const fileInputRef = ref(null)
+const imageInputRef = ref(null)
+const uploading = ref(false)
+const uploadingImage = ref(false)
 
 const form = reactive({
   category_id: '',
@@ -23,22 +29,30 @@ const form = reactive({
   post_type: 'normal',
   tags: [],
   vote_options: [],
+  attachments: [],
 })
 
 const voteOptionInputs = ref(['', ''])
+
+const previewHtml = computed(() => renderMarkdown(form.content))
 
 onMounted(async () => {
   try {
     categories.value = await fetchCategories()
     if (categories.value.length) form.category_id = categories.value[0].id
   } catch { /* ignore */ }
-  // 编辑模式：回填数据
   if (props.post) {
     form.category_id = props.post.category_id || props.post.category?.id || ''
     form.title = props.post.title || ''
     form.content = props.post.content || ''
     form.post_type = props.post.post_type || 'normal'
     form.tags = props.post.tags || []
+    form.attachments = (props.post.attachments || []).map(a => ({
+      file_name: a.file_name,
+      file_url: a.file_url,
+      file_size: a.file_size || 0,
+      file_type: a.file_type || '',
+    }))
     if (props.post.poll?.options) {
       voteOptionInputs.value = props.post.poll.options.map(o => o.text || o.label || '')
       form.vote_options = props.post.poll.options.map(o => ({ label: o.text || o.label || '' }))
@@ -49,10 +63,122 @@ onMounted(async () => {
   }
 })
 
-function togglePreview() {
-  isPreview.value = !isPreview.value
+// ========== 通用上传 ==========
+async function uploadSingleFile(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const token = localStorage.getItem('token')
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
+  const response = await fetch(`${API_BASE}/uploads`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  })
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err.message || `上传失败 (${response.status})`)
+  }
+
+  const result = await response.json()
+  return result.data
 }
 
+// ========== 工具栏操作 ==========
+const textarea = () => textareaRef.value
+
+function insertBold()      { insertAtCursor(textarea(), '**', '**', '加粗文本') }
+function insertItalic()    { insertAtCursor(textarea(), '*', '*', '斜体文本') }
+function insertUnderline() { insertAtCursor(textarea(), '<u>', '</u>', '下划线文本') }
+function insertUl()        { insertAtLineStart(textarea(), '-', '列表项') }
+function insertOl()        { insertAtLineStart(textarea(), '1.', '列表项') }
+
+function insertLink() {
+  const url = prompt('请输入链接 URL：', 'https://')
+  if (url) insertAtCursor(textarea(), '[', `](${url})`, '链接文本')
+}
+
+// ========== 图片上传并插入 ==========
+function triggerImageInput() {
+  imageInputRef.value?.click()
+}
+
+async function handleImageSelected(e) {
+  const files = e.target.files
+  if (!files || !files.length) return
+
+  const file = files[0]
+
+  // 校验
+  if (!file.type.startsWith('image/')) {
+    toast.warning('请选择图片文件')
+    e.target.value = ''
+    return
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    toast.warning('图片大小超过 10MB 限制')
+    e.target.value = ''
+    return
+  }
+
+  uploadingImage.value = true
+  try {
+    const data = await uploadSingleFile(file)
+    // 用文件名作为 alt 描述（去掉扩展名）
+    const alt = file.name.replace(/\.[^.]+$/, '')
+    insertAtCursor(textarea(), '![', `](${data.file_url})`, alt)
+  } catch (err) {
+    toast.error(err.message || '图片上传失败')
+  } finally {
+    uploadingImage.value = false
+    e.target.value = ''
+  }
+}
+
+// ========== 附件上传 ==========
+function triggerFileInput() {
+  fileInputRef.value?.click()
+}
+
+async function handleFileSelected(e) {
+  const files = e.target.files
+  if (!files || !files.length) return
+
+  uploading.value = true
+  for (const file of files) {
+    if (file.size > 10 * 1024 * 1024) {
+      toast.warning(`文件 ${file.name} 超过 10MB 限制`)
+      continue
+    }
+    try {
+      const data = await uploadSingleFile(file)
+      form.attachments.push({
+        file_name: data.file_name,
+        file_url: data.file_url,
+        file_size: data.file_size,
+        file_type: data.file_type,
+      })
+    } catch (err) {
+      toast.error(err.message || '文件上传失败')
+    }
+  }
+  uploading.value = false
+  e.target.value = ''
+}
+
+function removeAttachment(idx) {
+  form.attachments.splice(idx, 1)
+}
+
+function formatFileSize(bytes) {
+  if (!bytes) return '0 B'
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+  return (bytes / 1024 / 1024).toFixed(1) + ' MB'
+}
+
+// ========== 其他 ==========
 function selectType(type) {
   form.post_type = type
 }
@@ -89,6 +215,12 @@ async function handleSubmit() {
     content: form.content.trim(),
     post_type: form.post_type,
     tags: form.tags,
+    attachments: form.attachments.map(a => ({
+      file_name: a.file_name,
+      file_url: a.file_url,
+      file_size: a.file_size,
+      file_type: a.file_type,
+    })),
   }
 
   if (form.post_type === 'poll') {
@@ -120,7 +252,7 @@ async function handleSubmit() {
   <div class="editor-overlay" @click.self="emit('close')">
     <div class="editor">
       <header class="editor__header">
-        <h2>发布帖子</h2>
+        <h2>{{ props.post?.id ? '编辑帖子' : '发布帖子' }}</h2>
         <button class="editor__close" @click="emit('close')"><AppIcon name="close" :size="18" /></button>
       </header>
 
@@ -154,27 +286,73 @@ async function handleSubmit() {
           >
         </div>
 
-        <!-- 富文本工具栏 + 编辑区 -->
+        <!-- 编辑 + 预览 左右分栏 -->
         <div class="editor__field">
-          <div class="editor__toolbar">
-            <button title="加粗"><b>B</b></button>
-            <button title="斜体"><i>I</i></button>
-            <button title="下划线"><u>U</u></button>
-            <span class="toolbar-divider" />
-            <button title="无序列表">≡</button>
-            <button title="有序列表">1.</button>
-            <span class="toolbar-divider" />
-            <button title="链接"><AppIcon name="link" :size="16" /></button>
-            <button title="图片"><AppIcon name="image" :size="16" /></button>
-            <button title="附件"><AppIcon name="attachment" :size="16" /></button>
+          <label>正文 <span class="editor__label-hint">（支持 Markdown 语法）</span></label>
+
+          <div class="editor__panes">
+            <!-- 左侧：编辑 -->
+            <div class="editor__pane editor__pane--edit">
+              <div class="editor__toolbar">
+                <button title="加粗" @click="insertBold"><b>B</b></button>
+                <button title="斜体" @click="insertItalic"><i>I</i></button>
+                <button title="下划线" @click="insertUnderline"><u>U</u></button>
+                <span class="toolbar-divider" />
+                <button title="无序列表" @click="insertUl"><AppIcon name="list-bullet" :size="16" /></button>
+                <button title="有序列表" @click="insertOl"><AppIcon name="list-ordered" :size="16" /></button>
+                <span class="toolbar-divider" />
+                <button title="插入链接" @click="insertLink"><AppIcon name="link" :size="16" /></button>
+                <button title="上传图片并插入" :disabled="uploadingImage" @click="triggerImageInput">
+                  <AppIcon name="image" :size="16" />
+                  <span v-if="uploadingImage" class="spin-icon">⟳</span>
+                </button>
+                <button title="上传附件" :disabled="uploading" @click="triggerFileInput">
+                  <AppIcon name="attachment" :size="16" />
+                  <span v-if="uploading" class="spin-icon">⟳</span>
+                </button>
+              </div>
+              <textarea
+                ref="textareaRef"
+                v-model="form.content"
+                class="editor__textarea"
+                placeholder="输入 Markdown 正文内容..."
+                rows="16"
+              />
+            </div>
+
+            <!-- 右侧：预览 -->
+            <div class="editor__pane editor__pane--preview">
+              <div class="editor__preview-header">预览</div>
+              <div class="editor__preview-body">
+                <div v-if="form.title" class="editor__preview-title">{{ form.title }}</div>
+                <div v-if="previewHtml" class="editor__preview-content" v-html="previewHtml" />
+                <div v-else class="editor__preview-empty">
+                  <AppIcon name="image" :size="36" />
+                  <p>实时预览</p>
+                  <span>在左侧输入内容后，此处将实时渲染 Markdown 效果</span>
+                </div>
+              </div>
+            </div>
           </div>
-          <textarea
-            v-model="form.content"
-            class="editor__textarea"
-            placeholder="在这里输入正文内容..."
-            rows="12"
-          />
         </div>
+
+        <!-- 隐藏：图片上传 input -->
+        <input
+          ref="imageInputRef"
+          type="file"
+          accept="image/*"
+          style="display: none"
+          @change="handleImageSelected"
+        >
+
+        <!-- 隐藏：附件上传 input -->
+        <input
+          ref="fileInputRef"
+          type="file"
+          multiple
+          style="display: none"
+          @change="handleFileSelected"
+        >
 
         <!-- 投票选项 -->
         <div v-if="form.post_type === 'poll'" class="editor__field">
@@ -206,30 +384,30 @@ async function handleSubmit() {
         <!-- 附件区 -->
         <div class="editor__field">
           <label>附件</label>
-          <div class="editor__attachments">
-            <span class="editor__attach-hint">附件功能：目前支持填写文件 URL</span>
+          <div v-if="form.attachments.length" class="editor__attachments">
+            <div v-for="(att, idx) in form.attachments" :key="idx" class="attachment-chip">
+              <span class="attachment-chip__icon"><AppIcon name="attachment" :size="14" /></span>
+              <span class="attachment-chip__name" :title="att.file_name">{{ att.file_name }}</span>
+              <span class="attachment-chip__size">{{ formatFileSize(att.file_size) }}</span>
+              <button class="attachment-chip__remove" @click="removeAttachment(idx)">&times;</button>
+            </div>
           </div>
+          <button class="editor__attach-btn" :disabled="uploading" @click="triggerFileInput">
+            <AppIcon name="attachment" :size="14" />
+            {{ uploading ? ' 上传中...' : ' 选择文件' }}
+          </button>
+          <span class="editor__attach-hint">支持图片、PDF、文档等，单文件最大 10MB</span>
         </div>
       </div>
 
       <footer class="editor__footer">
         <button class="editor__btn editor__btn--secondary" @click="emit('close')">取消</button>
         <div class="editor__footer-right">
-          <button class="editor__btn editor__btn--secondary" @click="togglePreview">预览</button>
           <button class="editor__btn editor__btn--primary" :disabled="submitting" @click="handleSubmit">
             {{ submitting ? '发布中...' : (props.post?.id ? '保存修改' : '发布') }}
           </button>
         </div>
       </footer>
-
-      <!-- 预览弹窗 -->
-      <div v-if="isPreview" class="preview-overlay" @click.self="isPreview = false">
-        <div class="preview">
-          <h3>预览</h3>
-          <p class="preview__placeholder">预览内容将在支持 Markdown 后渲染</p>
-          <button class="editor__btn editor__btn--secondary" @click="isPreview = false">关闭</button>
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -251,10 +429,10 @@ async function handleSubmit() {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
-  max-height: 90vh;
-  max-width: 800px;
+  max-height: 92vh;
+  max-width: 1200px;
   overflow-y: auto;
-  width: 92vw;
+  width: 96vw;
 }
 
 .editor__header {
@@ -302,6 +480,12 @@ async function handleSubmit() {
   font-weight: 500;
 }
 
+.editor__label-hint {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
 .editor__input,
 .editor__select,
 .editor__textarea {
@@ -319,11 +503,6 @@ async function handleSubmit() {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px var(--color-primary-ring);
   outline: none;
-}
-
-.editor__textarea {
-  resize: vertical;
-  min-height: 240px;
 }
 
 .editor__type-tabs {
@@ -351,14 +530,52 @@ async function handleSubmit() {
   color: var(--color-bg-card);
 }
 
+/* ===== 编辑 + 预览 左右分栏 ===== */
+.editor__panes {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  display: flex;
+  gap: 0;
+  min-height: 420px;
+  overflow: hidden;
+}
+
+.editor__pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.editor__pane--edit {
+  border-right: 1px solid var(--color-border);
+}
+
+.editor__textarea {
+  background: var(--color-bg-card);
+  border: 0;
+  border-radius: 0;
+  flex: 1;
+  font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 14px;
+  line-height: 1.7;
+  min-height: 0;
+  padding: 14px 16px;
+  resize: none;
+}
+
+.editor__textarea:focus {
+  box-shadow: none;
+}
+
 .editor__toolbar {
   align-items: center;
   background: var(--color-bg-hover);
-  border: 1px solid var(--color-border);
-  border-radius: 8px 8px 0 0;
+  border-bottom: 1px solid var(--color-border);
   display: flex;
   gap: 4px;
-  padding: 8px 12px;
+  padding: 6px 10px;
+  flex-shrink: 0;
 }
 
 .editor__toolbar button {
@@ -371,14 +588,21 @@ async function handleSubmit() {
   display: flex;
   font: inherit;
   font-size: 14px;
+  gap: 4px;
   height: 32px;
   justify-content: center;
   min-width: 32px;
   padding: 0 6px;
+  transition: background 0.15s;
 }
 
-.editor__toolbar button:hover {
+.editor__toolbar button:hover:not(:disabled) {
   background: var(--color-border);
+}
+
+.editor__toolbar button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .toolbar-divider {
@@ -388,27 +612,186 @@ async function handleSubmit() {
   width: 1px;
 }
 
-.editor__attachments {
-  align-items: center;
-  display: flex;
-  gap: 12px;
+.spin-icon {
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+  font-size: 12px;
+  line-height: 1;
 }
 
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ===== 预览面板 ===== */
+.editor__preview-header {
+  align-items: center;
+  background: var(--color-bg-hover);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  display: flex;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 500;
+  height: 30px;
+  padding: 0 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.editor__preview-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 18px;
+}
+
+.editor__preview-title {
+  border-bottom: 1px solid var(--color-border);
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+}
+
+.editor__preview-content {
+  color: var(--color-text-body);
+  font-size: 15px;
+  line-height: 1.8;
+  word-break: break-word;
+}
+
+.editor__preview-content :deep(h1),
+.editor__preview-content :deep(h2),
+.editor__preview-content :deep(h3) {
+  margin: 1em 0 0.5em;
+}
+
+.editor__preview-content :deep(p) { margin: 0.6em 0; }
+
+.editor__preview-content :deep(ul),
+.editor__preview-content :deep(ol) {
+  padding-left: 1.5em;
+}
+
+.editor__preview-content :deep(li) { margin: 0.3em 0; }
+
+.editor__preview-content :deep(blockquote) {
+  border-left: 3px solid var(--color-primary);
+  color: var(--color-text-secondary);
+  margin: 0.8em 0;
+  padding: 0.4em 1em;
+}
+
+.editor__preview-content :deep(code) {
+  background: var(--color-bg-hover);
+  border-radius: 4px;
+  font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 0.9em;
+  padding: 2px 6px;
+}
+
+.editor__preview-content :deep(pre) {
+  background: var(--color-bg-hover);
+  border-radius: 6px;
+  overflow-x: auto;
+  padding: 14px;
+}
+
+.editor__preview-content :deep(pre code) {
+  background: none;
+  padding: 0;
+}
+
+.editor__preview-content :deep(table) {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.editor__preview-content :deep(th),
+.editor__preview-content :deep(td) {
+  border: 1px solid var(--color-border);
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.editor__preview-content :deep(th) {
+  background: var(--color-bg-hover);
+  font-weight: 600;
+}
+
+.editor__preview-content :deep(a) { color: var(--color-primary); }
+
+.editor__preview-content :deep(img) {
+  max-width: 100%;
+  border-radius: 6px;
+}
+
+.editor__preview-empty {
+  align-items: center;
+  color: var(--color-text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: center;
+  min-height: 320px;
+  text-align: center;
+}
+
+.editor__preview-empty p {
+  font-size: 16px;
+  margin: 0;
+}
+
+.editor__preview-empty span {
+  font-size: 13px;
+  max-width: 200px;
+}
+
+/* ===== 附件 ===== */
+.editor__attachments {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.attachment-chip {
+  align-items: center;
+  background: var(--color-bg-hover);
+  border-radius: 6px;
+  display: flex;
+  font-size: 13px;
+  gap: 8px;
+  padding: 8px 12px;
+}
+
+.attachment-chip__icon { color: var(--color-text-muted); flex-shrink: 0; }
+.attachment-chip__name { color: var(--color-text-body); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attachment-chip__size { color: var(--color-text-muted); flex-shrink: 0; }
+.attachment-chip__remove { background: none; border: 0; color: var(--color-danger); cursor: pointer; flex-shrink: 0; font-size: 18px; padding: 0 2px; }
+
 .editor__attach-btn {
+  align-items: center;
   background: var(--color-bg-card);
   border: 1px dashed var(--color-border-input);
   border-radius: 8px;
   color: var(--color-text-secondary);
   cursor: pointer;
+  display: inline-flex;
   font: inherit;
   font-size: 13px;
-  padding: 12px 20px;
+  gap: 4px;
+  padding: 10px 18px;
+  width: fit-content;
 }
 
-.editor__attach-btn:hover {
+.editor__attach-btn:hover:not(:disabled) {
   border-color: var(--color-primary);
   color: var(--color-primary);
 }
+
+.editor__attach-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.editor__attach-hint { color: var(--color-text-muted); font-size: 12px; }
 
 .editor__footer {
   border-top: 1px solid var(--color-border);
@@ -417,10 +800,7 @@ async function handleSubmit() {
   padding: 16px 24px;
 }
 
-.editor__footer-right {
-  display: flex;
-  gap: 8px;
-}
+.editor__footer-right { display: flex; gap: 8px; }
 
 .editor__btn {
   border: 0;
@@ -437,9 +817,8 @@ async function handleSubmit() {
   color: var(--color-bg-card);
 }
 
-.editor__btn--primary:hover {
-  background: var(--color-primary-hover);
-}
+.editor__btn--primary:hover:not(:disabled) { background: var(--color-primary-hover); }
+.editor__btn--primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .editor__btn--secondary {
   background: var(--color-bg-card);
@@ -447,38 +826,7 @@ async function handleSubmit() {
   color: var(--color-text-body);
 }
 
-.editor__btn--secondary:hover {
-  background: var(--color-bg-hover);
-}
-
-/* 预览 */
-.preview-overlay {
-  align-items: center;
-  background: var(--color-bg-overlay);
-  display: flex;
-  inset: 0;
-  justify-content: center;
-  position: fixed;
-  z-index: 70;
-}
-
-.preview {
-  background: var(--color-bg-card);
-  border-radius: 10px;
-  max-width: 600px;
-  padding: 32px;
-  text-align: center;
-  width: 90vw;
-}
-
-.preview h3 {
-  margin: 0 0 16px;
-}
-
-.preview__placeholder {
-  color: var(--color-text-muted);
-  margin-bottom: 20px;
-}
+.editor__btn--secondary:hover { background: var(--color-bg-hover); }
 
 .editor__vote-option { display: flex; gap: 8px; align-items: center; }
 .editor__vote-remove { background: none; border: 0; color: var(--color-danger); cursor: pointer; font-size: 20px; padding: 4px; }
@@ -487,5 +835,12 @@ async function handleSubmit() {
 .editor__tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
 .editor__tag { background: var(--color-primary-light); border-radius: 4px; color: var(--color-primary); font-size: 12px; padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; }
 .editor__tag-remove { background: none; border: 0; color: var(--color-primary); cursor: pointer; font-size: 14px; padding: 0; line-height: 1; }
-.editor__attach-hint { color: var(--color-text-muted); font-size: 13px; }
+
+/* 移动端回退为上下堆叠 */
+@media (max-width: 780px) {
+  .editor { max-width: 100vw; width: 100vw; max-height: 100vh; border-radius: 0; }
+  .editor__panes { flex-direction: column; min-height: auto; }
+  .editor__pane--edit { border-right: 0; border-bottom: 1px solid var(--color-border); }
+  .editor__pane--preview { min-height: 260px; }
+}
 </style>
