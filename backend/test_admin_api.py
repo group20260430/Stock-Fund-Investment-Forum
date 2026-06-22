@@ -1,4 +1,6 @@
 import os
+import gc
+import time
 from pathlib import Path
 
 os.environ["DATABASE_URL"] = "sqlite:///./test_admin.db"
@@ -7,6 +9,7 @@ Path("test_admin.db").unlink(missing_ok=True)
 from fastapi.testclient import TestClient
 
 from app.db.session import SessionLocal
+from app.db.session import engine
 from app.main import app
 from app.models.content import Post, PostStatus
 from app.models.user import User, UserRole
@@ -112,4 +115,15 @@ if __name__ == "__main__":
         run()
         print("admin API tests passed")
     finally:
-        Path("test_admin.db").unlink(missing_ok=True)
+        engine.dispose()
+        gc.collect()
+        for attempt in range(3):
+            try:
+                Path("test_admin.db").unlink(missing_ok=True)
+                break
+            except PermissionError:
+                if attempt == 2:
+                    print("WARNING | cleanup failed for test_admin.db")
+                    break
+                time.sleep(0.2)
+                gc.collect()

@@ -8,7 +8,7 @@
 
 * Windows
 * Python 3.13
-* 虚拟环境：`backend.venv313`
+* 虚拟环境：`backend\.venv313`
 * 分支：`feat/backend/forum-api`
 
 ## 3. 测试范围
@@ -30,14 +30,14 @@
 | `test_sensitive_filter.py` | 敏感词过滤 | 通过 | `RESULTS: 17 passed, 0 failed` |
 | `test_community_api.py` | 群组/私信 | 通过 | 主体通过，脚本正常退出 0 |
 | `test_social_api.py` | 关注/用户社交 | 通过 | 主体通过，脚本正常退出 0 |
-| `test_content_api.py` | 内容接口 | 通过 | 主体通过，清理阶段 `PermissionError` 导致退出非 0 |
-| `test_interactions_api.py` | 互动接口 | 通过 | 主体通过，清理阶段 `PermissionError` 导致退出非 0 |
-| `test_admin_api.py` | 管理后台 | 通过 | 主体通过，清理阶段 `PermissionError` 导致退出非 0 |
-| `test_discovery_api.py` | 搜索/发现/热榜 | 通过 | 主体通过，清理阶段 `PermissionError` 导致退出非 0 |
+| `test_content_api.py` | 内容接口 | 通过 | 主体通过，脚本正常退出 0 |
+| `test_interactions_api.py` | 互动接口 | 通过 | 主体通过，脚本正常退出 0 |
+| `test_admin_api.py` | 管理后台 | 通过 | 主体通过，脚本正常退出 0 |
+| `test_discovery_api.py` | 搜索/发现/热榜 | 通过 | 主体通过，脚本正常退出 0 |
 
 ## 5. 已知问题
 
-本轮后端冒烟测试未发现阻塞性业务问题。部分脚本在 Windows 下删除 SQLite 临时数据库时出现 `PermissionError`，但测试主体已通过。
+本轮后端冒烟测试未发现阻塞性问题。此前部分测试脚本在 Windows 下存在 SQLite 临时库清理 `PermissionError`，本次已完成稳定性修复。
 
 ## 6. 结论
 

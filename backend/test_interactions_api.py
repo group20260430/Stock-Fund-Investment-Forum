@@ -1,4 +1,6 @@
 import os
+import gc
+import time
 from pathlib import Path
 
 os.environ["DATABASE_URL"] = "sqlite:///./test_interactions.db"
@@ -6,6 +8,7 @@ Path("test_interactions.db").unlink(missing_ok=True)
 
 from fastapi.testclient import TestClient
 
+from app.db.session import engine
 from app.main import app
 
 
@@ -77,4 +80,15 @@ if __name__ == "__main__":
         run()
         print("interaction API tests passed")
     finally:
-        Path("test_interactions.db").unlink(missing_ok=True)
+        engine.dispose()
+        gc.collect()
+        for attempt in range(3):
+            try:
+                Path("test_interactions.db").unlink(missing_ok=True)
+                break
+            except PermissionError:
+                if attempt == 2:
+                    print("WARNING | cleanup failed for test_interactions.db")
+                    break
+                time.sleep(0.2)
+                gc.collect()
