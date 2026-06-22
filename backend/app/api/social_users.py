@@ -12,8 +12,15 @@ from app.api.notifications import create_notification
 from app.models.notification import NotificationType
 from app.models.operations import ActivityType
 from app.services.activity_service import record_activity
+from app.services.points_service import award_points
 
 router = APIRouter(tags=["social"])
+
+
+def _get_privacy(user: User, key: str, default=None):
+    """Extract a single privacy setting with fallback to default."""
+    settings = user.privacy_settings or {}
+    return settings.get(key, default)
 
 
 def _get_active_user(db: Session, user_id: int) -> User:
@@ -54,6 +61,21 @@ def get_public_profile(
     db: Session = Depends(get_db),
 ):
     user = _get_active_user(db, user_id)
+
+    # ── Privacy: profile visibility ──
+    profile_visibility = _get_privacy(user, "profile_visibility", "public")
+    is_self = viewer is not None and viewer.id == user.id
+    if profile_visibility == "private" and not is_self:
+        raise HTTPException(status_code=403, detail="该用户设置了私密资料")
+    if profile_visibility == "followers_only" and not is_self:
+        if viewer is None:
+            raise HTTPException(status_code=403, detail="仅粉丝可查看该用户资料")
+        is_follower = db.query(Follow).filter(
+            Follow.follower_id == viewer.id, Follow.following_id == user.id,
+        ).first() is not None
+        if not is_follower:
+            raise HTTPException(status_code=403, detail="仅粉丝可查看该用户资料")
+
     post_count = db.query(Post).filter(
         Post.user_id == user.id, Post.status == PostStatus.PUBLISHED
     ).count()
@@ -74,7 +96,16 @@ def get_public_profile(
             "influence_score": post_count * 10 + user.followers_count * 5,
             "badges": ["新手入门"] if post_count else [],
         },
+        points=user.points or 0,
+        level=user.level or 1,
     )
+
+    # ── Privacy: hide investment info from non-owners ──
+    if not is_self and not _get_privacy(user, "show_investment_info", True):
+        data["risk_level"] = None
+        data["investment_tags"] = None
+        data["follow_markets"] = None
+
     return ApiResponse(code=200, message="success", data=data)
 
 
@@ -102,6 +133,8 @@ def toggle_follow(
         target.followers_count += 1
         followed = True
         record_activity(db, current_user.id, ActivityType.FOLLOW, "user", target.id)
+        # ── Points: +1 to followed user ──
+        award_points(db, target.id, 1, "gained_follower", "user", current_user.id)
         create_notification(
             db, target.id, NotificationType.FOLLOW,
             title="新关注",
@@ -135,7 +168,11 @@ def list_followers(
     viewer: User | None = Depends(get_optional_current_user),
     db: Session = Depends(get_db),
 ):
-    _get_active_user(db, user_id)
+    user = _get_active_user(db, user_id)
+    # ── Privacy: show_follow_lists ──
+    is_self = viewer is not None and viewer.id == user.id
+    if not is_self and not _get_privacy(user, "show_follow_lists", True):
+        raise HTTPException(status_code=403, detail="该用户未公开关注列表")
     query = db.query(User).join(Follow, Follow.follower_id == User.id).filter(
         Follow.following_id == user_id, User.status == UserStatus.ACTIVE
     ).order_by(Follow.created_at.desc())
@@ -150,7 +187,11 @@ def list_following(
     viewer: User | None = Depends(get_optional_current_user),
     db: Session = Depends(get_db),
 ):
-    _get_active_user(db, user_id)
+    user = _get_active_user(db, user_id)
+    # ── Privacy: show_follow_lists ──
+    is_self = viewer is not None and viewer.id == user.id
+    if not is_self and not _get_privacy(user, "show_follow_lists", True):
+        raise HTTPException(status_code=403, detail="该用户未公开关注列表")
     query = db.query(User).join(Follow, Follow.following_id == User.id).filter(
         Follow.follower_id == user_id, User.status == UserStatus.ACTIVE
     ).order_by(Follow.created_at.desc())
@@ -175,3 +216,18 @@ def set_starred(
         db.delete(existing)
     db.commit()
     return ApiResponse(code=200, message="success", data={"is_starred": data.is_starred})
+
+
+@router.get("/users/{user_id}/points")
+def get_user_points(
+    user_id: int,
+    db: Session = Depends(get_db),
+):
+    """获取用户的积分和等级信息（公开接口）。"""
+    user = _get_active_user(db, user_id)
+    return ApiResponse(code=200, message="success", data={
+        "user_id": user.id,
+        "nickname": user.nickname,
+        "points": user.points or 0,
+        "level": user.level or 1,
+    })

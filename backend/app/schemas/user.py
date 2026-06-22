@@ -137,6 +137,9 @@ class UserProfile(BaseModel):
     investment_tags: Optional[list[str]] = None
     follow_markets: Optional[list[str]] = None
     achievements: Optional[Achievements] = None
+    points: int = 0
+    level: int = 1
+    privacy_settings: Optional[dict] = None
     created_at: Optional[datetime] = None
 
     @field_validator("phone", mode="before")

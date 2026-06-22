@@ -37,7 +37,7 @@ def create_notification(
 def list_notifications(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=50),
-    type: str | None = Query(None, pattern="^(follow|group_invite|group_join_request|group_approved|group_rejected|new_message|system)$"),
+    type: str | None = Query(None, pattern="^(follow|group_invite|group_join_request|group_approved|group_rejected|new_message|mention|system)$"),
     unread_only: bool = Query(False),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),

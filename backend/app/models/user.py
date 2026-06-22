@@ -67,11 +67,14 @@ class User(Base):
     )
     investment_tags: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
     follow_markets: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    privacy_settings: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     is_professional: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     ban_expires_at: Mapped[Optional[datetime]] = mapped_column(TIMESTAMP, nullable=True)
     banned_reason: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     followers_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     following_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    points: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    level: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP, server_default=func.now(), nullable=False
     )
