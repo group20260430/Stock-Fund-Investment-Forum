@@ -65,9 +65,19 @@ def hot_ranking(
     market: str = Query("all", pattern="^(all|a_stock|hk_stock|fund)$"),
     db: Session = Depends(get_db),
 ):
-    posts = _base_posts(db).filter(Post.created_at >= _cutoff(period)).all()
+    cutoff = _cutoff(period)
+    # 只取热度最高的前200篇帖子做聚合，防止全表扫描
+    top_posts = (
+        _base_posts(db)
+        .filter(Post.created_at >= cutoff)
+        .order_by(
+            (Post.view_count + Post.like_count * 5 + Post.comment_count * 8 + Post.collect_count * 4).desc()
+        )
+        .limit(200)
+        .all()
+    )
     tag_stats: dict[str, dict] = {}
-    for post in posts:
+    for post in top_posts:
         tags = post.tags or [post.category.name]
         score = post.view_count + post.like_count * 5 + post.comment_count * 8 + post.collect_count * 4
         for tag in tags:
