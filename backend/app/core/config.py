@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     mysql_password: str = "forum_password"
     mysql_database: str = "stock_fund_forum"
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     @property
     def database_url(self) -> str:
