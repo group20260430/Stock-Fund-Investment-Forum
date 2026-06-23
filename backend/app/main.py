@@ -46,11 +46,23 @@ def seed_categories() -> None:
         ("问答求助", "投资问题互助", 4),
         ("投资策略", "资产配置与策略研究", 5),
     ]
+    # 公司研究专区行业分类
+    industry_categories = [
+        ("科技公司", "半导体、AI、互联网等科技公司深度讨论", 6),
+        ("金融公司", "银行、券商、保险等金融公司研究", 7),
+        ("医药公司", "医药生物、医疗器械、创新药等", 8),
+        ("消费公司", "食品饮料、家电、零售等消费行业", 9),
+        ("新能源", "光伏、锂电、风电、储能等新能源行业", 10),
+        ("制造业", "高端装备、汽车、化工等制造业", 11),
+    ]
     db = SessionLocal()
     try:
         if db.query(Category).count() == 0:
             db.add_all(
                 [Category(name=name, description=description, sort_order=order) for name, description, order in defaults]
+            )
+            db.add_all(
+                [Category(name=name, description=description, sort_order=order) for name, description, order in industry_categories]
             )
             db.commit()
     finally:

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import PostCard from '../components/post/PostCard.vue'
 import Loading from '../components/common/Loading.vue'
@@ -13,6 +13,14 @@ const route = useRoute()
 const postsStore = usePostsStore()
 const auth = useAuthStore()
 const toast = useToastStore()
+
+const categoryMap = {
+  1: '综合讨论', 2: '股票市场', 3: '基金投资',
+  4: '问答求助', 5: '投资策略',
+  6: '科技公司', 7: '金融公司', 8: '医药公司',
+  9: '消费公司', 10: '新能源', 11: '制造业',
+}
+const categoryName = computed(() => categoryMap[route.params.id] || '板块')
 
 onMounted(() => {
   postsStore.pagination.page = 1
@@ -54,7 +62,7 @@ function handlePageChange(page) {
 <template>
     <header class="toolbar">
       <div>
-        <h1>{{ route.params.id === '1' ? '综合讨论' : route.params.id === '2' ? '股票市场' : route.params.id === '3' ? '基金投资' : route.params.id === '4' ? '问答求助' : route.params.id === '5' ? '投资策略' : '板块' }}</h1>
+        <h1>{{ categoryName }}</h1>
         <p>共 {{ postsStore.pagination.total }} 篇帖子</p>
       </div>
     </header>

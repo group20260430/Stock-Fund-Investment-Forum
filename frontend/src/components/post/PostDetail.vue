@@ -11,7 +11,14 @@ const props = defineProps({
 
 const emit = defineEmits(["voted"])
 
-const renderedContent = computed(() => renderMarkdown(props.post.content || ''))
+const renderedContent = computed(() => {
+  const content = props.post.content || ''
+  // 检测是否为 HTML（长文分析使用富文本编辑器输出 HTML）
+  if (/^\s*<(h[12]|p|div|table|ul|ol|blockquote|img)/i.test(content.trim())) {
+    return content
+  }
+  return renderMarkdown(content)
+})
 </script>
 
 <template>

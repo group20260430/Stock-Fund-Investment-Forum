@@ -5,6 +5,7 @@ import { createPost, updatePost, fetchCategories } from '../../api/posts'
 import { renderMarkdown } from '../../utils/markdown'
 import { insertAtCursor, insertAtLineStart } from '../../utils/editor'
 import AppIcon from '../common/AppIcon.vue'
+import RichTextEditor from './RichTextEditor.vue'
 
 const props = defineProps({
   post: { type: Object, default: null },
@@ -35,6 +36,7 @@ const form = reactive({
 const voteOptionInputs = ref(['', ''])
 
 const previewHtml = computed(() => renderMarkdown(form.content))
+const richTextMode = computed(() => form.post_type === 'long_article')
 
 onMounted(async () => {
   try {
@@ -287,40 +289,48 @@ async function handleSubmit() {
 
         <!-- 编辑 + 预览 左右分栏 -->
         <div class="editor__field">
-          <label>正文 <span class="editor__label-hint">（支持 Markdown 语法）</span></label>
+          <label>正文
+            <span v-if="richTextMode" class="editor__label-hint">（富文本编辑器，支持表格、图片、图表）</span>
+            <span v-else class="editor__label-hint">（支持 Markdown 语法）</span>
+          </label>
 
           <div class="editor__panes">
             <!-- 左侧：编辑 -->
             <div class="editor__pane editor__pane--edit">
-              <div class="editor__toolbar">
-                <button title="加粗" @click="insertBold"><b>B</b></button>
-                <button title="斜体" @click="insertItalic"><i>I</i></button>
-                <button title="下划线" @click="insertUnderline"><u>U</u></button>
-                <span class="toolbar-divider" />
-                <button title="无序列表" @click="insertUl"><AppIcon name="list-bullet" :size="16" /></button>
-                <button title="有序列表" @click="insertOl"><AppIcon name="list-ordered" :size="16" /></button>
-                <span class="toolbar-divider" />
-                <button title="插入链接" @click="insertLink"><AppIcon name="link" :size="16" /></button>
-                <button title="上传图片并插入" :disabled="uploadingImage" @click="triggerImageInput">
-                  <AppIcon name="image" :size="16" />
-                  <span v-if="uploadingImage" class="spin-icon">⟳</span>
-                </button>
-                <button title="上传附件" :disabled="uploading" @click="triggerFileInput">
-                  <AppIcon name="attachment" :size="16" />
-                  <span v-if="uploading" class="spin-icon">⟳</span>
-                </button>
-              </div>
-              <textarea
-                ref="textareaRef"
-                v-model="form.content"
-                class="editor__textarea"
-                placeholder="输入 Markdown 正文内容..."
-                rows="16"
-              />
+              <template v-if="richTextMode">
+                <RichTextEditor v-model="form.content" placeholder="输入长文分析内容..." />
+              </template>
+              <template v-else>
+                <div class="editor__toolbar">
+                  <button title="加粗" @click="insertBold"><b>B</b></button>
+                  <button title="斜体" @click="insertItalic"><i>I</i></button>
+                  <button title="下划线" @click="insertUnderline"><u>U</u></button>
+                  <span class="toolbar-divider" />
+                  <button title="无序列表" @click="insertUl"><AppIcon name="list-bullet" :size="16" /></button>
+                  <button title="有序列表" @click="insertOl"><AppIcon name="list-ordered" :size="16" /></button>
+                  <span class="toolbar-divider" />
+                  <button title="插入链接" @click="insertLink"><AppIcon name="link" :size="16" /></button>
+                  <button title="上传图片并插入" :disabled="uploadingImage" @click="triggerImageInput">
+                    <AppIcon name="image" :size="16" />
+                    <span v-if="uploadingImage" class="spin-icon">⟳</span>
+                  </button>
+                  <button title="上传附件" :disabled="uploading" @click="triggerFileInput">
+                    <AppIcon name="attachment" :size="16" />
+                    <span v-if="uploading" class="spin-icon">⟳</span>
+                  </button>
+                </div>
+                <textarea
+                  ref="textareaRef"
+                  v-model="form.content"
+                  class="editor__textarea"
+                  placeholder="输入 Markdown 正文内容..."
+                  rows="16"
+                />
+              </template>
             </div>
 
-            <!-- 右侧：预览 -->
-            <div class="editor__pane editor__pane--preview">
+            <!-- 右侧：预览（仅 Markdown 模式） -->
+            <div v-if="!richTextMode" class="editor__pane editor__pane--preview">
               <div class="editor__preview-header">预览</div>
               <div class="editor__preview-body">
                 <div v-if="form.title" class="editor__preview-title">{{ form.title }}</div>

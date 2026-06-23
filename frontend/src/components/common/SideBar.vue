@@ -16,6 +16,12 @@ const navItems = [
   { label: '基金投资', to: '/categories/3', icon: 'fund' },
   { label: '问答求助', to: '/categories/4', icon: 'question' },
   { label: '投资策略', to: '/categories/5', icon: 'strategy' },
+  { label: '科技公司', to: '/categories/6', icon: 'strategy' },
+  { label: '金融公司', to: '/categories/7', icon: 'strategy' },
+  { label: '医药公司', to: '/categories/8', icon: 'strategy' },
+  { label: '消费公司', to: '/categories/9', icon: 'strategy' },
+  { label: '新能源', to: '/categories/10', icon: 'strategy' },
+  { label: '制造业', to: '/categories/11', icon: 'strategy' },
 ]
 
 const expandedGroups = ref([])
@@ -43,8 +49,12 @@ const categoryGroups = [
   {
     key: 'company', label: '公司研究专区', icon: 'strategy',
     items: [
-      { label: '行业分析', to: '/search', query: { keyword: '行业分析' } },
-      { label: '个股深度', to: '/search', query: { keyword: '个股' } },
+      { label: '科技公司', to: '/categories/6' },
+      { label: '金融公司', to: '/categories/7' },
+      { label: '医药公司', to: '/categories/8' },
+      { label: '消费公司', to: '/categories/9' },
+      { label: '新能源', to: '/categories/10' },
+      { label: '制造业', to: '/categories/11' },
     ],
   },
   {
