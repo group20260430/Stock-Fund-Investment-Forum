@@ -10,25 +10,10 @@ const auth = useAuthStore()
 
 const showMobileMenu = defineModel('showMobileMenu', { type: Boolean, default: false })
 
-const navItems = [
-  { label: '综合讨论', to: '/categories/1', icon: 'discuss' },
-  { label: '股票市场', to: '/categories/2', icon: 'stock' },
-  { label: '基金投资', to: '/categories/3', icon: 'fund' },
-  { label: '问答求助', to: '/categories/4', icon: 'question' },
-  { label: '投资策略', to: '/categories/5', icon: 'strategy' },
-  { label: '科技公司', to: '/categories/6', icon: 'strategy' },
-  { label: '金融公司', to: '/categories/7', icon: 'strategy' },
-  { label: '医药公司', to: '/categories/8', icon: 'strategy' },
-  { label: '消费公司', to: '/categories/9', icon: 'strategy' },
-  { label: '新能源', to: '/categories/10', icon: 'strategy' },
-  { label: '制造业', to: '/categories/11', icon: 'strategy' },
-]
-
-const expandedGroups = ref([])
-
-const categoryGroups = [
+// 论坛板块 — 市场讨论区 / 主题专区 / 公司研究专区 / 问答求助区
+const forumSections = [
   {
-    key: 'market', label: '市场讨论区', icon: 'stock',
+    label: '市场讨论区', icon: 'stock',
     items: [
       { label: 'A股', to: '/search', query: { keyword: 'A股' } },
       { label: '港股', to: '/search', query: { keyword: '港股' } },
@@ -37,7 +22,7 @@ const categoryGroups = [
     ],
   },
   {
-    key: 'theme', label: '主题专区', icon: 'discuss',
+    label: '主题专区', icon: 'discuss',
     items: [
       { label: '价值投资', to: '/search', query: { keyword: '价值投资' } },
       { label: '量化投资', to: '/search', query: { keyword: '量化投资' } },
@@ -47,7 +32,7 @@ const categoryGroups = [
     ],
   },
   {
-    key: 'company', label: '公司研究专区', icon: 'strategy',
+    label: '公司研究专区', icon: 'strategy',
     items: [
       { label: '科技公司', to: '/categories/6' },
       { label: '金融公司', to: '/categories/7' },
@@ -58,7 +43,7 @@ const categoryGroups = [
     ],
   },
   {
-    key: 'qa', label: '问答求助区', icon: 'question',
+    label: '问答求助区', icon: 'question',
     items: [
       { label: '新手提问', to: '/search', query: { keyword: '新手' } },
       { label: '投资解惑', to: '/search', query: { keyword: '投资解惑' } },
@@ -66,11 +51,7 @@ const categoryGroups = [
   },
 ]
 
-function toggleGroup(key) {
-  const idx = expandedGroups.value.indexOf(key)
-  if (idx >= 0) expandedGroups.value.splice(idx, 1)
-  else expandedGroups.value.push(key)
-}
+const expandedSections = ref([])
 
 const discoverItems = [
   { label: '热门', to: '/', query: { tab: 'hot' }, icon: 'trending' },
@@ -123,35 +104,18 @@ function onNavClick() {
     <!-- 论坛板块 -->
     <div class="nav-section">
       <div class="nav-section__label">论坛板块</div>
-      <nav class="nav-list" aria-label="论坛板块">
-        <router-link
-          v-for="item in navItems"
-          :key="item.to"
-          :to="{ path: item.to, query: item.query }"
-          :class="['nav-item', { active: isActive(item) }]"
-          @click="onNavClick()"
-        >
-          <AppIcon :name="item.icon" :size="18" />
-          {{ item.label }}
-        </router-link>
-      </nav>
-    </div>
-
-    <!-- 分组导航 -->
-    <div class="nav-section">
-      <div class="nav-section__label">分组导航</div>
-      <div v-for="grp in categoryGroups" :key="grp.key" class="nav-group">
-        <button class="nav-group__header" @click="toggleGroup(grp.key)">
-          <AppIcon :name="grp.icon" :size="16" />
-          <span>{{ grp.label }}</span>
-          <span class="nav-group__arrow" :class="{ open: expandedGroups.includes(grp.key) }">&#9662;</span>
+      <div v-for="sec in forumSections" :key="sec.label" class="nav-group">
+        <button class="nav-group__header" @click="toggleSection(sec.label)">
+          <AppIcon :name="sec.icon" :size="16" />
+          <span>{{ sec.label }}</span>
+          <span class="nav-group__arrow" :class="{ open: expandedSections.includes(sec.label) }">&#9662;</span>
         </button>
-        <div v-if="expandedGroups.includes(grp.key)" class="nav-group__body">
+        <div v-if="expandedSections.includes(sec.label)" class="nav-group__body">
           <router-link
-            v-for="item in grp.items"
+            v-for="item in sec.items"
             :key="item.label"
             :to="{ path: item.to, query: item.query }"
-            :class="['nav-item nav-item--child', { active: route.path === item.to && route.query.keyword === item.query.keyword }]"
+            :class="['nav-item nav-item--child', { active: route.path === item.to && (!item.query || route.query.keyword === item.query.keyword) }]"
             @click="onNavClick()"
           >
             <span class="nav-item__dot" />
