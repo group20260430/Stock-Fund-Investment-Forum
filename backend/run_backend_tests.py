@@ -9,6 +9,7 @@ from pathlib import Path
 
 TEST_SCRIPTS = [
     "test_sensitive_filter.py",
+    "test_duplicate_content_filter.py",
     "test_content_api.py",
     "test_interactions_api.py",
     "test_admin_api.py",

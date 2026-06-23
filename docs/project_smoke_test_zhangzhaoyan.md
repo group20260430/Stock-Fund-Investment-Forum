@@ -1,4 +1,4 @@
-﻿# 张照炎全项目冒烟验证记录
+# 张照炎全项目冒烟验证记录
 
 ## 1. 验证目标
 
@@ -24,7 +24,7 @@ python run_backend_tests.py
 结果：
 
 ```text
-RESULTS: 8 passed, 0 failed
+RESULTS: 9 passed, 0 failed
 ```
 
 覆盖：
@@ -34,6 +34,7 @@ RESULTS: 8 passed, 0 failed
 * 搜索/发现测试
 * 社交/群组测试
 * 敏感词过滤测试
+* 重复内容检测测试
 * 端到端 E2E 测试
 
 ## 4. 前端验证

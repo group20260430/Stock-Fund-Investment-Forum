@@ -60,11 +60,11 @@
 
 ### 2.6 后端一键测试入口
 
-已新增 `backend/run_backend_tests.py`，支持在 `backend` 目录或项目根目录运行，顺序执行 8 个主要后端测试脚本并输出统一汇总结果。
+已新增 `backend/run_backend_tests.py`，支持在 `backend` 目录或项目根目录运行，顺序执行 9 个主要后端测试脚本并输出统一汇总结果。
 
 当前验证结果：
 
-* `RESULTS: 8 passed, 0 failed`
+* `RESULTS: 9 passed, 0 failed`
 
 关联提交：
 
@@ -76,7 +76,7 @@
 
 当前结果：
 
-* `RESULTS: 8 passed, 0 failed`
+* `RESULTS: 9 passed, 0 failed`
 * `npm run build` 通过
 
 关联提交：
@@ -108,10 +108,23 @@
 
 * `efae993 fix: clean mixed dynamic imports in frontend build`
 
+### 2.11 重复内容检测后端最小闭环
+
+已完成发帖重复内容检测的后端最小闭环，采用同一用户维度检测，减少误杀：
+
+* 完全重复内容返回 HTTP 400
+* 高度相似内容进入 `REVIEWING`
+* 同一用户维度检测
+* 测试结果为 `RESULTS: 17 passed, 0 failed`
+
+关联提交：
+
+* `354516b feat: add duplicate post detection`
+
 ## 3. 当前验证结果
 
 ```text
-RESULTS: 8 passed, 0 failed
+RESULTS: 9 passed, 0 failed
 ```
 
 前端：`npm run build` 通过
