@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.notifications import create_notification
@@ -433,15 +433,56 @@ def list_messages(
                 if m.id in unread_ids:
                     m.is_read = True
     if other_user_id is None:
+        # 聚合各对话最新消息 + 统计未读数
         latest: dict[int, Message] = {}
         for message in messages:
             other_id = message.receiver_id if message.sender_id == user.id else message.sender_id
             latest.setdefault(other_id, message)
-        messages = list(latest.values())
+
+        other_ids = list(latest.keys())
+        unread_counts: dict[int, int] = {}
+        if other_ids:
+            rows = (
+                db.query(Message.sender_id, func.count(Message.id))
+                .filter(
+                    Message.receiver_id == user.id,
+                    Message.is_read.is_(False),
+                    Message.sender_id.in_(other_ids),
+                )
+                .group_by(Message.sender_id)
+                .all()
+            )
+            unread_counts = {sender_id: cnt for sender_id, cnt in rows}
+
+        enriched = []
+        for item in latest.values():
+            other_id = item.receiver_id if item.sender_id == user.id else item.sender_id
+            payload = _message_payload(item, user.id)
+            payload["unread_count"] = unread_counts.get(other_id, 0)
+            # 对话项的 is_read 表示该对话是否有未读
+            payload["is_read"] = unread_counts.get(other_id, 0) == 0
+            enriched.append(payload)
+        return ApiResponse(code=200, message="success", data={
+            "items": enriched,
+            "total": total, "page": page, "size": size,
+        })
+
     return ApiResponse(code=200, message="success", data={
         "items": [_message_payload(item, user.id) for item in messages],
         "total": total, "page": page, "size": size,
     })
+
+
+@router.get("/messages/unread-count")
+def unread_message_count(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """获取当前用户的未读私信数量。"""
+    count = db.query(Message).filter(
+        Message.receiver_id == user.id, Message.is_read.is_(False)
+    ).count()
+    return ApiResponse(code=200, message="success", data={"unread_count": count})
 
 
 @router.delete("/messages/{message_id}")
