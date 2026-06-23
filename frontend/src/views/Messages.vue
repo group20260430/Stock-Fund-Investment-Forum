@@ -110,6 +110,9 @@ async function pollNewMessages() {
       if (messages.value.length > prevLen) {
         scrollToBottom()
       }
+      // 刷新对话列表以更新未读数
+      conversations.value = newConversations
+      window.dispatchEvent(new CustomEvent('messages-read'))
     }
   } catch { /* 静默失败 */ }
 }
@@ -132,6 +135,9 @@ async function openChat(userId) {
   chatLoading.value = true
   messages.value = []
 
+  // 若 userId 无效则忽略
+  if (!userId || isNaN(Number(userId))) return
+
   // 获取对方用户信息
   try {
     chatUser.value = await fetchUserProfile(userId)
@@ -152,6 +158,8 @@ async function openChat(userId) {
     scrollToBottom()
   }
   markAllMessageNotificationsRead()
+  // 通知 NavBar 消息已读
+  window.dispatchEvent(new CustomEvent('messages-read'))
 }
 
 function scrollToBottom() {
