@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     access_token_expire_hours: int = 2
     refresh_token_expire_days: int = 7
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     @property
     def access_token_expire_seconds(self) -> int:
