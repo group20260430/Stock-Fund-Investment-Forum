@@ -11,6 +11,7 @@ import { useToastStore } from "../stores/toast"
 import { useAuthStore } from "../stores/auth"
 import { fetchGroups, joinGroup, createGroupPost, approveGroupMember, fetchGroupPosts } from "../api/groups"
 import { fetchPosts } from "../api/posts"
+import { api } from "../utils/request"
 
 const route = useRoute()
 const router = useRouter()
@@ -47,9 +48,22 @@ const isAdmin = computed(() => {
 onMounted(async () => {
   loading.value = true
   try {
-    const data = await fetchGroups({ type: "my" })
-    const list = Array.isArray(data) ? data : (data?.items || [])
-    group.value = list.find(g => String(g.id) === String(route.params.id))
+    // 先用单品 API 精确获取群组，避免列表 API 分页遗漏
+    const groupId = Number(route.params.id)
+    let found = null
+    try {
+      // 直接 GET /api/groups/<id>，无鉴权亦可（公开群组）
+      found = await api.get(`/groups/${groupId}`)
+    } catch {
+      // 单品 API 失败时退化为列表查找
+    }
+    if (found && found.id) {
+      group.value = found
+    } else {
+      const data = await fetchGroups({ type: "my" })
+      const list = Array.isArray(data) ? data : (data?.items || [])
+      group.value = list.find(g => String(g.id) === String(groupId))
+    }
     if (group.value) {
       await loadPosts()
       if (isAdmin.value) await loadPendingMembers()
