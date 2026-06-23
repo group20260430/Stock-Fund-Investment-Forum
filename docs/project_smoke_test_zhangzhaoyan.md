@@ -50,7 +50,8 @@ npm run build
 * 成功
 * 前端生产构建通过
 * 已补齐 Markdown 渲染相关依赖 `marked` / `dompurify`
-* 仍存在 Vite 非阻塞 warning，例如 chunk size 和动态导入提示，不影响本次 build 通过
+* 已清理 `auth.js` / `comments.js` 的动态导入与静态导入混用 warning
+* 仍存在 Vite chunk size 非阻塞 warning，不影响本次 build 通过
 
 ## 5. 已知边界
 
