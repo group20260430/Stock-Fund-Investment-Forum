@@ -225,6 +225,70 @@ def search(
     return ApiResponse(code=200, message="success", data={"items": items, "total": total, "page": page, "size": size})
 
 
+@router.get("/recommendations")
+def recommendations(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=50),
+    user: User | None = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
+):
+    """个性化推荐 — 基于用户偏好（关注市场/标签）混合热门+精华内容。"""
+    query = _base_posts(db)
+
+    # 已登录用户：优先推荐关注领域+兴趣标签相关的帖子
+    if user and (user.follow_markets or user.investment_tags):
+        from sqlalchemy import or_
+        filters = []
+        if user.follow_markets:
+            market_tags = [_market_to_tag(m) for m in user.follow_markets if m]
+            for tag in market_tags:
+                if tag:
+                    filters.append(Post.tags.contains(tag))
+        if user.investment_tags:
+            for tag in user.investment_tags:
+                if tag:
+                    filters.append(Post.tags.contains(tag))
+        if filters:
+            query = query.filter(or_(*filters))
+
+    # 按热度权重排序：点赞×5 + 评论×8 + 收藏×4 + 浏览量
+    query = query.order_by(
+        (Post.like_count * 5 + Post.comment_count * 8 + Post.collect_count * 4 + Post.view_count).desc(),
+        Post.created_at.desc(),
+    )
+
+    total = query.count()
+    posts = query.offset((page - 1) * size).limit(size).all()
+
+    # 如果没有推荐结果或结果不足，补充最新精华帖
+    if len(posts) < size:
+        existing_ids = {p.id for p in posts}
+        elite_posts = (
+            _base_posts(db)
+            .filter(Post.is_elite.is_(True), ~Post.id.in_(existing_ids))
+            .order_by(Post.created_at.desc())
+            .limit(size - len(posts))
+            .all()
+        )
+        posts.extend(elite_posts)
+
+    return ApiResponse(code=200, message="success", data={
+        "items": [_post_payload(post, user=user, db=db) for post in posts],
+        "total": total,
+        "page": page,
+        "size": size,
+    })
+
+
+def _market_to_tag(market: str) -> str | None:
+    """将市场代码映射为标签关键词。"""
+    mapping = {
+        "a_stock": "A股", "hk_stock": "港股", "us_stock": "美股",
+        "fund": "基金", "hk": "港股", "us": "美股",
+    }
+    return mapping.get(market)
+
+
 @router.get("/search/recommendations")
 def search_recommendations(
     viewer: User | None = Depends(get_optional_current_user),

@@ -9,3 +9,8 @@ export function fetchFeed(params) {
 export function fetchHot(params) {
   return api.get('/hot', params)
 }
+
+/** 获取个性化推荐内容 */
+export function fetchRecommendations(params) {
+  return api.get('/recommendations', params)
+}

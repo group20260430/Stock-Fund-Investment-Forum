@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import { useAutoAnimate } from '@formkit/auto-animate/vue'
 import { useAuthStore } from '../stores/auth'
 import { usePostsStore } from '../stores/posts'
-import { fetchHot, fetchFeed } from '../api/social'
+import { fetchHot, fetchFeed, fetchRecommendations } from '../api/social'
 import { fetchIndices, fetchKline } from '../api/market'
 import { useToastStore } from '../stores/toast'
 import PostCard from '../components/post/PostCard.vue'
@@ -22,6 +22,7 @@ const toast = useToastStore()
 const sortType = ref('latest')
 const isHotTab = ref(false)
 const isFeedTab = ref(false)
+const isRecommendTab = ref(false)
 const [postListRef] = useAutoAnimate({ duration: 250, easing: 'ease-out' })
 const [hotListRef] = useAutoAnimate({ duration: 250, easing: 'ease-out' })
 
@@ -34,6 +35,9 @@ const hotTopics = ref([])
 const feedItems = ref([])
 const feedLoading = ref(false)
 const feedError = ref('')
+
+const recommendItems = ref([])
+const recommendLoading = ref(false)
 
 // 默认展示的指数 ID
 const DEFAULT_INDICES = '1.000001,1.000300,0.399001'
@@ -60,7 +64,9 @@ async function loadMarketData() {
 }
 
 async function loadContent() {
-  if (isHotTab.value) {
+  if (isRecommendTab.value) {
+    await loadRecommend()
+  } else if (isHotTab.value) {
     await loadHot()
   } else if (isFeedTab.value) {
     await loadFeed()
@@ -75,6 +81,18 @@ async function loadHot() {
     hotTopics.value = Array.isArray(data) ? data : (data?.items || [])
   } catch (err) {
     console.error('加载热榜失败:', err.message)
+  }
+}
+
+async function loadRecommend() {
+  recommendLoading.value = true
+  try {
+    const data = await fetchRecommendations({ page: 1, size: 20 })
+    recommendItems.value = Array.isArray(data) ? data : (data?.items || [])
+  } catch {
+    recommendItems.value = []
+  } finally {
+    recommendLoading.value = false
   }
 }
 
@@ -96,6 +114,7 @@ function handleSortChange(sort) {
   sortType.value = sort
   isHotTab.value = false
   isFeedTab.value = false
+  isRecommendTab.value = false
   postsStore.pagination.page = 1
   loadContent()
 }
@@ -103,18 +122,29 @@ function handleSortChange(sort) {
 function handleTabHot() {
   isHotTab.value = true
   isFeedTab.value = false
+  isRecommendTab.value = false
   loadHot()
 }
 
 function handleTabFeed() {
   isHotTab.value = false
   isFeedTab.value = true
+  isRecommendTab.value = false
   loadFeed()
+}
+
+function handleTabRecommend() {
+  isHotTab.value = false
+  isFeedTab.value = false
+  isRecommendTab.value = true
+  loadRecommend()
 }
 
 function handlePageChange(page) {
   postsStore.pagination.page = page
-  if (isHotTab.value) {
+  if (isRecommendTab.value) {
+    loadRecommend()
+  } else if (isHotTab.value) {
     loadHot()
   } else if (isFeedTab.value) {
     loadFeed()
@@ -138,7 +168,7 @@ async function handleCollect(postId) {
 
 async function handleShare(postId) {
   if (!auth.isLoggedIn) { toast.info('请先登录'); return }
-  const post = postsStore.list.find(p => p.id === postId) || feedItems.value.find(p => p.id === postId)
+  const post = postsStore.list.find(p => p.id === postId) || feedItems.value.find(p => p.id === postId) || recommendItems.value.find(p => p.id === postId)
   if (post) post.share_count = (post.share_count || 0) + 1
   try {
     const { sharePost } = await import('../api/posts')
@@ -157,7 +187,9 @@ function handleRetry() {
 
 onMounted(() => {
   // 检查 URL 参数
-  if (route.query.tab === 'hot') {
+  if (route.query.tab === 'recommend') {
+    isRecommendTab.value = true
+  } else if (route.query.tab === 'hot') {
     isHotTab.value = true
   } else if (route.query.tab === 'feed') {
     isFeedTab.value = true
@@ -170,9 +202,11 @@ onMounted(() => {
 watch(() => route.query.tab, (tab) => {
   isHotTab.value = tab === 'hot'
   isFeedTab.value = tab === 'feed'
+  isRecommendTab.value = tab === 'recommend'
   if (!tab) {
     isHotTab.value = false
     isFeedTab.value = false
+    isRecommendTab.value = false
   }
   loadContent()
 })
@@ -250,6 +284,12 @@ watch(() => route.query.tab, (tab) => {
         >
           🔥 热榜
         </button>
+        <button
+          :class="['tab', { 'tab--active': isRecommendTab }]"
+          @click="handleTabRecommend"
+        >
+          ✨ 推荐
+        </button>
       </div>
     </template>
 
@@ -265,6 +305,29 @@ watch(() => route.query.tab, (tab) => {
         </div>
       </div>
       <EmptyState v-else icon="📊" title="暂无热榜数据" />
+    </template>
+
+    <!-- 推荐视图（算法推荐内容） -->
+    <template v-if="isRecommendTab">
+      <Loading v-if="recommendLoading && !recommendItems.length" variant="skeleton" :rows="3" />
+      <EmptyState
+        v-else-if="!recommendItems.length"
+        icon="✨"
+        title="暂无推荐"
+        description="关注更多领域或发布帖子后可获得个性化推荐"
+        action-label="去逛逛"
+        @action="handleSortChange('latest')"
+      />
+      <div v-else ref="postListRef" class="post-list">
+        <PostCard
+          v-for="post in recommendItems"
+          :key="post.id"
+          :post="post"
+          @like="handleLike"
+          @collect="handleCollect"
+          @share="handleShare"
+        />
+      </div>
     </template>
 
     <!-- 动态视图（关注用户的帖子流） -->
