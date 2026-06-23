@@ -24,9 +24,11 @@ def _get_privacy(user: User, key: str, default=None):
 
 
 def _get_active_user(db: Session, user_id: int) -> User:
-    user = db.query(User).filter(User.id == user_id, User.status == UserStatus.ACTIVE).first()
+    user = db.query(User).filter(User.id == user_id).first()
     if user is None:
         raise HTTPException(status_code=404, detail="用户不存在")
+    if user.status != UserStatus.ACTIVE:
+        raise HTTPException(status_code=404, detail="该用户账号已被禁用")
     return user
 
 

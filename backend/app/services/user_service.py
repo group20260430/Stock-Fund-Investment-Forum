@@ -121,11 +121,15 @@ class UserService:
         # Issue tokens
         access_token, refresh_token = UserService._issue_token_pair(db, user)
 
+        # Build profile so frontend can cache user info immediately
+        profile = UserService._build_profile(user, db)
+
         return {
             "user_id": user.id,
             "token": access_token,
             "refresh_token": refresh_token,
             "expires_in": 7200,  # 2 hours (access token)
+            "user": profile,
         }
 
     @staticmethod
@@ -243,11 +247,15 @@ class UserService:
         # Issue tokens
         access_token, refresh_token = UserService._issue_token_pair(db, user)
 
+        # Build profile so frontend can cache user info immediately
+        profile = UserService._build_profile(user, db)
+
         return {
             "user_id": user.id,
             "token": access_token,
             "refresh_token": refresh_token,
             "expires_in": 7200,
+            "user": profile,
         }
 
     # ==================================================================
