@@ -2,7 +2,6 @@
 import { ref, onMounted } from 'vue'
 import { useToastStore } from '../../stores/toast'
 import { fetchCertifications, reviewCertification } from '../../api/admin'
-import AppLayout from '../../components/layout/AppLayout.vue'
 import Loading from '../../components/common/Loading.vue'
 
 const toast = useToastStore()
@@ -45,7 +44,6 @@ onMounted(load)
 </script>
 
 <template>
-  <AppLayout>
     <header class="toolbar"><h1>管理后台 / 认证审核</h1></header>
     <div class="admin-nav">
       <router-link to="/admin" class="admin-nav__item">总览</router-link>
@@ -86,7 +84,6 @@ onMounted(load)
         </div>
       </div>
     </div>
-  </AppLayout>
 </template>
 
 <style scoped>

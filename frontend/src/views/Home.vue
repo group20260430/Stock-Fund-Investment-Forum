@@ -7,7 +7,6 @@ import { usePostsStore } from '../stores/posts'
 import { fetchHot, fetchFeed } from '../api/social'
 import { fetchIndices, fetchKline } from '../api/market'
 import { useToastStore } from '../stores/toast'
-import AppLayout from '../components/layout/AppLayout.vue'
 import PostCard from '../components/post/PostCard.vue'
 import MarketCard from '../components/common/MarketCard.vue'
 import Loading from '../components/common/Loading.vue'
@@ -180,7 +179,6 @@ watch(() => route.query.tab, (tab) => {
 </script>
 
 <template>
-  <AppLayout>
     <!-- 标题栏：动态视图用独立标题 -->
     <template v-if="isFeedTab">
       <header class="toolbar">
@@ -344,7 +342,6 @@ watch(() => route.query.tab, (tab) => {
         @update:current="handlePageChange"
       />
     </template>
-  </AppLayout>
 </template>
 
 <style scoped>

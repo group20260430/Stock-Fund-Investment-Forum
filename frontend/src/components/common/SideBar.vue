@@ -90,8 +90,7 @@ function isActive(item) {
   return route.path.startsWith(item.to.split('?')[0])
 }
 
-function navigate(item) {
-  router.push({ path: item.to, query: item.query })
+function onNavClick() {
   showMobileMenu.value = false
 }
 </script>
@@ -115,16 +114,16 @@ function navigate(item) {
     <div class="nav-section">
       <div class="nav-section__label">论坛板块</div>
       <nav class="nav-list" aria-label="论坛板块">
-        <a
+        <router-link
           v-for="item in navItems"
           :key="item.to"
+          :to="{ path: item.to, query: item.query }"
           :class="['nav-item', { active: isActive(item) }]"
-          href="javascript:void(0)"
-          @click="navigate(item)"
+          @click="onNavClick()"
         >
           <AppIcon :name="item.icon" :size="18" />
           {{ item.label }}
-        </a>
+        </router-link>
       </nav>
     </div>
 
@@ -138,16 +137,16 @@ function navigate(item) {
           <span class="nav-group__arrow" :class="{ open: expandedGroups.includes(grp.key) }">&#9662;</span>
         </button>
         <div v-if="expandedGroups.includes(grp.key)" class="nav-group__body">
-          <a
+          <router-link
             v-for="item in grp.items"
             :key="item.label"
+            :to="{ path: item.to, query: item.query }"
             :class="['nav-item nav-item--child', { active: route.path === item.to && route.query.keyword === item.query.keyword }]"
-            href="javascript:void(0)"
-            @click="navigate(item)"
+            @click="onNavClick()"
           >
             <span class="nav-item__dot" />
             {{ item.label }}
-          </a>
+          </router-link>
         </div>
       </div>
     </div>
@@ -156,16 +155,16 @@ function navigate(item) {
     <div class="nav-section">
       <div class="nav-section__label">发现</div>
       <nav class="nav-list" aria-label="发现">
-        <a
+        <router-link
           v-for="item in discoverItems"
           :key="item.to"
+          :to="{ path: item.to, query: item.query }"
           :class="['nav-item', { active: isActive(item) }]"
-          href="javascript:void(0)"
-          @click="navigate(item)"
+          @click="onNavClick()"
         >
           <AppIcon :name="item.icon" :size="18" />
           {{ item.label }}
-        </a>
+        </router-link>
       </nav>
     </div>
 
@@ -173,16 +172,16 @@ function navigate(item) {
     <div v-if="personalItems.length" class="nav-section">
       <div class="nav-section__label">个人</div>
       <nav class="nav-list" aria-label="个人">
-        <a
+        <router-link
           v-for="item in personalItems"
           :key="item.to"
+          :to="{ path: item.to, query: item.query }"
           :class="['nav-item', { active: isActive(item) }]"
-          href="javascript:void(0)"
-          @click="navigate(item)"
+          @click="onNavClick()"
         >
           <AppIcon :name="item.icon" :size="18" />
           {{ item.label }}
-        </a>
+        </router-link>
       </nav>
     </div>
 

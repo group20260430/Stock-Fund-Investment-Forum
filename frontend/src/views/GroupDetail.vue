@@ -1,7 +1,6 @@
 ﻿<script setup>
 import { ref, onMounted, computed } from "vue"
 import { useRoute, useRouter } from "vue-router"
-import AppLayout from "../components/layout/AppLayout.vue"
 import PostCard from "../components/post/PostCard.vue"
 import Loading from "../components/common/Loading.vue"
 import EmptyState from "../components/common/EmptyState.vue"
@@ -182,7 +181,6 @@ function handlePostsPageChange(p) { loadPosts(p); window.scrollTo({ top: 400, be
 </script>
 
 <template>
-  <AppLayout>
     <Loading v-if="loading" variant="skeleton" :rows="1" />
 
     <template v-else-if="group">
@@ -289,7 +287,6 @@ function handlePostsPageChange(p) { loadPosts(p); window.scrollTo({ top: 400, be
     </template>
 
     <EmptyState v-else icon="🔍" title="群组不存在" />
-  </AppLayout>
 </template>
 
 <style scoped>

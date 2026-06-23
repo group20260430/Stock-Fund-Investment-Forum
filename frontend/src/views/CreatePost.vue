@@ -3,7 +3,6 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { fetchPostDetail } from '../api/posts'
-import AppLayout from '../components/layout/AppLayout.vue'
 import PostEditor from '../components/post/PostEditor.vue'
 import Loading from '../components/common/Loading.vue'
 
@@ -34,7 +33,6 @@ function closeEditor() {
 </script>
 
 <template>
-  <AppLayout>
     <!-- 未登录提示 -->
     <div v-if="!auth.isLoggedIn" class="no-auth">
       <h2>请先登录</h2>
@@ -46,7 +44,6 @@ function closeEditor() {
 
     <!-- 编辑器 -->
     <PostEditor v-else :post="editingPost" @close="closeEditor" @saved="closeEditor" />
-  </AppLayout>
 </template>
 
 <style scoped>

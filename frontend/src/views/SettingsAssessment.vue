@@ -3,7 +3,6 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToastStore } from '../stores/toast'
 import { getRiskQuestions, submitRiskAssessment } from '../api/auth'
-import AppLayout from '../components/layout/AppLayout.vue'
 import Loading from '../components/common/Loading.vue'
 
 const router = useRouter()
@@ -49,7 +48,6 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <AppLayout>
     <header class="toolbar">
       <button class="back-btn" @click="router.back()">&larr; 返回设置</button>
       <h1>投资者风险评估</h1>
@@ -83,7 +81,6 @@ async function handleSubmit() {
         {{ submitting ? '提交中...' : '提交评估' }}
       </button>
     </div>
-  </AppLayout>
 </template>
 
 <style scoped>

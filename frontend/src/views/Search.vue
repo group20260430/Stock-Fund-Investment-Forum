@@ -1,7 +1,6 @@
 ﻿<script setup>
 import { ref, computed, onMounted, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
-import AppLayout from "../components/layout/AppLayout.vue"
 import PostCard from "../components/post/PostCard.vue"
 import UserCard from "../components/user/UserCard.vue"
 import Loading from "../components/common/Loading.vue"
@@ -204,7 +203,6 @@ function clearHistory() {
 </script>
 
 <template>
-  <AppLayout>
     <div class="search-page">
       <!-- 搜索框 -->
       <div class="search-header">
@@ -420,7 +418,6 @@ function clearHistory() {
         </section>
       </div>
     </div>
-  </AppLayout>
 </template>
 
 <style scoped>

@@ -46,13 +46,11 @@ export function parseToken(token) {
 }
 
 /**
- * 获取当前登录用户的角色
+ * 获取当前登录用户的角色（从存储的用户信息中读取）
  */
 export function getUserRole() {
-  const token = getToken()
-  if (!token) return null
-  const payload = parseToken(token)
-  return payload?.role || 'user'
+  const user = getUser()
+  return user?.role || 'user'
 }
 
 /**

@@ -1,6 +1,5 @@
 <script setup>
 import { ref, onMounted, reactive } from 'vue'
-import AppLayout from '../../components/layout/AppLayout.vue'
 import UserCard from '../../components/user/UserCard.vue'
 import Loading from '../../components/common/Loading.vue'
 import Pagination from '../../components/common/Pagination.vue'
@@ -45,7 +44,6 @@ function handlePageChange(page) { loadUsers(page) }
 </script>
 
 <template>
-  <AppLayout>
     <header class="toolbar">
       <h1>管理后台 / 用户管理</h1>
     </header>
@@ -72,7 +70,6 @@ function handlePageChange(page) { loadUsers(page) }
       :size="20"
       @update:current="handlePageChange"
     />
-  </AppLayout>
 </template>
 
 <style scoped>

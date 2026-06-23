@@ -4,7 +4,6 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import { submitCertification } from '../api/auth'
-import AppLayout from '../components/layout/AppLayout.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -39,7 +38,6 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <AppLayout>
     <header class="toolbar">
       <button class="back-btn" @click="router.back()">&larr; 返回设置</button>
       <h1>实名认证</h1>
@@ -60,7 +58,6 @@ async function handleSubmit() {
         {{ submitting ? '提交中...' : '提交认证申请' }}
       </button>
     </div>
-  </AppLayout>
 </template>
 
 <style scoped>

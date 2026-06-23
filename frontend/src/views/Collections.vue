@@ -1,6 +1,5 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import AppLayout from '../components/layout/AppLayout.vue'
 import PostCard from '../components/post/PostCard.vue'
 import Loading from '../components/common/Loading.vue'
 import EmptyState from '../components/common/EmptyState.vue'
@@ -65,7 +64,6 @@ function handlePageChange(page) { loadCollections(page) }
 </script>
 
 <template>
-  <AppLayout>
     <header class="toolbar">
       <div>
         <h1>我的收藏</h1>
@@ -98,7 +96,6 @@ function handlePageChange(page) { loadCollections(page) }
       :size="20"
       @update:current="handlePageChange"
     />
-  </AppLayout>
 </template>
 
 <style scoped>

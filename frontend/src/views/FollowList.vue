@@ -1,7 +1,6 @@
 ﻿<script setup>
 import { ref, onMounted, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
-import AppLayout from "../components/layout/AppLayout.vue"
 import UserCard from "../components/user/UserCard.vue"
 import Loading from "../components/common/Loading.vue"
 import EmptyState from "../components/common/EmptyState.vue"
@@ -51,7 +50,6 @@ function handlePageChange(p) { loadData(p) }
 </script>
 
 <template>
-  <AppLayout>
     <div class="follow-tabs">
       <button
         :class="['follow-tab', { 'follow-tab--active': activeTab === 'following' }]"
@@ -88,7 +86,6 @@ function handlePageChange(p) { loadData(p) }
       :size="pageSize"
       @update:current="handlePageChange"
     />
-  </AppLayout>
 </template>
 
 <style scoped>

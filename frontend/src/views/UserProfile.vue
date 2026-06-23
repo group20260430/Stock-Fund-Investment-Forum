@@ -7,7 +7,6 @@ import { usePostsStore } from '../stores/posts'
 import { useToastStore } from '../stores/toast'
 import { fetchPointsHistory } from '../api/auth'
 import { toggleFollow, setStarred } from '../api/users'
-import AppLayout from '../components/layout/AppLayout.vue'
 import UserProfileComponent from '../components/user/UserProfile.vue'
 import PostCard from '../components/post/PostCard.vue'
 import Loading from '../components/common/Loading.vue'
@@ -212,7 +211,6 @@ function formatTime(t) {
 </script>
 
 <template>
-  <AppLayout>
     <Loading v-if="userStore.loading" variant="skeleton" :rows="1" />
     <ErrorState
       v-else-if="userStore.error"
@@ -297,7 +295,6 @@ function formatTime(t) {
         </div>
       </div>
     </template>
-  </AppLayout>
 </template>
 
 <style scoped>

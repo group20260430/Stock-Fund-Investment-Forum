@@ -4,9 +4,9 @@ import { isLoggedIn, getUserRole } from "../utils/auth"
 const routes = [
   // ===== 公开页面 =====
   { path: "/", name: "home", component: () => import("../views/Home.vue") },
-  { path: "/login", name: "login", component: () => import("../views/Login.vue"), meta: { guest: true } },
-  { path: "/register", name: "register", component: () => import("../views/Register.vue"), meta: { guest: true } },
-  { path: "/register/email", name: "register-email", component: () => import("../views/RegisterEmail.vue"), meta: { guest: true } },
+  { path: "/login", name: "login", component: () => import("../views/Login.vue"), meta: { guest: true, layout: false } },
+  { path: "/register", name: "register", component: () => import("../views/Register.vue"), meta: { guest: true, layout: false } },
+  { path: "/register/email", name: "register-email", component: () => import("../views/RegisterEmail.vue"), meta: { guest: true, layout: false } },
   { path: "/posts/:id", name: "post-detail", component: () => import("../views/PostDetail.vue") },
   { path: "/categories/:id", name: "category", component: () => import("../views/Category.vue") },
   { path: "/search", name: "search", component: () => import("../views/Search.vue") },
@@ -35,7 +35,7 @@ const routes = [
   { path: "/admin/logs", name: "admin-logs", component: () => import("../views/admin/ActivityLogs.vue"), meta: { requiresAuth: true, requiresAdmin: true } },
 
   // ===== 404 =====
-  { path: "/:pathMatch(.*)*", name: "not-found", component: () => import("../views/NotFound.vue") },
+  { path: "/:pathMatch(.*)*", name: "not-found", component: () => import("../views/NotFound.vue"), meta: { layout: false } },
 ]
 
 const router = createRouter({ history: createWebHistory(), routes })

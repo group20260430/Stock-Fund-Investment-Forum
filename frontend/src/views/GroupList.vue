@@ -1,6 +1,5 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import AppLayout from '../components/layout/AppLayout.vue'
 import Loading from '../components/common/Loading.vue'
 import EmptyState from '../components/common/EmptyState.vue'
 import { fetchGroups, joinGroup } from '../api/groups'
@@ -46,7 +45,6 @@ async function handleJoin(group) {
 </script>
 
 <template>
-  <AppLayout>
     <header class="toolbar">
       <div>
         <h1>投资群组</h1>
@@ -86,7 +84,6 @@ async function handleJoin(group) {
         </button>
       </div>
     </div>
-  </AppLayout>
 </template>
 
 <style scoped>

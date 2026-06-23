@@ -13,9 +13,9 @@ class Settings(BaseSettings):
     allowed_origin_regex: str = r"http://(localhost|127\.0\.0\.1):\d+"
 
     # --- Database ---
-    # Set DATABASE_URL in .env to override.  Defaults to SQLite for local dev.
+    # 默认使用 backend/ 目录下的 SQLite 文件（通过 _PROJECT_ROOT 解析为绝对路径）
     # MySQL example: mysql+pymysql://user:pass@127.0.0.1:3306/stock_fund_forum?charset=utf8mb4
-    database_url: str = "sqlite:///./stock_fund_forum.db"
+    database_url: str = f"sqlite:///{_PROJECT_ROOT / 'stock_fund_forum.db'}"
 
     # --- MySQL (used only when DATABASE_URL is not explicitly set) ---
     mysql_host: str = "127.0.0.1"
@@ -40,13 +40,11 @@ class Settings(BaseSettings):
     smtp_from_email: str = ""
     smtp_timeout: int = 10
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
-
-    def model_post_init(self, __context) -> None:
-        """将 SQLite 相对路径解析为基于项目根目录的绝对路径，避免 CWD 问题。"""
-        if self.database_url.startswith("sqlite:///./"):
-            rel = self.database_url.removeprefix("sqlite:///./")
-            self.database_url = f"sqlite:///{_PROJECT_ROOT / rel}"
+    model_config = SettingsConfigDict(
+        env_file=str(_PROJECT_ROOT / ".env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     @property
     def access_token_expire_seconds(self) -> int:

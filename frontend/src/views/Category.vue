@@ -1,7 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import AppLayout from '../components/layout/AppLayout.vue'
 import PostCard from '../components/post/PostCard.vue'
 import Loading from '../components/common/Loading.vue'
 import EmptyState from '../components/common/EmptyState.vue'
@@ -53,7 +52,6 @@ function handlePageChange(page) {
 </script>
 
 <template>
-  <AppLayout>
     <header class="toolbar">
       <div>
         <h1>{{ route.params.id === '1' ? '综合讨论' : route.params.id === '2' ? '股票市场' : route.params.id === '3' ? '基金投资' : route.params.id === '4' ? '问答求助' : route.params.id === '5' ? '投资策略' : '板块' }}</h1>
@@ -87,7 +85,6 @@ function handlePageChange(page) {
       :size="postsStore.pagination.size"
       @update:current="handlePageChange"
     />
-  </AppLayout>
 </template>
 
 <style scoped>

@@ -7,7 +7,6 @@ import { useToastStore } from "../stores/toast"
 import { fetchComments, createComment, deleteComment, likeComment } from "../api/comments"
 import { sharePost } from "../api/posts"
 import { submitReport } from "../api/admin"
-import AppLayout from "../components/layout/AppLayout.vue"
 import PostDetailComponent from "../components/post/PostDetail.vue"
 import CommentList from "../components/comment/CommentList.vue"
 import MentionTextarea from "../components/common/MentionTextarea.vue"
@@ -199,7 +198,6 @@ const post = computed(() => postsStore.currentPost)
 </script>
 
 <template>
-  <AppLayout>
     <Loading v-if="postsStore.loading && !post" variant="skeleton" :rows="1" />
     <ErrorState v-else-if="postsStore.error && !post" :message="postsStore.error" @retry="postsStore.loadPostDetail(route.params.id)" />
     <ErrorState v-else-if="!post" message="帖子不存在或已被删除" />
@@ -266,7 +264,6 @@ const post = computed(() => postsStore.currentPost)
         <Pagination v-if="commentsTotal > 20" :current="commentsPage" :total="commentsTotal" :size="20" @update:current="handleCommentsPageChange" />
       </section>
     </template>
-  </AppLayout>
 </template>
 
 <style scoped>

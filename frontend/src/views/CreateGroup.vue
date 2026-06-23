@@ -3,7 +3,6 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToastStore } from '../stores/toast'
 import { createGroup } from '../api/groups'
-import AppLayout from '../components/layout/AppLayout.vue'
 
 const router = useRouter()
 const toast = useToastStore()
@@ -35,7 +34,6 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <AppLayout>
     <header class="toolbar">
       <button class="back-btn" @click="router.back()">&larr; 返回</button>
       <h1>创建群组</h1>
@@ -68,7 +66,6 @@ async function handleSubmit() {
         {{ submitting ? '创建中...' : '创建群组' }}
       </button>
     </div>
-  </AppLayout>
 </template>
 
 <style scoped>

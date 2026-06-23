@@ -2,7 +2,6 @@
 import { ref, onMounted } from 'vue'
 import { useToastStore } from '../../stores/toast'
 import { fetchActivityLogs } from '../../api/admin'
-import AppLayout from '../../components/layout/AppLayout.vue'
 import Loading from '../../components/common/Loading.vue'
 import Pagination from '../../components/common/Pagination.vue'
 
@@ -30,7 +29,6 @@ onMounted(() => load())
 </script>
 
 <template>
-  <AppLayout>
     <header class="toolbar"><h1>管理后台 / 操作日志</h1></header>
     <div class="admin-nav">
       <router-link to="/admin" class="admin-nav__item">总览</router-link>
@@ -66,7 +64,6 @@ onMounted(() => load())
       :size="pagination.size"
       @update:current="load"
     />
-  </AppLayout>
 </template>
 
 <style scoped>

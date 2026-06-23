@@ -1,6 +1,5 @@
 ﻿<script setup>
 import { ref, onMounted, reactive } from "vue"
-import AppLayout from "../../components/layout/AppLayout.vue"
 import Loading from "../../components/common/Loading.vue"
 import EmptyState from "../../components/common/EmptyState.vue"
 import Pagination from "../../components/common/Pagination.vue"
@@ -75,7 +74,6 @@ function flagLabel(flag) {
 </script>
 
 <template>
-  <AppLayout>
     <header class="toolbar">
       <h1>管理后台 / 内容审核</h1>
     </header>
@@ -147,7 +145,6 @@ function flagLabel(flag) {
       :size="20"
       @update:current="handlePageChange"
     />
-  </AppLayout>
 </template>
 
 <style scoped>

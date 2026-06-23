@@ -8,7 +8,6 @@ import { search as searchUsers } from '../api/search'
 import { fetchUserProfile } from '../api/users'
 import { markNotificationsRead } from '../api/notifications'
 import AppIcon from '../components/common/AppIcon.vue'
-import AppLayout from '../components/layout/AppLayout.vue'
 import Loading from '../components/common/Loading.vue'
 import EmptyState from '../components/common/EmptyState.vue'
 
@@ -396,7 +395,6 @@ watch(() => route.params.userId, (val) => {
 </script>
 
 <template>
-  <AppLayout>
     <div class="messages-layout">
       <!-- 会话列表 -->
       <aside class="conv-list">
@@ -582,7 +580,6 @@ watch(() => route.params.userId, (val) => {
         </div>
       </div>
     </Teleport>
-  </AppLayout>
 </template>
 
 <style scoped>

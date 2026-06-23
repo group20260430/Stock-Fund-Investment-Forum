@@ -4,7 +4,6 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import { fetchPrivacySettings, updatePrivacySettings } from '../api/auth'
-import AppLayout from '../components/layout/AppLayout.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -65,7 +64,6 @@ async function handlePrivacySave() {
 </script>
 
 <template>
-  <AppLayout>
     <header class="toolbar">
       <div>
         <h1>个人设置</h1>
@@ -154,7 +152,6 @@ async function handlePrivacySave() {
         进行评估
       </button>
     </div>
-  </AppLayout>
 </template>
 
 <style scoped>

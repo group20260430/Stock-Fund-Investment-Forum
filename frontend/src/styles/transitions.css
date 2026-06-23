@@ -3,6 +3,10 @@
    ============================================ */
 
 /* Page transition (wraps <router-view> in App.vue) */
+.route-page-wrapper {
+  width: 100%;
+}
+
 .page-enter-active {
   transition:
     opacity var(--duration-page) var(--ease-out-expo),

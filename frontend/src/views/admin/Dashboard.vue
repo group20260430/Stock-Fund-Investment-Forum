@@ -5,7 +5,6 @@ import { use } from "echarts/core"
 import { CanvasRenderer } from "echarts/renderers"
 import { LineChart, BarChart } from "echarts/charts"
 import { GridComponent, TooltipComponent, LegendComponent, TitleComponent } from "echarts/components"
-import AppLayout from "../../components/layout/AppLayout.vue"
 import Loading from "../../components/common/Loading.vue"
 import { fetchStatsOverview } from "../../api/admin"
 
@@ -67,7 +66,6 @@ const stocksOption = computed(() => {
 </script>
 
 <template>
-  <AppLayout>
     <header class="toolbar">
       <h1>管理后台 / 数据总览</h1>
     </header>
@@ -133,7 +131,6 @@ const stocksOption = computed(() => {
     <div v-else class="empty-state">
       <p>无法加载统计数据，请检查后端服务</p>
     </div>
-  </AppLayout>
 </template>
 
 <style scoped>
