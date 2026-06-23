@@ -11,47 +11,47 @@ const auth = useAuthStore()
 const showMobileMenu = defineModel('showMobileMenu', { type: Boolean, default: false })
 
 const navItems = [
-  { label: '综合讨论', to: '/categories/1', icon: 'discuss' },
-  { label: '股票市场', to: '/categories/2', icon: 'stock' },
-  { label: '基金投资', to: '/categories/3', icon: 'fund' },
-  { label: '问答求助', to: '/categories/4', icon: 'question' },
-  { label: '投资策略', to: '/categories/5', icon: 'strategy' },
+  { label: '缁煎悎璁ㄨ', to: '/categories/1', icon: 'discuss' },
+  { label: '鑲＄エ甯傚満', to: '/categories/2', icon: 'stock' },
+  { label: '鍩洪噾鎶曡祫', to: '/categories/3', icon: 'fund' },
+  { label: '闂瓟姹傚姪', to: '/categories/4', icon: 'question' },
+  { label: '鎶曡祫绛栫暐', to: '/categories/5', icon: 'strategy' },
 ]
 
-const expandedGroups = ref(['market', 'theme'])
+const expandedGroups = ref([])
 
 const categoryGroups = [
   {
-    key: 'market', label: '市场讨论区', icon: 'stock',
+    key: 'market', label: '甯傚満璁ㄨ鍖?, icon: 'stock',
     items: [
-      { label: 'A股', to: '/search', query: { keyword: 'A股' } },
-      { label: '港股', to: '/search', query: { keyword: '港股' } },
-      { label: '美股', to: '/search', query: { keyword: '美股' } },
-      { label: '期货', to: '/search', query: { keyword: '期货' } },
+      { label: 'A鑲?, to: '/search', query: { keyword: 'A鑲? } },
+      { label: '娓偂', to: '/search', query: { keyword: '娓偂' } },
+      { label: '缇庤偂', to: '/search', query: { keyword: '缇庤偂' } },
+      { label: '鏈熻揣', to: '/search', query: { keyword: '鏈熻揣' } },
     ],
   },
   {
-    key: 'theme', label: '主题专区', icon: 'discuss',
+    key: 'theme', label: '涓婚涓撳尯', icon: 'discuss',
     items: [
-      { label: '价值投资', to: '/search', query: { keyword: '价值投资' } },
-      { label: '量化投资', to: '/search', query: { keyword: '量化投资' } },
-      { label: '基金投资', to: '/search', query: { keyword: '基金投资' } },
-      { label: '新股/新债', to: '/search', query: { keyword: '新股' } },
-      { label: '宏观策略', to: '/search', query: { keyword: '宏观策略' } },
+      { label: '浠峰€兼姇璧?, to: '/search', query: { keyword: '浠峰€兼姇璧? } },
+      { label: '閲忓寲鎶曡祫', to: '/search', query: { keyword: '閲忓寲鎶曡祫' } },
+      { label: '鍩洪噾鎶曡祫', to: '/search', query: { keyword: '鍩洪噾鎶曡祫' } },
+      { label: '鏂拌偂/鏂板€?, to: '/search', query: { keyword: '鏂拌偂' } },
+      { label: '瀹忚绛栫暐', to: '/search', query: { keyword: '瀹忚绛栫暐' } },
     ],
   },
   {
-    key: 'company', label: '公司研究专区', icon: 'strategy',
+    key: 'company', label: '鍏徃鐮旂┒涓撳尯', icon: 'strategy',
     items: [
-      { label: '行业分析', to: '/search', query: { keyword: '行业分析' } },
-      { label: '个股深度', to: '/search', query: { keyword: '个股' } },
+      { label: '琛屼笟鍒嗘瀽', to: '/search', query: { keyword: '琛屼笟鍒嗘瀽' } },
+      { label: '涓偂娣卞害', to: '/search', query: { keyword: '涓偂' } },
     ],
   },
   {
-    key: 'qa', label: '问答求助区', icon: 'question',
+    key: 'qa', label: '闂瓟姹傚姪鍖?, icon: 'question',
     items: [
-      { label: '新手提问', to: '/search', query: { keyword: '新手' } },
-      { label: '投资解惑', to: '/search', query: { keyword: '投资解惑' } },
+      { label: '鏂版墜鎻愰棶', to: '/search', query: { keyword: '鏂版墜' } },
+      { label: '鎶曡祫瑙ｆ儜', to: '/search', query: { keyword: '鎶曡祫瑙ｆ儜' } },
     ],
   },
 ]
@@ -63,17 +63,17 @@ function toggleGroup(key) {
 }
 
 const discoverItems = [
-  { label: '热门', to: '/', query: { tab: 'hot' }, icon: 'trending' },
-  { label: '搜索', to: '/search', icon: 'search' },
+  { label: '鐑棬', to: '/', query: { tab: 'hot' }, icon: 'trending' },
+  { label: '鎼滅储', to: '/search', icon: 'search' },
 ]
 
 const personalItems = computed(() => {
   if (!auth.isLoggedIn) return []
   return [
-    { label: '我的动态', to: '/', query: { tab: 'feed' }, icon: 'feed' },
-    { label: '我的收藏', to: '/me/collections', icon: 'collections' },
-    { label: '关注列表', to: `/users/${auth.user?.id || 'me'}/follow`, icon: 'followers' },
-    { label: '我的群组', to: '/groups', icon: 'groups' },
+    { label: '鎴戠殑鍔ㄦ€?, to: '/', query: { tab: 'feed' }, icon: 'feed' },
+    { label: '鎴戠殑鏀惰棌', to: '/me/collections', icon: 'collections' },
+    { label: '鍏虫敞鍒楄〃', to: `/users/${auth.user?.id || 'me'}/follow`, icon: 'followers' },
+    { label: '鎴戠殑缇ょ粍', to: '/groups', icon: 'groups' },
   ]
 })
 
@@ -96,24 +96,24 @@ function navigate(item) {
 </script>
 
 <template>
-  <!-- 移动端遮罩 -->
+  <!-- 绉诲姩绔伄缃?-->
   <div
     v-if="showMobileMenu"
     class="sidebar-overlay"
     @click="showMobileMenu = false"
   />
 
-  <aside :class="['sidebar', { 'sidebar--open': showMobileMenu }]" aria-label="论坛导航">
-    <!-- 品牌区 -->
+  <aside :class="['sidebar', { 'sidebar--open': showMobileMenu }]" aria-label="璁哄潧瀵艰埅">
+    <!-- 鍝佺墝鍖?-->
     <div class="brand" @click="router.push('/')">
-      <strong class="brand-name">股票基金投资论坛</strong>
+      <strong class="brand-name">鑲＄エ鍩洪噾鎶曡祫璁哄潧</strong>
       <span>Stock &amp; Fund Forum</span>
     </div>
 
-    <!-- 论坛板块 -->
+    <!-- 璁哄潧鏉垮潡 -->
     <div class="nav-section">
-      <div class="nav-section__label">论坛板块</div>
-      <nav class="nav-list" aria-label="论坛板块">
+      <div class="nav-section__label">璁哄潧鏉垮潡</div>
+      <nav class="nav-list" aria-label="璁哄潧鏉垮潡">
         <a
           v-for="item in navItems"
           :key="item.to"
@@ -127,9 +127,9 @@ function navigate(item) {
       </nav>
     </div>
 
-    <!-- 分组导航 -->
+    <!-- 鍒嗙粍瀵艰埅 -->
     <div class="nav-section">
-      <div class="nav-section__label">分组导航</div>
+      <div class="nav-section__label">鍒嗙粍瀵艰埅</div>
       <div v-for="grp in categoryGroups" :key="grp.key" class="nav-group">
         <button class="nav-group__header" @click="toggleGroup(grp.key)">
           <AppIcon :name="grp.icon" :size="16" />
@@ -151,10 +151,10 @@ function navigate(item) {
       </div>
     </div>
 
-    <!-- 发现 -->
+    <!-- 鍙戠幇 -->
     <div class="nav-section">
-      <div class="nav-section__label">发现</div>
-      <nav class="nav-list" aria-label="发现">
+      <div class="nav-section__label">鍙戠幇</div>
+      <nav class="nav-list" aria-label="鍙戠幇">
         <a
           v-for="item in discoverItems"
           :key="item.to"
@@ -168,10 +168,10 @@ function navigate(item) {
       </nav>
     </div>
 
-    <!-- 个人（需登录） -->
+    <!-- 涓汉锛堥渶鐧诲綍锛?-->
     <div v-if="personalItems.length" class="nav-section">
-      <div class="nav-section__label">个人</div>
-      <nav class="nav-list" aria-label="个人">
+      <div class="nav-section__label">涓汉</div>
+      <nav class="nav-list" aria-label="涓汉">
         <a
           v-for="item in personalItems"
           :key="item.to"
@@ -185,7 +185,7 @@ function navigate(item) {
       </nav>
     </div>
 
-    <!-- 底部用户信息（已登录时） -->
+    <!-- 搴曢儴鐢ㄦ埛淇℃伅锛堝凡鐧诲綍鏃讹級 -->
     <div v-if="auth.isLoggedIn && auth.user" class="sidebar-footer">
       <img
         :src="auth.user.avatar_url || '/default-avatar.png'"
@@ -195,7 +195,7 @@ function navigate(item) {
       >
       <div class="sidebar-user-info">
         <strong>{{ auth.user.nickname }}</strong>
-        <span>{{ auth.user.auth_level === 'professional' ? '专业认证' : auth.user.auth_level === 'verified' ? '实名认证' : '普通用户' }}</span>
+        <span>{{ auth.user.auth_level === 'professional' ? '涓撲笟璁よ瘉' : auth.user.auth_level === 'verified' ? '瀹炲悕璁よ瘉' : '鏅€氱敤鎴? }}</span>
       </div>
     </div>
   </aside>
@@ -359,7 +359,7 @@ function navigate(item) {
   color: var(--color-text-muted);
 }
 
-/* 移动端侧边栏抽屉 */
+/* 绉诲姩绔晶杈规爮鎶藉眽 */
 .sidebar-overlay {
   background: var(--color-bg-overlay);
   display: none;
