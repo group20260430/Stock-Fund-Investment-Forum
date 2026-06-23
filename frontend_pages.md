@@ -4,7 +4,7 @@
 **基于：** `feat/frontend/core`  
 **开发者：** 杨文弢（前端开发与文档）  
 **开始日期：** 2026年6月21日  
-**最后更新：** 2026年6月22日  
+**最后更新：** 2026年6月23日  
 
 ---
 
@@ -73,6 +73,12 @@
 | `src/components/user/UserProfile.vue` | 修改 | 新增星标 emit + ⭐ 标识 + 按钮 UI，统计数据链接修复 |
 | `src/views/PostDetail.vue` | 修改 | 新增举报弹窗：操作栏「⚠ 举报」按钮 → 选择举报原因（虚假信息/人身攻击/违规荐股/垃圾广告/其他）+ 补充说明 → 调用 `submitReport` API |
 
+### 2.8 2026-06-23 市场分组导航
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `src/components/common/SideBar.vue` | 修改 | 新增「市场」导航区域：4 个可展开市场分组（🇨🇳 A股 / 🇭🇰 港股 / 🇺🇸 美股 / 💰 基金），每项含「讨论」和「热门」子链接，点击跳转搜索页并自动预填市场筛选条件 |
+
 ---
 
 ## 三、文件统计
@@ -80,12 +86,12 @@
 | 类型 | 数量 | 说明 |
 |------|------|------|
 | 新建组件 | 3 | MentionTextarea / PollWidget / FollowList |
-| 修改组件 | 3 | CommentItem / CommentList / UserProfile |
+| 修改组件 | 4 | CommentItem / CommentList / UserProfile / SideBar |
 | 重写页面 | 4 | Search / GroupDetail / Dashboard / ReviewQueue |
 | 修改页面 | 2 | PostDetail / UserProfile |
 | 修改配置 | 1 | router/index.js |
 | 新建文档 | 2 | user_guid.md / frontend_pages.md |
-| **合计** | **15** | |
+| **合计** | **16** | |
 
 ---
 
@@ -94,7 +100,7 @@
 ```
 npm run build
 ✓ 688 modules transformed
-✓ built in ~4.4s
+✓ built in ~6.8s
 ```
 
 ---
@@ -122,6 +128,7 @@ npm run build
 | 举报帖子 | `POST /report` | ✅ 已对接 | 待实现 |
 | 审核操作 | `POST /admin/review-queue/:id/review` | ✅ 已对接 | 待实现 |
 | 数据统计 | `GET /admin/stats/overview` | ✅ 已对接 | 待实现 |
+| 市场搜索 | `GET /search?market=` | ✅ 已对接 | 待实现 |
 
 ---
 
