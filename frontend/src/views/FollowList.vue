@@ -77,6 +77,7 @@ function handlePageChange(p) { loadData(p) }
         v-for="user in users"
         :key="user.id"
         :user="user"
+        @click="router.push('/users/' + user.id)"
       />
     </div>
 

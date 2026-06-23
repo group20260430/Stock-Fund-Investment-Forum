@@ -5,6 +5,21 @@ export function sendCode(phone, type = 'register') {
   return api.post('/auth/send-code', { phone, type })
 }
 
+/** 邮箱验证码 */
+export function sendEmailCode(email, type = 'register') {
+  return api.post('/auth/email/send-code', { email, type })
+}
+
+/** 验证邮箱验证码 */
+export function verifyEmailCode(email, code) {
+  return api.post('/auth/email/verify-code', { email, code })
+}
+
+/** 邮箱注册 */
+export function registerByEmail(data) {
+  return api.post('/auth/email/register', data)
+}
+
 /** 手机号注册 */
 export function register(data) {
   return api.post('/auth/register', data)
@@ -53,4 +68,19 @@ export function getRiskQuestions() {
 /** 获取历史评估记录 */
 export function fetchRiskHistory(params) {
   return api.get('/auth/risk-assessment/history', params)
+}
+
+/** 获取隐私设置 */
+export function fetchPrivacySettings() {
+  return api.get('/auth/privacy')
+}
+
+/** 更新隐私设置 */
+export function updatePrivacySettings(data) {
+  return api.put('/auth/privacy', data)
+}
+
+/** 获取积分历史 */
+export function fetchPointsHistory(params) {
+  return api.get('/auth/points/history', params)
 }

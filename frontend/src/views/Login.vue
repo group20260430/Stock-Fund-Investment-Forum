@@ -2,6 +2,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { sendCode as sendCodeApi, sendEmailCode } from '../api/auth'
 
 const router = useRouter()
 const route = useRoute()
@@ -32,8 +33,12 @@ async function sendCode() {
   if (!form.phone || codeCountdown.value > 0) return
   codeSending.value = true
   try {
-    const { sendCode } = await import('../api/auth')
-    await sendCode(form.phone, 'login')
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.phone)
+    if (isEmail) {
+      await sendEmailCode(form.phone, 'login')
+    } else {
+      await sendCodeApi(form.phone, 'login')
+    }
     codeCountdown.value = 60
     countdownTimer = setInterval(() => {
       codeCountdown.value--

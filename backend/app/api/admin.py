@@ -312,6 +312,283 @@ def stats_trend(
     })
 
 
+@router.get("/admin/stats/hot-topics")
+def hot_topics_analysis(
+    period: str = Query("daily", pattern="^(daily|weekly|monthly)$"),
+    top_n: int = Query(20, ge=1, le=100),
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """热门话题深度分析：按标签聚合，计算综合热度值，对比上期趋势"""
+    days_map = {"daily": 1, "weekly": 7, "monthly": 30}
+    days = days_map[period]
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    cutoff = now - timedelta(days=days)
+    prev_cutoff = cutoff - timedelta(days=days)
+
+    def _aggregate_tags(since: datetime, until: datetime) -> dict[str, dict]:
+        """聚合时间段内的标签统计数据"""
+        posts = (
+            db.query(Post)
+            .filter(
+                Post.status == PostStatus.PUBLISHED,
+                Post.created_at >= since,
+                Post.created_at <= until,
+            )
+            .all()
+        )
+        tags: dict[str, dict] = {}
+        for post in posts:
+            tag_list = post.tags or ([post.category.name] if post.category else [])
+            for tag in tag_list:
+                entry = tags.setdefault(tag, {
+                    "post_count": 0,
+                    "total_views": 0,
+                    "total_likes": 0,
+                    "total_comments": 0,
+                    "total_collects": 0,
+                    "heat_score": 0,
+                })
+                entry["post_count"] += 1
+                entry["total_views"] += post.view_count or 0
+                entry["total_likes"] += post.like_count or 0
+                entry["total_comments"] += post.comment_count or 0
+                entry["total_collects"] += post.collect_count or 0
+        for tag_data in tags.values():
+            tag_data["heat_score"] = (
+                tag_data["total_views"]
+                + tag_data["total_likes"] * 5
+                + tag_data["total_comments"] * 8
+                + tag_data["total_collects"] * 4
+            )
+        return tags
+
+    current_tags = _aggregate_tags(cutoff, now)
+    previous_tags = _aggregate_tags(prev_cutoff, cutoff)
+
+    # Build ranked items with trend
+    ranked = sorted(current_tags.items(), key=lambda kv: kv[1]["heat_score"], reverse=True)
+    items = []
+    for rank, (tag_name, data) in enumerate(ranked[:top_n], start=1):
+        prev = previous_tags.get(tag_name, {})
+        prev_score = prev.get("heat_score", 0)
+        if prev_score > 0:
+            trend_change = round((data["heat_score"] - prev_score) / prev_score * 100, 1)
+        else:
+            trend_change = 100.0  # new topic
+        if trend_change > 10:
+            trend = "rising"
+        elif trend_change < -10:
+            trend = "falling"
+        else:
+            trend = "stable"
+        items.append({
+            "rank": rank,
+            "name": tag_name,
+            "post_count": data["post_count"],
+            "heat_score": data["heat_score"],
+            "total_views": data["total_views"],
+            "total_likes": data["total_likes"],
+            "total_comments": data["total_comments"],
+            "total_collects": data["total_collects"],
+            "trend": trend,
+            "trend_change": trend_change,
+        })
+
+    all_posts = db.query(Post).filter(
+        Post.status == PostStatus.PUBLISHED,
+        Post.created_at >= cutoff,
+        Post.created_at <= now,
+    ).count()
+    avg_heat = round(sum(i["heat_score"] for i in items) / max(len(items), 1), 1)
+
+    return ApiResponse(code=200, message="success", data={
+        "period": period,
+        "generated_at": now.isoformat(),
+        "items": items,
+        "summary": {
+            "total_topics": len(current_tags),
+            "total_posts": all_posts,
+            "avg_heat_score": avg_heat,
+        },
+    })
+
+
+@router.get("/admin/stats/engagement")
+def engagement_report(
+    period: str = Query("weekly", pattern="^(daily|weekly|monthly)$"),
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """用户参与度报告：活跃度概览、每日趋势、贡献者排行、参与度分布"""
+    days_map = {"daily": 1, "weekly": 7, "monthly": 30}
+    days = days_map[period]
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    cutoff = now - timedelta(days=days)
+    start = cutoff
+
+    # --- Overview ---
+    total_users = db.query(User).filter(User.status == UserStatus.ACTIVE).count()
+
+    active_sets = [
+        set(r[0] for r in db.query(Post.user_id).filter(
+            Post.created_at >= cutoff, Post.status == PostStatus.PUBLISHED
+        ).distinct().all()),
+        set(r[0] for r in db.query(Comment.user_id).filter(
+            Comment.created_at >= cutoff, Comment.status == CommentStatus.PUBLISHED
+        ).distinct().all()),
+        set(r[0] for r in db.query(Like.user_id).filter(
+            Like.created_at >= cutoff
+        ).distinct().all()),
+    ]
+    active_user_ids = active_sets[0] | active_sets[1] | active_sets[2]
+    active_users = len(active_user_ids)
+
+    new_users = db.query(User).filter(
+        User.created_at >= cutoff, User.status == UserStatus.ACTIVE
+    ).count()
+
+    total_posts_period = db.query(Post).filter(
+        Post.created_at >= cutoff, Post.status == PostStatus.PUBLISHED
+    ).count()
+    total_comments_period = db.query(Comment).filter(
+        Comment.created_at >= cutoff, Comment.status == CommentStatus.PUBLISHED
+    ).count()
+
+    engagement_rate = round(active_users / max(total_users, 1) * 100, 1)
+    avg_posts = round(total_posts_period / max(active_users, 1), 1)
+    avg_comments = round(total_comments_period / max(active_users, 1), 1)
+
+    overview = {
+        "total_users": total_users,
+        "active_users": active_users,
+        "new_users": new_users,
+        "engagement_rate": engagement_rate,
+        "avg_posts_per_user": avg_posts,
+        "avg_comments_per_user": avg_comments,
+        "total_posts": total_posts_period,
+        "total_comments": total_comments_period,
+    }
+
+    # --- Daily breakdown ---
+    daily_breakdown = []
+    total_period_days = (now - start).days + 1
+    for offset in range(total_period_days):
+        current = start + timedelta(days=offset)
+        key = current.isoformat()
+        daily_active = set(
+            r[0] for r in db.query(Post.user_id).filter(
+                func.date(Post.created_at) == key, Post.status == PostStatus.PUBLISHED
+            ).distinct().all()
+        ) | set(
+            r[0] for r in db.query(Comment.user_id).filter(
+                func.date(Comment.created_at) == key, Comment.status == CommentStatus.PUBLISHED
+            ).distinct().all()
+        ) | set(
+            r[0] for r in db.query(Like.user_id).filter(
+                func.date(Like.created_at) == key
+            ).distinct().all()
+        )
+        daily_breakdown.append({
+            "date": key,
+            "active_users": len(daily_active),
+            "new_posts": db.query(Post).filter(
+                func.date(Post.created_at) == key, Post.status == PostStatus.PUBLISHED
+            ).count(),
+            "new_comments": db.query(Comment).filter(
+                func.date(Comment.created_at) == key, Comment.status == CommentStatus.PUBLISHED
+            ).count(),
+            "new_likes": db.query(Like).filter(
+                func.date(Like.created_at) == key
+            ).count(),
+        })
+
+    # --- Top contributors ---
+    post_counts = dict(
+        db.query(Post.user_id, func.count(Post.id))
+        .filter(Post.created_at >= cutoff, Post.status == PostStatus.PUBLISHED)
+        .group_by(Post.user_id).all()
+    )
+    comment_counts = dict(
+        db.query(Comment.user_id, func.count(Comment.id))
+        .filter(Comment.created_at >= cutoff, Comment.status == CommentStatus.PUBLISHED)
+        .group_by(Comment.user_id).all()
+    )
+    likes_received = dict(
+        db.query(Post.user_id, func.count(Like.id))
+        .join(Like, (Like.target_type == "post") & (Like.target_id == Post.id))
+        .filter(Post.created_at >= cutoff, Post.status == PostStatus.PUBLISHED)
+        .group_by(Post.user_id).all()
+    )
+
+    all_contributor_ids = set(post_counts) | set(comment_counts)
+    contributors = []
+    for uid in all_contributor_ids:
+        pc = post_counts.get(uid, 0)
+        cc = comment_counts.get(uid, 0)
+        contributors.append({
+            "user_id": uid,
+            "posts_count": pc,
+            "comments_count": cc,
+            "likes_received": likes_received.get(uid, 0),
+            "total_contributions": pc + cc,
+        })
+    contributors.sort(key=lambda c: c["total_contributions"], reverse=True)
+    top_contributors = contributors[:20]
+
+    # Resolve user names for top contributors
+    top_user_ids = [c["user_id"] for c in top_contributors]
+    user_map = {
+        u.id: u
+        for u in db.query(User).filter(User.id.in_(top_user_ids)).all()
+    }
+    top_contributors_ranked = []
+    for rank, c in enumerate(top_contributors, start=1):
+        u = user_map.get(c["user_id"])
+        top_contributors_ranked.append({
+            "rank": rank,
+            "user_id": c["user_id"],
+            "nickname": u.nickname if u else "未知用户",
+            "avatar_url": u.avatar_url if u else None,
+            "posts_count": c["posts_count"],
+            "comments_count": c["comments_count"],
+            "likes_received": c["likes_received"],
+            "total_contributions": c["total_contributions"],
+            "auth_level": u.auth_level.value if u else "basic",
+        })
+
+    # --- Engagement distribution ---
+    high_count = sum(1 for c in contributors if c["total_contributions"] > 20)
+    medium_count = sum(1 for c in contributors if 5 <= c["total_contributions"] <= 20)
+    low_count = sum(1 for c in contributors if 1 <= c["total_contributions"] < 5)
+    total_active_contributors = max(len(contributors), 1)
+
+    engagement_distribution = {
+        "high": {
+            "count": high_count,
+            "threshold": ">20",
+            "percentage": round(high_count / total_active_contributors * 100, 1),
+        },
+        "medium": {
+            "count": medium_count,
+            "threshold": "5-20",
+            "percentage": round(medium_count / total_active_contributors * 100, 1),
+        },
+        "low": {
+            "count": low_count,
+            "threshold": "1-4",
+            "percentage": round(low_count / total_active_contributors * 100, 1),
+        },
+    }
+
+    return ApiResponse(code=200, message="success", data={
+        "overview": overview,
+        "daily_breakdown": daily_breakdown,
+        "top_contributors": top_contributors_ranked,
+        "engagement_distribution": engagement_distribution,
+    })
+
+
 @router.post("/admin/categories", status_code=201)
 def create_category(data: CategoryRequest, admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
     if db.query(Category).filter(Category.name == data.name).first():

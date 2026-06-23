@@ -2,7 +2,9 @@
 __pycache__/
 *.py[cod]
 .venv/
+venv/
 .env
+*.log
 
 # Node
 node_modules/
@@ -18,3 +20,7 @@ Thumbs.db
 work.docx
 .claude
 backend/uploads/
+
+# Database (local development, not committed)
+*.db
+*.sqlite3

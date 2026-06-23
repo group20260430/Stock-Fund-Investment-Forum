@@ -14,3 +14,8 @@ export function sendMessage(data) {
 export function deleteMessage(messageId) {
   return api.delete(`/messages/${messageId}`)
 }
+
+/** 获取未读私信数量 */
+export function fetchUnreadMessageCount() {
+  return api.get('/messages/unread-count')
+}

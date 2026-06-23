@@ -27,7 +27,15 @@ class Settings(BaseSettings):
     access_token_expire_hours: int = 2
     refresh_token_expire_days: int = 7
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    # --- SMTP ---
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = ""
+    smtp_timeout: int = 10
+
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     @property
     def access_token_expire_seconds(self) -> int:
@@ -36,6 +44,20 @@ class Settings(BaseSettings):
     @property
     def refresh_token_expire_seconds(self) -> int:
         return self.refresh_token_expire_days * 86400
+
+    @property
+    def smtp_use_ssl(self) -> bool:
+        """Auto-detect SSL mode by port: 465 → SSL, others → STARTTLS."""
+        return self.smtp_port == 465
+
+    @property
+    def smtp_configured(self) -> bool:
+        return bool(
+            self.smtp_host
+            and self.smtp_user
+            and self.smtp_password
+            and self.smtp_from_email
+        )
 
 
 settings = Settings()

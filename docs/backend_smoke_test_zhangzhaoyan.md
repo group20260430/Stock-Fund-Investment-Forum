@@ -1,15 +1,15 @@
-# 张照炎后端冒烟测试记录
+﻿# 张照炎后端冒烟测试记录
 
 ## 1. 测试目标
 
-本次只做后端已有测试脚本的冒烟验证，不开发新功能，不修改业务代码。
+本次只做后端已有测试脚本的冒烟验证，不开发新功能。
 
 ## 2. 测试环境
 
 * Windows
 * Python 3.13
-* 虚拟环境：`backend\.venv313`
-* 分支：`feat/backend/forum-api`
+* 虚拟环境：backend\.venv313
+* 分支：feat/backend/forum-api
 
 ## 3. 测试范围
 
@@ -22,6 +22,7 @@
 * `test_interactions_api.py`
 * `test_admin_api.py`
 * `test_discovery_api.py`
+* `test_e2e.py`
 
 ## 4. 测试结果汇总
 
@@ -34,6 +35,7 @@
 | `test_interactions_api.py` | 互动接口 | 通过 | 主体通过，脚本正常退出 0 |
 | `test_admin_api.py` | 管理后台 | 通过 | 主体通过，脚本正常退出 0 |
 | `test_discovery_api.py` | 搜索/发现/热榜 | 通过 | 主体通过，脚本正常退出 0 |
+| `test_e2e.py` | 端到端流程 | 通过 | `RESULTS: 22 passed, 0 failed` |
 
 ## 5. 已知问题
 
@@ -42,3 +44,19 @@
 ## 6. 结论
 
 本轮测试用于确认后端主要测试脚本当前可运行状态，不能替代完整系统测试和前端联调测试。
+
+## 7. 一键测试入口
+
+后端新增 `backend/run_backend_tests.py`，可在 `backend` 目录下执行：
+
+```powershell
+python run_backend_tests.py
+```
+
+也可在项目根目录执行：
+
+```powershell
+python backend\run_backend_tests.py
+```
+
+该脚本会顺序运行主要后端冒烟测试脚本，并输出统一汇总结果。

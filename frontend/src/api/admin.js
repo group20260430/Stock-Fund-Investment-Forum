@@ -60,16 +60,6 @@ export function submitReport(data) {
   return api.post('/report', data)
 }
 
-/** 私信列表 */
-export function fetchMessages(params) {
-  return api.get('/messages', params)
-}
-
-/** 发送私信 */
-export function sendMessage(data) {
-  return api.post('/messages', data)
-}
-
 /** 认证审核列表 */
 export function fetchCertifications(params) {
   return api.get('/admin/certifications', params)
@@ -98,4 +88,14 @@ export function deleteSensitiveWord(id) {
 /** 操作日志 */
 export function fetchActivityLogs(params) {
   return api.get('/admin/activity-logs', params)
+}
+
+/** 热门话题分析 */
+export function fetchHotTopics(params) {
+  return api.get('/admin/stats/hot-topics', params)
+}
+
+/** 用户参与度报告 */
+export function fetchEngagementReport(params) {
+  return api.get('/admin/stats/engagement', params)
 }

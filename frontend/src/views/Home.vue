@@ -4,8 +4,9 @@ import { useRoute } from 'vue-router'
 import { useAutoAnimate } from '@formkit/auto-animate/vue'
 import { useAuthStore } from '../stores/auth'
 import { usePostsStore } from '../stores/posts'
-import { fetchHot } from '../api/social'
+import { fetchHot, fetchFeed } from '../api/social'
 import { fetchIndices, fetchKline } from '../api/market'
+import { useToastStore } from '../stores/toast'
 import AppLayout from '../components/layout/AppLayout.vue'
 import PostCard from '../components/post/PostCard.vue'
 import MarketCard from '../components/common/MarketCard.vue'
@@ -17,9 +18,11 @@ import Pagination from '../components/common/Pagination.vue'
 const route = useRoute()
 const auth = useAuthStore()
 const postsStore = usePostsStore()
+const toast = useToastStore()
 
 const sortType = ref('latest')
 const isHotTab = ref(false)
+const isFeedTab = ref(false)
 const [postListRef] = useAutoAnimate({ duration: 250, easing: 'ease-out' })
 const [hotListRef] = useAutoAnimate({ duration: 250, easing: 'ease-out' })
 
@@ -29,6 +32,9 @@ const indexKlines = ref({})
 const indicesLoading = ref(true)
 
 const hotTopics = ref([])
+const feedItems = ref([])
+const feedLoading = ref(false)
+const feedError = ref('')
 
 // 默认展示的指数 ID
 const DEFAULT_INDICES = '1.000001,1.000300,0.399001'
@@ -57,6 +63,8 @@ async function loadMarketData() {
 async function loadContent() {
   if (isHotTab.value) {
     await loadHot()
+  } else if (isFeedTab.value) {
+    await loadFeed()
   } else {
     await postsStore.loadPosts({ sort: sortType.value })
   }
@@ -71,22 +79,46 @@ async function loadHot() {
   }
 }
 
+async function loadFeed() {
+  feedLoading.value = true
+  feedError.value = ''
+  try {
+    const data = await fetchFeed({ page: 1, size: 20 })
+    feedItems.value = Array.isArray(data) ? data : (data?.items || [])
+  } catch (err) {
+    feedError.value = err.message
+    feedItems.value = []
+  } finally {
+    feedLoading.value = false
+  }
+}
+
 function handleSortChange(sort) {
   sortType.value = sort
   isHotTab.value = false
+  isFeedTab.value = false
   postsStore.pagination.page = 1
   loadContent()
 }
 
 function handleTabHot() {
   isHotTab.value = true
+  isFeedTab.value = false
   loadHot()
+}
+
+function handleTabFeed() {
+  isHotTab.value = false
+  isFeedTab.value = true
+  loadFeed()
 }
 
 function handlePageChange(page) {
   postsStore.pagination.page = page
   if (isHotTab.value) {
     loadHot()
+  } else if (isFeedTab.value) {
+    loadFeed()
   } else {
     postsStore.loadPosts({ sort: sortType.value })
   }
@@ -105,6 +137,21 @@ async function handleCollect(postId) {
   await postsStore.togglePostCollect(postId)
 }
 
+async function handleShare(postId) {
+  if (!auth.isLoggedIn) { toast.info('请先登录'); return }
+  const post = postsStore.list.find(p => p.id === postId) || feedItems.value.find(p => p.id === postId)
+  if (post) post.share_count = (post.share_count || 0) + 1
+  try {
+    const { sharePost } = await import('../api/posts')
+    const data = await sharePost(postId, 'timeline', '')
+    if (post && data) post.share_count = data.share_count
+    toast.success('已转发到动态')
+  } catch (err) {
+    if (post) post.share_count = (post.share_count || 1) - 1
+    toast.error(err.message || '转发失败')
+  }
+}
+
 function handleRetry() {
   loadContent()
 }
@@ -113,75 +160,100 @@ onMounted(() => {
   // 检查 URL 参数
   if (route.query.tab === 'hot') {
     isHotTab.value = true
+  } else if (route.query.tab === 'feed') {
+    isFeedTab.value = true
   }
   loadContent()
   loadMarketData()
+})
+
+// 监听路由 query 变化（热榜/动态切换时重新加载）
+watch(() => route.query.tab, (tab) => {
+  isHotTab.value = tab === 'hot'
+  isFeedTab.value = tab === 'feed'
+  if (!tab) {
+    isHotTab.value = false
+    isFeedTab.value = false
+  }
+  loadContent()
 })
 </script>
 
 <template>
   <AppLayout>
-    <!-- 标题栏 -->
-    <header class="toolbar">
-      <div>
-        <h1>投资社区讨论</h1>
-        <p>关注市场观点、基金配置与投资问答。</p>
-      </div>
-    </header>
-
-    <!-- 实时行情卡片 -->
-    <section class="market-strip" aria-label="市场概览">
-      <!-- 加载骨架 -->
-      <template v-if="indicesLoading && !indices.length">
-        <div v-for="i in 3" :key="i" class="market-loading-skeleton">
-          <div class="skeleton-line skeleton-line--short" />
-          <div class="skeleton-line skeleton-line--tall" />
-          <div class="skeleton-line skeleton-line--medium" />
+    <!-- 标题栏：动态视图用独立标题 -->
+    <template v-if="isFeedTab">
+      <header class="toolbar">
+        <div>
+          <h1>我的动态</h1>
+          <p>关注用户的最新发帖与互动。</p>
         </div>
-      </template>
+      </header>
+    </template>
 
-      <!-- 行情卡片 -->
-      <MarketCard
-        v-for="item in indices"
-        :key="item.code"
-        :data="item"
-        :kline="indexKlines[item.code] || []"
-        :loading="indicesLoading"
-      />
+    <!-- 标题栏：首页/热榜视图 -->
+    <template v-else>
+      <header class="toolbar">
+        <div>
+          <h1>投资社区讨论</h1>
+          <p>关注市场观点、基金配置与投资问答。</p>
+        </div>
+      </header>
 
-      <!-- 错误降级：连代理都不可用 -->
-      <div v-if="!indicesLoading && !indices.length" class="market-strip__error">
-        <span>📡 行情数据暂不可用</span>
+      <!-- 实时行情卡片 -->
+      <section class="market-strip" aria-label="市场概览">
+        <!-- 加载骨架 -->
+        <template v-if="indicesLoading && !indices.length">
+          <div v-for="i in 3" :key="i" class="market-loading-skeleton">
+            <div class="skeleton-line skeleton-line--short" />
+            <div class="skeleton-line skeleton-line--tall" />
+            <div class="skeleton-line skeleton-line--medium" />
+          </div>
+        </template>
+
+        <!-- 行情卡片 -->
+        <MarketCard
+          v-for="item in indices"
+          :key="item.code"
+          :data="item"
+          :kline="indexKlines[item.code] || []"
+          :loading="indicesLoading"
+        />
+
+        <!-- 错误降级：连代理都不可用 -->
+        <div v-if="!indicesLoading && !indices.length" class="market-strip__error">
+          <span>📡 行情数据暂不可用</span>
+        </div>
+      </section>
+
+      <!-- 排序Tab（首页/热榜模式显示） -->
+      <div class="tabs">
+        <button
+          :class="['tab', { 'tab--active': !isHotTab && !isFeedTab && sortType === 'latest' }]"
+          @click="handleSortChange('latest')"
+        >
+          最新
+        </button>
+        <button
+          :class="['tab', { 'tab--active': !isHotTab && !isFeedTab && sortType === 'hot' }]"
+          @click="handleSortChange('hot')"
+        >
+          热门
+        </button>
+        <button
+          :class="['tab', { 'tab--active': !isHotTab && !isFeedTab && sortType === 'elite' }]"
+          @click="handleSortChange('elite')"
+        >
+          精华
+        </button>
+        <button
+          :class="['tab', { 'tab--active': isHotTab }]"
+          @click="handleTabHot"
+        >
+          🔥 热榜
+        </button>
       </div>
-    </section>
-
-    <!-- 排序Tab -->
-    <div class="tabs">
-      <button
-        :class="['tab', { 'tab--active': !isHotTab && sortType === 'latest' }]"
-        @click="handleSortChange('latest')"
-      >
-        最新
-      </button>
-      <button
-        :class="['tab', { 'tab--active': !isHotTab && sortType === 'hot' }]"
-        @click="handleSortChange('hot')"
-      >
-        热门
-      </button>
-      <button
-        :class="['tab', { 'tab--active': !isHotTab && sortType === 'elite' }]"
-        @click="handleSortChange('elite')"
-      >
-        精华
-      </button>
-      <button
-        :class="['tab', { 'tab--active': isHotTab }]"
-        @click="handleTabHot"
-      >
-        🔥 热榜
-      </button>
-    </div>
+    </template>
 
     <!-- 热榜视图 -->
     <template v-if="isHotTab">
@@ -195,6 +267,39 @@ onMounted(() => {
         </div>
       </div>
       <EmptyState v-else icon="📊" title="暂无热榜数据" />
+    </template>
+
+    <!-- 动态视图（关注用户的帖子流） -->
+    <template v-else-if="isFeedTab">
+      <!-- 加载态 -->
+      <Loading v-if="feedLoading && !feedItems.length" variant="skeleton" :rows="3" />
+
+      <!-- 错误态 -->
+      <ErrorState
+        v-else-if="feedError && !feedItems.length"
+        :message="feedError"
+        @retry="loadFeed"
+      />
+
+      <!-- 空态 -->
+      <EmptyState
+        v-else-if="!feedItems.length"
+        icon="📋"
+        title="暂无动态"
+        description="关注更多用户后，这里将展示他们的动态"
+      />
+
+      <!-- 动态帖子列表 -->
+      <div v-else ref="postListRef" class="post-list">
+        <PostCard
+          v-for="post in feedItems"
+          :key="post.id"
+          :post="post"
+          @like="handleLike"
+          @collect="handleCollect"
+          @share="handleShare"
+        />
+      </div>
     </template>
 
     <!-- 帖子列表视图 -->
@@ -227,6 +332,7 @@ onMounted(() => {
           :post="post"
           @like="handleLike"
           @collect="handleCollect"
+          @share="handleShare"
         />
       </div>
 

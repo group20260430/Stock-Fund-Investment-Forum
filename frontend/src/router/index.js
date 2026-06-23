@@ -6,6 +6,7 @@ const routes = [
   { path: "/", name: "home", component: () => import("../views/Home.vue") },
   { path: "/login", name: "login", component: () => import("../views/Login.vue"), meta: { guest: true } },
   { path: "/register", name: "register", component: () => import("../views/Register.vue"), meta: { guest: true } },
+  { path: "/register/email", name: "register-email", component: () => import("../views/RegisterEmail.vue"), meta: { guest: true } },
   { path: "/posts/:id", name: "post-detail", component: () => import("../views/PostDetail.vue") },
   { path: "/categories/:id", name: "category", component: () => import("../views/Category.vue") },
   { path: "/search", name: "search", component: () => import("../views/Search.vue") },
@@ -32,6 +33,8 @@ const routes = [
   { path: "/admin/certifications", name: "admin-certifications", component: () => import("../views/admin/Certifications.vue"), meta: { requiresAuth: true, requiresAdmin: true } },
   { path: "/admin/sensitive-words", name: "admin-sensitive-words", component: () => import("../views/admin/SensitiveWords.vue"), meta: { requiresAuth: true, requiresAdmin: true } },
   { path: "/admin/logs", name: "admin-logs", component: () => import("../views/admin/ActivityLogs.vue"), meta: { requiresAuth: true, requiresAdmin: true } },
+  { path: "/admin/hot-topics", name: "admin-hot-topics", component: () => import("../views/admin/HotTopics.vue"), meta: { requiresAuth: true, requiresAdmin: true } },
+  { path: "/admin/engagement", name: "admin-engagement", component: () => import("../views/admin/Engagement.vue"), meta: { requiresAuth: true, requiresAdmin: true } },
 
   // ===== 404 =====
   { path: "/:pathMatch(.*)*", name: "not-found", component: () => import("../views/NotFound.vue") },

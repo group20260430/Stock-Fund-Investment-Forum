@@ -79,7 +79,8 @@ class Message(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     sender_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    receiver_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    receiver_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=True)
+    group_id: Mapped[int | None] = mapped_column(ForeignKey("groups.id", ondelete="CASCADE"), index=True, nullable=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     message_type: Mapped[MessageType] = mapped_column(Enum(MessageType), default=MessageType.TEXT)
     attachment_url: Mapped[str | None] = mapped_column(String(500))
@@ -88,3 +89,4 @@ class Message(Base):
 
     sender = relationship("User", foreign_keys=[sender_id])
     receiver = relationship("User", foreign_keys=[receiver_id])
+    group = relationship("Group", foreign_keys=[group_id])

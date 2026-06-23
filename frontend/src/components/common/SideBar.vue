@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import AppIcon from './AppIcon.vue'
@@ -18,28 +18,80 @@ const navItems = [
   { label: '投资策略', to: '/categories/5', icon: 'strategy' },
 ]
 
+const expandedGroups = ref([])
+
+const categoryGroups = [
+  {
+    key: 'market', label: '市场讨论区', icon: 'stock',
+    items: [
+      { label: 'A股', to: '/search', query: { keyword: 'A股' } },
+      { label: '港股', to: '/search', query: { keyword: '港股' } },
+      { label: '美股', to: '/search', query: { keyword: '美股' } },
+      { label: '期货', to: '/search', query: { keyword: '期货' } },
+    ],
+  },
+  {
+    key: 'theme', label: '主题专区', icon: 'discuss',
+    items: [
+      { label: '价值投资', to: '/search', query: { keyword: '价值投资' } },
+      { label: '量化投资', to: '/search', query: { keyword: '量化投资' } },
+      { label: '基金投资', to: '/search', query: { keyword: '基金投资' } },
+      { label: '新股/新债', to: '/search', query: { keyword: '新股' } },
+      { label: '宏观策略', to: '/search', query: { keyword: '宏观策略' } },
+    ],
+  },
+  {
+    key: 'company', label: '公司研究专区', icon: 'strategy',
+    items: [
+      { label: '行业分析', to: '/search', query: { keyword: '行业分析' } },
+      { label: '个股深度', to: '/search', query: { keyword: '个股' } },
+    ],
+  },
+  {
+    key: 'qa', label: '问答求助区', icon: 'question',
+    items: [
+      { label: '新手提问', to: '/search', query: { keyword: '新手' } },
+      { label: '投资解惑', to: '/search', query: { keyword: '投资解惑' } },
+    ],
+  },
+]
+
+function toggleGroup(key) {
+  const idx = expandedGroups.value.indexOf(key)
+  if (idx >= 0) expandedGroups.value.splice(idx, 1)
+  else expandedGroups.value.push(key)
+}
+
 const discoverItems = [
-  { label: '热榜', to: '/', query: { tab: 'hot' }, icon: 'trending' },
+  { label: '热门', to: '/', query: { tab: 'hot' }, icon: 'trending' },
   { label: '搜索', to: '/search', icon: 'search' },
 ]
 
 const personalItems = computed(() => {
   if (!auth.isLoggedIn) return []
   return [
-    { label: '我的动态', to: '/', icon: 'feed' },
+    { label: '我的动态', to: '/', query: { tab: 'feed' }, icon: 'feed' },
     { label: '我的收藏', to: '/me/collections', icon: 'collections' },
     { label: '关注列表', to: `/users/${auth.user?.id || 'me'}/follow`, icon: 'followers' },
     { label: '我的群组', to: '/groups', icon: 'groups' },
+    { label: '私信', to: '/messages', icon: 'message' },
   ]
 })
 
 function isActive(item) {
-  if (item.to === '/') return route.path === '/'
+  if (item.to === '/') {
+    if (item.query) {
+      return route.path === '/' && Object.entries(item.query).every(
+        ([key, val]) => route.query[key] === val
+      )
+    }
+    return route.path === '/'
+  }
   return route.path.startsWith(item.to.split('?')[0])
 }
 
 function navigate(item) {
-  router.push(item.to)
+  router.push({ path: item.to, query: item.query })
   showMobileMenu.value = false
 }
 </script>
@@ -74,6 +126,30 @@ function navigate(item) {
           {{ item.label }}
         </a>
       </nav>
+    </div>
+
+    <!-- 分组导航 -->
+    <div class="nav-section">
+      <div class="nav-section__label">分组导航</div>
+      <div v-for="grp in categoryGroups" :key="grp.key" class="nav-group">
+        <button class="nav-group__header" @click="toggleGroup(grp.key)">
+          <AppIcon :name="grp.icon" :size="16" />
+          <span>{{ grp.label }}</span>
+          <span class="nav-group__arrow" :class="{ open: expandedGroups.includes(grp.key) }">&#9662;</span>
+        </button>
+        <div v-if="expandedGroups.includes(grp.key)" class="nav-group__body">
+          <a
+            v-for="item in grp.items"
+            :key="item.label"
+            :class="['nav-item nav-item--child', { active: route.path === item.to && route.query.keyword === item.query.keyword }]"
+            href="javascript:void(0)"
+            @click="navigate(item)"
+          >
+            <span class="nav-item__dot" />
+            {{ item.label }}
+          </a>
+        </div>
+      </div>
     </div>
 
     <!-- 发现 -->
@@ -144,7 +220,7 @@ function navigate(item) {
   cursor: pointer;
   display: grid;
   gap: 6px;
-  margin-bottom: 32px;
+  margin-bottom: 24px;
 }
 
 .brand-name {
@@ -158,7 +234,7 @@ function navigate(item) {
 }
 
 .nav-section {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .nav-section__label {
@@ -198,10 +274,59 @@ function navigate(item) {
   box-shadow: inset 3px 0 0 var(--color-primary);
 }
 
-.nav-item__icon {
-  font-size: 16px;
-  width: 20px;
-  text-align: center;
+.nav-item--child {
+  padding: 8px 12px 8px 28px;
+  font-size: 13px;
+}
+
+.nav-item__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.nav-item.active .nav-item__dot {
+  background: var(--color-primary);
+}
+
+/* group */
+.nav-group {
+  margin-bottom: 2px;
+}
+
+.nav-group__header {
+  align-items: center;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: var(--color-text-sidebar);
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+  padding: 9px 12px;
+  width: 100%;
+  font-size: 13px;
+  transition: background 0.15s;
+}
+
+.nav-group__header:hover {
+  background: var(--color-bg-sidebar-hover);
+}
+
+.nav-group__arrow {
+  margin-left: auto;
+  font-size: 10px;
+  transition: transform 0.2s;
+}
+
+.nav-group__arrow.open {
+  transform: rotate(180deg);
+}
+
+.nav-group__body {
+  padding-left: 4px;
 }
 
 .sidebar-footer {

@@ -3,10 +3,13 @@ import { ref, onMounted } from 'vue'
 import AppLayout from '../components/layout/AppLayout.vue'
 import Loading from '../components/common/Loading.vue'
 import EmptyState from '../components/common/EmptyState.vue'
-import { fetchGroups } from '../api/groups'
+import { fetchGroups, joinGroup } from '../api/groups'
+import { useToastStore } from '../stores/toast'
 
 const groups = ref([])
 const loading = ref(true)
+const joining = ref({})
+const toast = useToastStore()
 
 onMounted(async () => {
   try {
@@ -18,6 +21,28 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+function joinLabel(group) {
+  if (group.is_member) return '已加入'
+  if (group.member_status === 'pending') return '待审核'
+  return '+ 加入群组'
+}
+
+async function handleJoin(group) {
+  if (group.is_member || group.member_status === 'pending') return
+  joining.value[group.id] = true
+  try {
+    const data = await joinGroup(group.id)
+    group.member_status = data?.status
+    group.is_member = data?.status === 'approved'
+    if (group.is_member) group.member_count = (group.member_count || 0) + 1
+    toast.success(group.is_member ? '加入成功' : '申请已提交')
+  } catch (err) {
+    toast.error(err.message || '加入失败')
+  } finally {
+    joining.value[group.id] = false
+  }
+}
 </script>
 
 <template>
@@ -52,6 +77,13 @@ onMounted(async () => {
           <span>{{ group.member_count || 0 }} 成员</span>
           <span class="group-card__visibility">{{ group.visibility === 'public' ? '公开' : '私密' }}</span>
         </div>
+        <button
+          class="join-btn"
+          :disabled="joining[group.id] || group.is_member || group.member_status === 'pending'"
+          @click.stop="handleJoin(group)"
+        >
+          {{ joining[group.id] ? '加入中...' : joinLabel(group) }}
+        </button>
       </div>
     </div>
   </AppLayout>
@@ -102,5 +134,23 @@ onMounted(async () => {
   background: var(--color-border-light);
   border-radius: 4px;
   padding: 2px 8px;
+}
+
+.join-btn {
+  background: var(--color-primary);
+  border: 0;
+  border-radius: 8px;
+  color: var(--color-bg-card);
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  margin-top: 14px;
+  padding: 8px 16px;
+}
+
+.join-btn:disabled {
+  background: var(--color-border-light);
+  color: var(--color-text-muted);
+  cursor: default;
 }
 </style>

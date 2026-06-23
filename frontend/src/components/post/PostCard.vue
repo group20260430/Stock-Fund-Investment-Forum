@@ -23,6 +23,14 @@ const imageInfo = computed(() => {
   return extractImages(props.post.content || props.post.content_summary || '', 4)
 })
 
+const authorProfileUrl = computed(() => {
+  const author = props.post.author
+  if (author && typeof author === 'object' && author.id) {
+    return `/users/${author.id}`
+  }
+  return ''
+})
+
 const authorName = computed(() => {
   return typeof props.post.author === 'object' ? props.post.author.nickname : props.post.author
 })
@@ -52,28 +60,60 @@ function handleShare() {
     <!-- 元信息行 -->
     <div class="post-card__meta">
       <!-- 作者头像 -->
-      <img
-        v-if="authorAvatar"
-        :src="authorAvatar"
-        :alt="authorName"
-        class="post-card__author-avatar"
-        @error="$event.target.style.display = 'none'"
+      <router-link
+        v-if="authorProfileUrl"
+        :to="authorProfileUrl"
+        class="post-card__author-link"
+        @click.stop
       >
-      <span
-        v-else
-        class="post-card__author-avatar post-card__author-avatar--placeholder"
-        :title="authorName"
-      >
-        {{ authorName?.charAt(0) || '?' }}
-      </span>
+        <img
+          v-if="authorAvatar"
+          :src="authorAvatar"
+          :alt="authorName"
+          class="post-card__author-avatar"
+          @error="$event.target.style.display = 'none'"
+        >
+        <span
+          v-else
+          class="post-card__author-avatar post-card__author-avatar--placeholder"
+          :title="authorName"
+        >
+          {{ authorName?.charAt(0) || '?' }}
+        </span>
+      </router-link>
+      <template v-else>
+        <img
+          v-if="authorAvatar"
+          :src="authorAvatar"
+          :alt="authorName"
+          class="post-card__author-avatar"
+          @error="$event.target.style.display = 'none'"
+        >
+        <span
+          v-else
+          class="post-card__author-avatar post-card__author-avatar--placeholder"
+          :title="authorName"
+        >
+          {{ authorName?.charAt(0) || '?' }}
+        </span>
+      </template>
 
       <span v-if="post.category" class="post-card__category">
         {{ typeof post.category === 'object' ? post.category.name : post.category }}
       </span>
       <span v-if="post.is_elite" class="post-card__badge post-card__badge--elite">精</span>
-      <span class="post-card__author">{{ authorName }}</span>
+      <span class="post-card__author">
+        <router-link v-if="authorProfileUrl" :to="authorProfileUrl" class="post-card__author-name" @click.stop>{{ authorName }}</router-link>
+        <template v-else>{{ authorName }}</template>
+      </span>
       <span class="dot">·</span>
       <span class="post-card__time">{{ timeAgo(post.created_at) }}</span>
+    </div>
+
+    <!-- 分享来源提示 -->
+    <div v-if="post.shared_by" class="post-card__shared-by">
+      <AppIcon name="share" :size="12" />
+      {{ post.shared_by === '__self__' ? '你分享了这篇帖子' : post.shared_by + ' 分享了这篇帖子' }}
     </div>
 
     <!-- 标题 -->
@@ -113,9 +153,9 @@ function handleShare() {
       >
         <AppIcon :name="post.is_liked ? 'like' : 'like'" :solid="post.is_liked" :size="14" /> {{ formatCount(post.like_count || 0) }}
       </button>
-      <span class="stat-item">
+      <button class="stat-btn" @click.stop="$router.push('/posts/' + post.id + '#comments')">
         <AppIcon name="comment" :size="14" /> {{ formatCount(post.comment_count || 0) }}
-      </span>
+      </button>
       <button
         :class="['stat-btn', { 'stat-btn--active': post.is_collected }]"
         @click.stop="handleCollect"
@@ -173,6 +213,22 @@ function handleShare() {
   justify-content: center;
 }
 
+.post-card__author-link {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.post-card__author-name {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.post-card__author-name:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
 .post-card__category {
   background: var(--color-primary-light);
   border-radius: 4px;
@@ -195,6 +251,15 @@ function handleShare() {
 
 .dot {
   color: var(--color-border-input);
+}
+
+.post-card__shared-by {
+  align-items: center;
+  color: var(--color-primary);
+  display: flex;
+  font-size: 12px;
+  gap: 4px;
+  margin-bottom: 6px;
 }
 
 .post-card__title {

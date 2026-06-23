@@ -61,7 +61,7 @@ stock_fund_forum
 │   ├── groups                  投资群组
 │   ├── group_members           群组成员
 │   ├── group_posts             群组帖子关联
-│   ├── messages                私信
+│   ├── messages                私信/群聊
 │   └── notifications           通知
 ├── 管理运营 (4 表)
 │   ├── reports                 举报记录
@@ -825,15 +825,16 @@ CREATE TABLE IF NOT EXISTS group_members (
 
 ---
 
-#### 3.3.5 `messages` — 私信表
+#### 3.3.5 `messages` — 私信/群聊消息表
 
-**说明：** 用户间点对点私信。
+**说明：** 用户间点对点私信与群组内群聊消息。`receiver_id` 与 `group_id` 互斥（一个为 NULL，另一个有值）。
 
 ```sql
 CREATE TABLE IF NOT EXISTS messages (
   id              BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT  COMMENT '消息ID',
   sender_id       BIGINT UNSIGNED NOT NULL                    COMMENT '发送者用户ID',
-  receiver_id     BIGINT UNSIGNED NOT NULL                    COMMENT '接收者用户ID',
+  receiver_id     BIGINT UNSIGNED NULL                         COMMENT '接收者用户ID（群聊时为NULL）',
+  group_id        BIGINT UNSIGNED NULL                         COMMENT '群组ID（私信时为NULL）',
   content         TEXT            NOT NULL                     COMMENT '消息正文，最多5000字符',
   message_type    ENUM('text','image','file')
                                   NOT NULL DEFAULT 'text'      COMMENT '消息类型',
@@ -848,15 +849,19 @@ CREATE TABLE IF NOT EXISTS messages (
   CONSTRAINT fk_msg_receiver
     FOREIGN KEY (receiver_id) REFERENCES users(id)
     ON DELETE CASCADE,
+  CONSTRAINT fk_msg_group
+    FOREIGN KEY (group_id) REFERENCES `groups`(id)
+    ON DELETE CASCADE,
 
   INDEX idx_msg_conversation (sender_id, receiver_id, created_at),
   INDEX idx_msg_receiver_unread (receiver_id, is_read, created_at),
+  INDEX idx_msg_group           (group_id, created_at),
   INDEX idx_msg_created         (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  COMMENT='私信表';
+  COMMENT='私信/群聊消息表';
 ```
 
-> **查询会话列表策略：** 使用子查询或 GROUP BY 按 `LEAST(sender_id, receiver_id), GREATEST(sender_id, receiver_id)` 分组获取每个会话的最新消息。
+> **查询策略：** 私信会话按 `LEAST(sender_id, receiver_id), GREATEST(sender_id, receiver_id)` 分组；群聊按 `group_id` 分组获取最新消息。群聊消息 `is_read` 暂设为 `TRUE`（单条已读无意义，完整已读回执需额外关联表）。
 
 ---
 
@@ -1160,6 +1165,7 @@ CREATE TABLE IF NOT EXISTS user_activity_log (
 | comments | `idx_comments_post_created` | `(post_id, status, created_at)` | 帖子评论列表 |
 | messages | `idx_msg_conversation` | `(sender_id, receiver_id, created_at)` | 私信会话查询 |
 | messages | `idx_msg_receiver_unread` | `(receiver_id, is_read, created_at)` | 未读消息查询 |
+| messages | `idx_msg_group` | `(group_id, created_at)` | 群聊消息查询 |
 | likes | `idx_likes_unique` | `(user_id, target_type, target_id)` UNIQUE | 防重复点赞 + Toggle 查询 |
 | reports | `idx_rep_unique` | `(reporter_id, target_type, target_id)` UNIQUE | 防重复举报 |
 

@@ -6,6 +6,13 @@ import Loading from '../components/common/Loading.vue'
 import EmptyState from '../components/common/EmptyState.vue'
 import Pagination from '../components/common/Pagination.vue'
 import { fetchCollections } from '../api/posts'
+import { useAuthStore } from '../stores/auth'
+import { usePostsStore } from '../stores/posts'
+import { useToastStore } from '../stores/toast'
+
+const auth = useAuthStore()
+const postsStore = usePostsStore()
+const toast = useToastStore()
 
 const collections = ref([])
 const loading = ref(true)
@@ -26,6 +33,31 @@ async function loadCollections(page = 1) {
     console.error('加载收藏失败:', err.message)
   } finally {
     loading.value = false
+  }
+}
+
+function handleLike(postId) {
+  if (!auth.isLoggedIn) return
+  postsStore.togglePostLike(postId)
+}
+
+function handleCollect(postId) {
+  if (!auth.isLoggedIn) return
+  postsStore.togglePostCollect(postId)
+}
+
+async function handleShare(postId) {
+  if (!auth.isLoggedIn) { toast.info('请先登录'); return }
+  const post = collections.value.find(p => p.id === postId)
+  if (post) post.share_count = (post.share_count || 0) + 1
+  try {
+    const { sharePost } = await import('../api/posts')
+    const data = await sharePost(postId, 'timeline', '')
+    if (post && data) post.share_count = data.share_count
+    toast.success('已转发到动态')
+  } catch (err) {
+    if (post) post.share_count = (post.share_count || 1) - 1
+    toast.error(err.message || '转发失败')
   }
 }
 
@@ -53,6 +85,9 @@ function handlePageChange(page) { loadCollections(page) }
         v-for="item in collections"
         :key="item.id"
         :post="item"
+        @like="handleLike"
+        @collect="handleCollect"
+        @share="handleShare"
       />
     </div>
 

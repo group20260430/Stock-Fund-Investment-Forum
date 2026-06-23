@@ -171,6 +171,32 @@ def _paginate_users(query, page: int, size: int, db: Session, viewer: User | Non
     }
 
 
+@router.get("/users/me/followers")
+def list_my_followers(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=50),
+    viewer: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    query = db.query(User).join(Follow, Follow.follower_id == User.id).filter(
+        Follow.following_id == viewer.id, User.status == UserStatus.ACTIVE
+    ).order_by(Follow.created_at.desc())
+    return ApiResponse(code=200, message="success", data=_paginate_users(query, page, size, db, viewer))
+
+
+@router.get("/users/me/following")
+def list_my_following(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=50),
+    viewer: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    query = db.query(User).join(Follow, Follow.following_id == User.id).filter(
+        Follow.follower_id == viewer.id, User.status == UserStatus.ACTIVE
+    ).order_by(Follow.created_at.desc())
+    return ApiResponse(code=200, message="success", data=_paginate_users(query, page, size, db, viewer))
+
+
 @router.get("/users/{user_id}/followers")
 def list_followers(
     user_id: int,
