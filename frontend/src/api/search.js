@@ -9,3 +9,8 @@ export function search(params) {
 export function searchSuggestions(keyword, type = 'all') {
   return api.get('/search/suggestions', { keyword, type })
 }
+
+/** 搜索页推荐 */
+export function searchRecommendations() {
+  return api.get('/search/recommendations')
+}

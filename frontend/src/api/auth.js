@@ -54,3 +54,18 @@ export function getRiskQuestions() {
 export function fetchRiskHistory(params) {
   return api.get('/auth/risk-assessment/history', params)
 }
+
+/** 获取隐私设置 */
+export function fetchPrivacySettings() {
+  return api.get('/auth/privacy')
+}
+
+/** 更新隐私设置 */
+export function updatePrivacySettings(data) {
+  return api.put('/auth/privacy', data)
+}
+
+/** 获取积分历史 */
+export function fetchPointsHistory(params) {
+  return api.get('/auth/points/history', params)
+}

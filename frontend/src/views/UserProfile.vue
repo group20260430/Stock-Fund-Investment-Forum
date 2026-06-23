@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useUserStore } from '../stores/user'
 import { usePostsStore } from '../stores/posts'
+import { fetchPointsHistory } from '../api/auth'
 import { toggleFollow } from '../api/users'
 import AppLayout from '../components/layout/AppLayout.vue'
 import UserProfileComponent from '../components/user/UserProfile.vue'
@@ -18,11 +19,37 @@ const auth = useAuthStore()
 const userStore = useUserStore()
 const postsStore = usePostsStore()
 
-const activeTab = ref('posts') // posts | collections | achievements
+const activeTab = ref("posts")
+const pointsHistory = ref([])
+const pointsLoading = ref(false)
+
+const levelThresholds = [
+  { points: 0, level: 1 },
+  { points: 100, level: 2 },
+  { points: 300, level: 3 },
+  { points: 600, level: 4 },
+  { points: 1000, level: 5 },
+  { points: 2000, level: 6 },
+  { points: 5000, level: 7 },
+  { points: 10000, level: 8 },
+]
 
 const isOwnProfile = computed(() => {
   if (!auth.user) return false
   return route.params.id === 'me' || String(auth.user.id) === String(route.params.id)
+})
+
+const levelProgress = computed(() => {
+  const points = user.value?.points || 0
+  const currentIndex = Math.max(0, levelThresholds.findIndex(item => item.level === (user.value?.level || 1)))
+  const current = levelThresholds[currentIndex] || levelThresholds[0]
+  const next = levelThresholds[currentIndex + 1]
+  if (!next) return { percent: 100, nextLevel: null, remaining: 0 }
+  return {
+    percent: Math.min(100, Math.round(((points - current.points) / (next.points - current.points)) * 100)),
+    nextLevel: next.level,
+    remaining: Math.max(0, next.points - points),
+  }
 })
 
 onMounted(async () => {
@@ -42,8 +69,21 @@ onMounted(async () => {
   await userStore.loadUserProfile(userId)
   if (userStore.profile) {
     await postsStore.loadPosts({ user_id: route.params.id })
+    if (isOwnProfile.value) loadPointsHistory()
   }
 })
+
+async function loadPointsHistory() {
+  pointsLoading.value = true
+  try {
+    const data = await fetchPointsHistory({ page: 1, size: 5 })
+    pointsHistory.value = data.items || []
+  } catch {
+    pointsHistory.value = []
+  } finally {
+    pointsLoading.value = false
+  }
+}
 
 async function handleFollow(userId) {
   if (!auth.isLoggedIn) return
@@ -75,6 +115,27 @@ function handleAvatarUpdated(avatarUrl) {
 }
 
 const user = computed(() => userStore.profile)
+
+function reasonText(reason) {
+  return {
+    daily_login: "每日登录",
+    create_post: "发布帖子",
+    create_comment: "发表评论",
+    post_liked: "帖子被点赞",
+    comment_liked: "评论被点赞",
+    post_shared: "帖子被转发",
+    gained_follower: "新增粉丝",
+    delete_post: "删除帖子",
+    delete_comment: "删除评论",
+    post_unliked: "取消点赞",
+    comment_unliked: "评论取消点赞",
+    lost_follower: "失去粉丝",
+  }[reason] || reason
+}
+
+function formatTime(t) {
+  return t ? new Date(t).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : ""
+}
 </script>
 
 <template>
@@ -139,6 +200,18 @@ const user = computed(() => userStore.profile)
 
       <!-- 成就 -->
       <div v-else class="achievements">
+        <div class="points-card">
+          <div>
+            <span class="points-card__level">Lv.{{ user.level || 1 }}</span>
+            <h2>{{ user.points || 0 }} 积分</h2>
+            <p v-if="levelProgress.nextLevel">距离 Lv.{{ levelProgress.nextLevel }} 还差 {{ levelProgress.remaining }} 分</p>
+            <p v-else>已达到当前最高等级</p>
+          </div>
+          <div class="points-card__bar">
+            <span :style="{ width: levelProgress.percent + '%' }" />
+          </div>
+        </div>
+
         <div v-if="user.achievements?.badges?.length" class="badges-grid">
           <div v-for="badge in user.achievements.badges" :key="badge" class="badge-card">
             <span class="badge-card__icon">🏅</span>
@@ -146,6 +219,21 @@ const user = computed(() => userStore.profile)
           </div>
         </div>
         <EmptyState v-else icon="🏆" title="暂无成就徽章" />
+
+        <div v-if="isOwnProfile" class="points-history">
+          <h3>最近积分记录</h3>
+          <Loading v-if="pointsLoading" variant="skeleton" :rows="2" />
+          <div v-else-if="pointsHistory.length" class="points-history__list">
+            <div v-for="item in pointsHistory" :key="item.id" class="points-history__item">
+              <span>{{ reasonText(item.reason) }}</span>
+              <small>{{ formatTime(item.created_at) }}</small>
+              <strong :class="{ 'points-history__negative': item.points_change < 0 }">
+                {{ item.points_change > 0 ? '+' : '' }}{{ item.points_change }}
+              </strong>
+            </div>
+          </div>
+          <p v-else class="points-history__empty">暂无积分记录</p>
+        </div>
       </div>
     </template>
   </AppLayout>
@@ -177,7 +265,38 @@ const user = computed(() => userStore.profile)
 
 .post-list { display: grid; gap: 14px; }
 
-.achievements { padding: 24px 0; }
+.achievements { display: grid; gap: 16px; padding: 24px 0; }
+
+.points-card {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+}
+
+.points-card h2 { font-size: 28px; margin: 6px 0; }
+.points-card p { color: var(--color-text-secondary); margin: 0; }
+.points-card__level {
+  background: var(--color-primary-light);
+  border-radius: var(--radius-pill);
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 4px 10px;
+}
+.points-card__bar {
+  background: var(--color-bg-hover);
+  border-radius: var(--radius-pill);
+  height: 8px;
+  overflow: hidden;
+}
+.points-card__bar span {
+  background: var(--color-primary);
+  display: block;
+  height: 100%;
+}
 
 .badges-grid {
   display: grid;
@@ -197,4 +316,24 @@ const user = computed(() => userStore.profile)
 
 .badge-card__icon { font-size: 24px; }
 .badge-card strong { font-size: 14px; }
+
+.points-history {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.points-history h3 { font-size: 16px; margin: 0 0 12px; }
+.points-history__list { display: grid; gap: 10px; }
+.points-history__item {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr auto auto;
+}
+.points-history__item small,
+.points-history__empty { color: var(--color-text-muted); }
+.points-history__item strong { color: var(--color-success); }
+.points-history__negative { color: var(--color-danger) !important; }
 </style>

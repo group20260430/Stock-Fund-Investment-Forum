@@ -239,7 +239,6 @@ async function handleSubmit() {
       toast.success('发布成功')
     }
     emit('saved')
-    emit('close')
   } catch (err) {
     toast.error(err.message || '发布失败')
   } finally {
