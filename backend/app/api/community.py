@@ -341,18 +341,39 @@ def list_group_posts(
 
 
 def _message_payload(message: Message, current_user_id: int) -> dict:
-    other = message.receiver if message.sender_id == current_user_id else message.sender
-    return {
+    payload = {
         "id": message.id,
         "sender_id": message.sender_id,
-        "receiver_id": message.receiver_id,
         "content": message.content,
         "message_type": message.message_type.value,
         "attachment_url": message.attachment_url,
         "is_read": message.is_read,
         "created_at": message.created_at,
-        "other_user": {"id": other.id, "nickname": other.nickname, "avatar_url": other.avatar_url},
     }
+    if message.group_id is not None:
+        payload["group_id"] = message.group_id
+        if message.group:
+            payload["group"] = {
+                "id": message.group.id,
+                "name": message.group.name,
+                "avatar_url": message.group.avatar_url,
+            }
+        if message.sender:
+            payload["sender"] = {
+                "id": message.sender.id,
+                "nickname": message.sender.nickname,
+                "avatar_url": message.sender.avatar_url,
+            }
+    else:
+        payload["receiver_id"] = message.receiver_id
+        other = message.receiver if message.sender_id == current_user_id else message.sender
+        if other:
+            payload["other_user"] = {
+                "id": other.id,
+                "nickname": other.nickname,
+                "avatar_url": other.avatar_url,
+            }
+    return payload
 
 
 @router.post("/messages", status_code=201)
@@ -361,6 +382,45 @@ def send_message(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # ── Group message path ──
+    if data.group_id:
+        group = db.query(Group).filter(Group.id == data.group_id).first()
+        if group is None:
+            raise HTTPException(status_code=404, detail="群组不存在")
+        member = _membership(db, group.id, user.id)
+        if member is None or member.status != MemberStatus.APPROVED:
+            raise HTTPException(status_code=403, detail="只有群组成员可以发送消息")
+        message = Message(
+            sender_id=user.id,
+            receiver_id=None,
+            group_id=group.id,
+            content=data.content.strip(),
+            message_type=MessageType(data.message_type),
+            attachment_url=data.attachment_url,
+            is_read=True,
+        )
+        db.add(message)
+        db.flush()
+        preview = message.content[:50]
+        if len(message.content) > 50:
+            preview += "..."
+        other_members = db.query(GroupMember).filter(
+            GroupMember.group_id == group.id,
+            GroupMember.status == MemberStatus.APPROVED,
+            GroupMember.user_id != user.id,
+        ).all()
+        for m in other_members:
+            create_notification(
+                db, m.user_id, NotificationType.NEW_GROUP_MESSAGE,
+                title=f"[群聊] {group.name}",
+                content=f"{user.nickname}: {preview}",
+                target_type="group_message", target_id=message.id, sender_id=user.id,
+            )
+        db.commit()
+        db.refresh(message)
+        return ApiResponse(code=201, message="发送成功", data={"id": message.id})
+
+    # ── DM path ──
     if data.receiver_id == user.id:
         raise HTTPException(status_code=400, detail="不能给自己发私信")
     receiver = db.query(User).filter(User.id == data.receiver_id, User.status == UserStatus.ACTIVE).first()
@@ -382,6 +442,7 @@ def send_message(
     message = Message(
         sender_id=user.id,
         receiver_id=receiver.id,
+        group_id=None,
         content=data.content.strip(),
         message_type=MessageType(data.message_type),
         attachment_url=data.attachment_url,
@@ -402,12 +463,30 @@ def send_message(
 @router.get("/messages")
 def list_messages(
     other_user_id: int | None = None,
+    group_id: int | None = None,
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    base = db.query(Message).options(joinedload(Message.sender), joinedload(Message.receiver)).filter(
+    # ── Group messages mode ──
+    if group_id is not None:
+        group = _group_or_404(db, group_id)
+        member = _membership(db, group_id, user.id)
+        if member is None or member.status != MemberStatus.APPROVED:
+            raise HTTPException(status_code=403, detail="只有群组成员可查看")
+        base = db.query(Message).options(
+            joinedload(Message.sender), joinedload(Message.group)
+        ).filter(Message.group_id == group_id)
+        total = base.count()
+        messages = base.order_by(Message.created_at.desc()).offset((page - 1) * size).limit(size).all()
+        return ApiResponse(code=200, message="success", data={
+            "items": [_message_payload(m, user.id) for m in messages],
+            "total": total, "page": page, "size": size,
+        })
+
+    # ── DM / conversation list mode ──
+    base = db.query(Message).options(joinedload(Message.sender), joinedload(Message.receiver), joinedload(Message.group)).filter(
         or_(Message.sender_id == user.id, Message.receiver_id == user.id)
     )
     if other_user_id is not None:
@@ -433,11 +512,20 @@ def list_messages(
                 if m.id in unread_ids:
                     m.is_read = True
     if other_user_id is None:
-        latest: dict[int, Message] = {}
+        # 会话列表：DM 按对方去重 + 群聊按 group_id 去重（取每会话最新一条）
+        latest_dm: dict[int, Message] = {}
+        latest_group: dict[int, Message] = {}
         for message in messages:
-            other_id = message.receiver_id if message.sender_id == user.id else message.sender_id
-            latest.setdefault(other_id, message)
-        messages = list(latest.values())
+            if message.group_id is not None:
+                latest_group.setdefault(message.group_id, message)
+            else:
+                other_id = message.receiver_id if message.sender_id == user.id else message.sender_id
+                latest_dm.setdefault(other_id, message)
+        dm_items = sorted(latest_dm.values(), key=lambda m: m.created_at, reverse=True)
+        group_items = sorted(latest_group.values(), key=lambda m: m.created_at, reverse=True)
+        messages = dm_items + group_items
+        # 按时间排序合并
+        messages.sort(key=lambda m: m.created_at, reverse=True)
     return ApiResponse(code=200, message="success", data={
         "items": [_message_payload(item, user.id) for item in messages],
         "total": total, "page": page, "size": size,

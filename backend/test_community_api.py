@@ -131,6 +131,87 @@ def run() -> None:
         # --- 已删除的消息返回404 ---
         assert client.delete(f"/api/messages/{msg_id}", headers=owner_headers).status_code == 404
 
+        # ── 群聊消息 ──
+
+        # --- 发送群消息 ---
+        group_msg = client.post(
+            "/api/messages",
+            headers=member_headers,
+            json={"group_id": group_id, "content": "群聊消息测试"},
+        )
+        assert group_msg.status_code == 201, group_msg.text
+        group_msg_id = group_msg.json()["data"]["id"]
+
+        # --- 非成员不能发送群消息 ---
+        assert client.post(
+            "/api/messages",
+            headers=third_headers,
+            json={"group_id": group_id, "content": "我不是成员"},
+        ).status_code == 403
+
+        # --- 查看群消息列表 ---
+        group_msgs = client.get(
+            "/api/messages", headers=member_headers, params={"group_id": group_id}
+        )
+        assert group_msgs.status_code == 200, group_msgs.text
+        assert group_msgs.json()["data"]["total"] >= 1
+        first_msg = group_msgs.json()["data"]["items"][0]
+        assert "group" in first_msg
+        assert first_msg["group"]["name"] == "价值投资群"
+        assert first_msg["group_id"] == group_id
+
+        # --- 非成员不能查看群消息 ---
+        assert client.get(
+            "/api/messages", headers=third_headers, params={"group_id": group_id}
+        ).status_code == 403
+
+        # --- 对话列表包含群聊 ---
+        conv_with_group = client.get("/api/messages", headers=member_headers)
+        assert conv_with_group.status_code == 200
+        conv_items = conv_with_group.json()["data"]["items"]
+        assert any("group" in item for item in conv_items)
+
+        # --- 发送者可以删除群消息 ---
+        del_group_msg = client.delete(f"/api/messages/{group_msg_id}", headers=member_headers)
+        assert del_group_msg.status_code == 200, del_group_msg.text
+
+        # --- 非发送者不能删除群消息 ---
+        new_group_msg = client.post(
+            "/api/messages",
+            headers=member_headers,
+            json={"group_id": group_id, "content": "再发一条群消息"},
+        )
+        new_group_msg_id = new_group_msg.json()["data"]["id"]
+        assert client.delete(f"/api/messages/{new_group_msg_id}", headers=owner_headers).status_code == 403
+
+        # --- 群消息产生通知 ---
+        # third 加入群组后，member 发群消息，third 应收到通知
+        client.post(f"/api/groups/{group_id}/join", headers=third_headers)
+        client.post(
+            "/api/messages",
+            headers=member_headers,
+            json={"group_id": group_id, "content": "新成员通知测试"},
+        )
+        third_notifs = client.get(
+            "/api/notifications", headers=third_headers, params={"type": "new_group_message"}
+        )
+        assert third_notifs.status_code == 200
+        assert len(third_notifs.json()["data"]["items"]) >= 1
+
+        # --- 不能同时指定 receiver_id 和 group_id ---
+        assert client.post(
+            "/api/messages",
+            headers=member_headers,
+            json={"receiver_id": owner_id, "group_id": group_id, "content": "冲突"},
+        ).status_code == 422
+
+        # --- 必须指定 receiver_id 或 group_id ---
+        assert client.post(
+            "/api/messages",
+            headers=member_headers,
+            json={"content": "没有目标"},
+        ).status_code == 422
+
         # --- 通知：审核通过产生通知 ---
         notifs = client.get("/api/notifications", headers=member_headers)
         assert notifs.status_code == 200
