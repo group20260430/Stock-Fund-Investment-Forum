@@ -18,6 +18,7 @@ python backend\run_backend_tests.py
 ## 2. 当前覆盖的测试脚本
 
 * `test_sensitive_filter.py`：敏感词过滤
+* `test_duplicate_content_filter.py`：重复内容检测
 * `test_content_api.py`：内容接口
 * `test_interactions_api.py`：互动接口
 * `test_admin_api.py`：管理后台
@@ -31,7 +32,7 @@ python backend\run_backend_tests.py
 当前正常结果为：
 
 ```text
-RESULTS: 8 passed, 0 failed
+RESULTS: 9 passed, 0 failed
 ```
 
 ## 4. Windows 测试注意事项
