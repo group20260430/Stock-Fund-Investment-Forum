@@ -34,11 +34,45 @@ class SendCodeRequest(BaseModel):
     type: str = Field(..., pattern=r"^(register|login|reset_password)$")
 
 
+class EmailSendCodeRequest(BaseModel):
+    email: str = Field(
+        ...,
+        pattern=r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$",
+        description="邮箱地址",
+    )
+    type: str = Field(..., pattern=r"^(register|login|reset_password)$")
+
+
 class LoginRequest(BaseModel):
-    phone: str = Field(..., min_length=1, description="手机号或邮箱")
+    phone: str = Field(..., min_length=1, description="手机号或邮箱（后端根据是否含@自动识别）")
     password: Optional[str] = Field(None, description="密码（密码登录时必填）")
     code: Optional[str] = Field(None, description="验证码（验证码登录时必填）")
     login_type: str = Field(..., pattern=r"^(password|code)$")
+
+
+class EmailRegisterRequest(BaseModel):
+    email: str = Field(
+        ...,
+        pattern=r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$",
+        description="邮箱地址",
+    )
+    password: str = Field(
+        ..., min_length=8, max_length=32, description="密码，8~32位，含字母+数字"
+    )
+    nickname: Optional[str] = Field(None, min_length=2, max_length=20)
+    avatar_url: Optional[str] = None
+    register_type: Optional[str] = Field(
+        "email", pattern=r"^(phone|email|wechat|weibo)$"
+    )
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        if not re.search(r"[A-Za-z]", v):
+            raise ValueError("密码必须包含字母")
+        if not re.search(r"\d", v):
+            raise ValueError("密码必须包含数字")
+        return v
 
 
 class UpdateProfileRequest(BaseModel):
@@ -147,7 +181,7 @@ class UserProfile(BaseModel):
     def mask_phone(cls, v: str) -> str:
         if v and len(v) == 11:
             return v[:3] + "****" + v[-4:]
-        return v
+        return v or ""
 
     model_config = {"from_attributes": True}
 

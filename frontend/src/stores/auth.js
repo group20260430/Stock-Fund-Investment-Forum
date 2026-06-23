@@ -33,6 +33,12 @@ export const useAuthStore = defineStore('auth', () => {
     return commitLogin(result)
   }
 
+  async function registerByEmailAction(data) {
+    const { registerByEmail } = await import('../api/auth')
+    const result = await registerByEmail(data)
+    return commitLogin(result)
+  }
+
   function commitLogin(data) {
     if (data.token) {
       token.value = data.token
@@ -81,6 +87,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAdmin,
     login,
     register,
+    registerByEmail: registerByEmailAction,
     fetchUser,
     updateProfile,
     logout,

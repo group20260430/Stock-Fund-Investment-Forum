@@ -5,6 +5,21 @@ export function sendCode(phone, type = 'register') {
   return api.post('/auth/send-code', { phone, type })
 }
 
+/** 邮箱验证码 */
+export function sendEmailCode(email, type = 'register') {
+  return api.post('/auth/email/send-code', { email, type })
+}
+
+/** 验证邮箱验证码 */
+export function verifyEmailCode(email, code) {
+  return api.post('/auth/email/verify-code', { email, code })
+}
+
+/** 邮箱注册 */
+export function registerByEmail(data) {
+  return api.post('/auth/email/register', data)
+}
+
 /** 手机号注册 */
 export function register(data) {
   return api.post('/auth/register', data)

@@ -44,8 +44,8 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    phone: Mapped[str] = mapped_column(String(11), unique=True, nullable=False, index=True)
-    email: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(11), unique=True, nullable=True, index=True)
+    email: Mapped[Optional[str]] = mapped_column(String(120), unique=True, nullable=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     nickname: Mapped[str] = mapped_column(String(50), nullable=False)
     avatar_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
@@ -83,4 +83,5 @@ class User(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<User(id={self.id}, phone={self.phone}, nickname={self.nickname})>"
+        identifier = self.phone or self.email or f"id={self.id}"
+        return f"<User(id={self.id}, identifier={identifier}, nickname={self.nickname})>"
