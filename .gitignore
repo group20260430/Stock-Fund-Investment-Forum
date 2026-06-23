@@ -2,7 +2,9 @@
 __pycache__/
 *.py[cod]
 .venv/
+venv/
 .env
+*.log
 
 # Node
 node_modules/
@@ -19,5 +21,6 @@ work.docx
 .claude
 backend/uploads/
 
-# Backend test artifacts
-backend/test_*.db
+# Database (local development, not committed)
+*.db
+*.sqlite3

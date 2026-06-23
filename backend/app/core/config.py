@@ -1,4 +1,9 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# ── 项目根目录（backend/），用于解析相对路径 ──
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 class Settings(BaseSettings):
@@ -28,6 +33,12 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 7
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    def model_post_init(self, __context) -> None:
+        """将 SQLite 相对路径解析为基于项目根目录的绝对路径，避免 CWD 问题。"""
+        if self.database_url.startswith("sqlite:///./"):
+            rel = self.database_url.removeprefix("sqlite:///./")
+            self.database_url = f"sqlite:///{_PROJECT_ROOT / rel}"
 
     @property
     def access_token_expire_seconds(self) -> int:
