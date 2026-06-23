@@ -89,3 +89,13 @@ export function deleteSensitiveWord(id) {
 export function fetchActivityLogs(params) {
   return api.get('/admin/activity-logs', params)
 }
+
+/** 热门话题分析 */
+export function fetchHotTopics(params) {
+  return api.get('/admin/stats/hot-topics', params)
+}
+
+/** 用户参与度报告 */
+export function fetchEngagementReport(params) {
+  return api.get('/admin/stats/engagement', params)
+}
