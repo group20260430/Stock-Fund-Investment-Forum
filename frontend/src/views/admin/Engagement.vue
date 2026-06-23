@@ -5,7 +5,6 @@ import { use } from "echarts/core"
 import { CanvasRenderer } from "echarts/renderers"
 import { LineChart, PieChart } from "echarts/charts"
 import { GridComponent, TooltipComponent, LegendComponent } from "echarts/components"
-import AppLayout from "../../components/layout/AppLayout.vue"
 import Loading from "../../components/common/Loading.vue"
 import { fetchEngagementReport } from "../../api/admin"
 import { useToastStore } from "../../stores/toast"
@@ -75,7 +74,6 @@ const distributionChartOption = computed(() => {
 </script>
 
 <template>
-  <AppLayout>
     <header class="toolbar">
       <h1>管理后台 / 用户参与度报告</h1>
     </header>
@@ -186,7 +184,6 @@ const distributionChartOption = computed(() => {
     <div v-else class="empty-state">
       <p>无法加载用户参与度数据，请检查后端服务</p>
     </div>
-  </AppLayout>
 </template>
 
 <style scoped>
