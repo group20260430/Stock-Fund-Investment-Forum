@@ -560,6 +560,11 @@ def list_messages(
             "total": total, "page": page, "size": size,
         })
 
+    return ApiResponse(code=200, message="success", data={
+        "items": [_message_payload(m, user.id) for m in messages],
+        "total": total, "page": page, "size": size,
+    })
+
 
 @router.get("/messages/unread-count")
 def unread_message_count(
