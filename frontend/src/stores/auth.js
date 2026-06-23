@@ -1,7 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { getToken, setToken, removeToken, setUser, removeUser, getUser, parseToken } from '../utils/auth'
-import { getMe, loginWithPassword as loginApi, loginWithCode as loginCodeApi, register as registerApi } from '../api/auth'
+import {
+  getMe,
+  loginWithPassword as loginApi,
+  loginWithCode as loginCodeApi,
+  register as registerApi,
+  updateProfile as updateProfileApi,
+} from '../api/auth'
 
 export const useAuthStore = defineStore('auth', () => {
   // State
@@ -59,8 +65,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function updateProfile(data) {
-    const { updateProfile } = await import('../api/auth')
-    const result = await updateProfile(data)
+    const result = await updateProfileApi(data)
     user.value = { ...user.value, ...result }
     setUser(user.value)
     return result

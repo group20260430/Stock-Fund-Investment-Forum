@@ -18,3 +18,6 @@ Thumbs.db
 work.docx
 .claude
 backend/uploads/
+
+# Backend test artifacts
+backend/test_*.db

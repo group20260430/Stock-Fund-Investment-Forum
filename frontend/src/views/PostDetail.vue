@@ -4,7 +4,7 @@ import { useRoute, useRouter } from "vue-router"
 import { useAuthStore } from "../stores/auth"
 import { usePostsStore } from "../stores/posts"
 import { useToastStore } from "../stores/toast"
-import { fetchComments, createComment, deleteComment } from "../api/comments"
+import { fetchComments, createComment, deleteComment, likeComment } from "../api/comments"
 import { sharePost } from "../api/posts"
 import { submitReport } from "../api/admin"
 import AppLayout from "../components/layout/AppLayout.vue"
@@ -183,7 +183,6 @@ async function handleReport() {
 async function handleCommentLike(commentId) {
   if (!auth.isLoggedIn) return
   try {
-    const { likeComment } = await import("../api/comments")
     await likeComment(commentId)
     await loadComments(commentsPage.value)
   } catch (err) {
