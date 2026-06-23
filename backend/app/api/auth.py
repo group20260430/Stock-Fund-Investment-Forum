@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
@@ -11,6 +11,8 @@ from app.schemas.privacy import PrivacySettingsSchema
 from app.schemas.user import (
     ApiResponse,
     CertificationRequest,
+    EmailRegisterRequest,
+    EmailSendCodeRequest,
     LoginRequest,
     RegisterRequest,
     RiskAssessmentRequest,
@@ -25,6 +27,8 @@ router = APIRouter(tags=["用户系统"])
 register_limiter = RateLimiter(max_requests=5, window_seconds=60)
 login_limiter = RateLimiter(max_requests=5, window_seconds=60)
 code_limiter = RateLimiter(max_requests=5, window_seconds=60)
+email_code_limiter = RateLimiter(max_requests=5, window_seconds=60)
+email_register_limiter = RateLimiter(max_requests=5, window_seconds=60)
 refresh_limiter = RateLimiter(max_requests=10, window_seconds=60)
 
 
@@ -53,6 +57,45 @@ async def send_code(
     """发送验证码 — 模拟短信发送，返回验证码有效时长。"""
     result = UserService.send_code(db, data)
     return ApiResponse(code=200, message="验证码已发送", data=result)
+
+
+@router.post("/auth/email/send-code")
+async def email_send_code(
+    data: EmailSendCodeRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    _: None = Depends(email_code_limiter),
+):
+    """发送邮箱验证码 — 用于邮箱注册/登录验证。"""
+    result = await UserService.send_email_code(db, data)
+    return ApiResponse(code=200, message="验证码已发送", data=result)
+
+
+@router.post("/auth/email/verify-code")
+async def email_verify_code(
+    data: dict,
+    request: Request,
+    _: None = Depends(email_code_limiter),
+):
+    """验证邮箱验证码 — 验证通过后方可注册。"""
+    email = (data.get("email") or "").strip()
+    code = (data.get("code") or "").strip()
+    if not email or not code:
+        raise HTTPException(status_code=400, detail="邮箱和验证码不能为空")
+    result = UserService.verify_email_code(email, code)
+    return ApiResponse(code=200, message="验证成功", data=result)
+
+
+@router.post("/auth/email/register", status_code=201)
+async def email_register(
+    data: EmailRegisterRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    _: None = Depends(email_register_limiter),
+):
+    """邮箱注册 — 先发送验证码并验证，再调用此接口完成注册。"""
+    result = UserService.register_by_email(db, data)
+    return ApiResponse(code=201, message="注册成功", data=result)
 
 
 @router.post("/auth/login")

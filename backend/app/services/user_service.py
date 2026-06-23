@@ -27,6 +27,8 @@ from app.services.points_service import award_points
 from app.schemas.user import (
     Achievements,
     CertificationRequest,
+    EmailRegisterRequest,
+    EmailSendCodeRequest,
     LoginRequest,
     PaginatedData,
     RegisterRequest,
@@ -36,6 +38,7 @@ from app.schemas.user import (
     UpdateProfileRequest,
     UserProfile,
 )
+from app.services.email_service import EmailSendError, EmailService
 
 
 class VerificationCodeStore:
@@ -88,7 +91,7 @@ class UserService:
         password_hash = get_password_hash(data.password)
 
         # Auto-generate nickname if not provided
-        nickname = data.nickname or f"用户{data.phone[-4:]}"
+        nickname = data.nickname or f"用户{data.phone[-4:] if data.phone else str(random.randint(1000, 9999))}"
 
         # Map register_type string to enum
         rt = data.register_type or "phone"
@@ -150,26 +153,133 @@ class UserService:
         return {"expire_in": 300}
 
     # ==================================================================
+    # Email Verification
+    # ==================================================================
+
+    @staticmethod
+    async def send_email_code(db: Session, data: EmailSendCodeRequest) -> dict:
+        email = data.email.lower().strip()
+        user = db.query(User).filter(User.email == email).first()
+
+        if data.type == "register":
+            if user is not None:
+                raise HTTPException(status_code=409, detail="该邮箱已注册")
+        elif data.type in ("login", "reset_password"):
+            if user is None:
+                raise HTTPException(status_code=404, detail="该邮箱未注册")
+
+        # Generate 6-digit code
+        code = str(random.randint(100000, 999999))
+        key = f"email:{data.type}:{email}"
+        VerificationCodeStore.set(key, code, ttl_seconds=300)
+
+        # Send via email (async)
+        try:
+            await EmailService.send_verification_code(email, code)
+        except EmailSendError as exc:
+            # Clean up stored code — user never received it
+            VerificationCodeStore.delete(key)
+            raise HTTPException(status_code=502, detail=str(exc))
+
+        return {"expire_in": 300}
+
+    @staticmethod
+    def verify_email_code(email: str, code: str) -> dict:
+        email = email.lower().strip()
+        key = f"email:register:{email}"
+        stored_code = VerificationCodeStore.get(key)
+        if stored_code is None or stored_code != code:
+            raise HTTPException(status_code=401, detail="验证码错误或已过期")
+
+        VerificationCodeStore.delete(key)
+        # Mark as verified for subsequent register call (10 min TTL)
+        VerificationCodeStore.set(f"email:verified:{email}", "1", ttl_seconds=600)
+
+        return {"verified": True}
+
+    @staticmethod
+    def register_by_email(db: Session, data: EmailRegisterRequest) -> dict:
+        email = data.email.lower().strip()
+
+        # Check that email was verified
+        if not VerificationCodeStore.get(f"email:verified:{email}"):
+            raise HTTPException(status_code=400, detail="请先验证邮箱")
+
+        # Check duplicate email
+        existing = db.query(User).filter(User.email == email).first()
+        if existing:
+            raise HTTPException(status_code=409, detail="该邮箱已注册")
+
+        # Hash password
+        password_hash = get_password_hash(data.password)
+
+        # Auto-generate nickname from email local part
+        nickname = data.nickname
+        if not nickname:
+            local_part = email.split("@")[0][:8]
+            if len(local_part) < 2:
+                local_part += str(random.randint(1000, 9999))
+            nickname = f"用户{local_part}"
+
+        # Create user — phone is NULL for email registrations
+        user = User(
+            phone=None,
+            email=email,
+            password_hash=password_hash,
+            nickname=nickname,
+            avatar_url=data.avatar_url,
+            register_type=RegisterType.EMAIL,
+            auth_level=AuthLevel.BASIC,
+            role="user",
+            status=UserStatus.ACTIVE,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+        # Clean up verification markers
+        VerificationCodeStore.delete(f"email:verified:{email}")
+
+        # Issue tokens
+        access_token, refresh_token = UserService._issue_token_pair(db, user)
+
+        return {
+            "user_id": user.id,
+            "token": access_token,
+            "refresh_token": refresh_token,
+            "expires_in": 7200,
+        }
+
+    # ==================================================================
     # Login & Token Management
     # ==================================================================
 
     @staticmethod
     def login(db: Session, data: LoginRequest) -> dict:
-        user = db.query(User).filter(User.phone == data.phone).first()
+        # Detect email vs phone: email contains '@', phone is 11 digits
+        is_email = "@" in data.phone
+
+        if is_email:
+            user = db.query(User).filter(User.email == data.phone.lower().strip()).first()
+        else:
+            user = db.query(User).filter(User.phone == data.phone).first()
 
         if data.login_type == "password":
             if user is None or not verify_password(
                 data.password or "", user.password_hash
             ):
-                raise HTTPException(status_code=401, detail="手机号或密码错误")
+                raise HTTPException(status_code=401, detail="账号或密码错误")
         elif data.login_type == "code":
-            key = f"login:{data.phone}"
+            if is_email:
+                key = f"email:login:{data.phone.lower().strip()}"
+            else:
+                key = f"login:{data.phone}"
             stored_code = VerificationCodeStore.get(key)
             if stored_code is None or stored_code != data.code:
                 raise HTTPException(status_code=401, detail="验证码错误或已过期")
             VerificationCodeStore.delete(key)
             if user is None:
-                raise HTTPException(status_code=404, detail="该手机号未注册")
+                raise HTTPException(status_code=404, detail="账号未注册")
         else:
             raise HTTPException(status_code=400, detail="不支持的登录方式")
 

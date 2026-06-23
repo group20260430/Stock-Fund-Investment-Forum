@@ -2,36 +2,35 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { sendCode } from '../api/auth'
+import { sendEmailCode, verifyEmailCode } from '../api/auth'
 
 const router = useRouter()
 const auth = useAuthStore()
 
-const step = ref(1) // 1: 手机验证, 2: 设置密码, 3: 完善资料(可选)
+const step = ref(1) // 1: 邮箱验证, 2: 设置密码, 3: 完善资料(可选)
 const loading = ref(false)
 const errorMsg = ref('')
 
 const form = reactive({
-  phone: '',
+  email: '',
   code: '',
   password: '',
   confirmPassword: '',
   nickname: '',
   avatar_url: '',
-  register_type: 'phone',
+  register_type: 'email',
 })
 
 const codeSending = ref(false)
 const codeCountdown = ref(0)
 let countdownTimer = null
-const codeRetries = ref(0)
 
 async function requestCode() {
-  if (!form.phone || codeCountdown.value > 0) return
+  if (!form.email || codeCountdown.value > 0) return
   codeSending.value = true
   errorMsg.value = ''
   try {
-    await sendCode(form.phone, 'register')
+    await sendEmailCode(form.email, 'register')
     codeCountdown.value = 60
     countdownTimer = setInterval(() => {
       codeCountdown.value--
@@ -47,24 +46,32 @@ async function requestCode() {
   }
 }
 
-function nextStep() {
+async function nextStep() {
   errorMsg.value = ''
 
   if (step.value === 1) {
-    if (!form.phone) {
-      errorMsg.value = '请输入手机号'
+    if (!form.email) {
+      errorMsg.value = '请输入邮箱地址'
       return
     }
-    if (!/^1\d{10}$/.test(form.phone)) {
-      errorMsg.value = '手机号格式不正确'
+    if (!/^\S+@\S+\.\S+$/.test(form.email)) {
+      errorMsg.value = '邮箱格式不正确'
       return
     }
     if (!form.code) {
       errorMsg.value = '请输入验证码'
       return
     }
-    // 模拟验证码校验（后端实际校验）
-    step.value = 2
+    // Verify code with backend before proceeding
+    loading.value = true
+    try {
+      await verifyEmailCode(form.email, form.code)
+      step.value = 2
+    } catch (err) {
+      errorMsg.value = err.message || '验证码错误或已过期'
+    } finally {
+      loading.value = false
+    }
   } else if (step.value === 2) {
     if (!form.password || form.password.length < 8) {
       errorMsg.value = '密码至少8位'
@@ -94,8 +101,8 @@ async function handleRegister() {
   loading.value = true
   errorMsg.value = ''
   try {
-    await auth.register({
-      phone: form.phone,
+    await auth.registerByEmail({
+      email: form.email,
       password: form.password,
       nickname: form.nickname,
       avatar_url: form.avatar_url,
@@ -132,7 +139,7 @@ function goBack() {
       <div class="steps">
         <div :class="['step', { 'step--active': step >= 1, 'step--done': step > 1 }]">
           <span class="step__num">{{ step > 1 ? '✓' : '1' }}</span>
-          <span class="step__label">手机验证</span>
+          <span class="step__label">邮箱验证</span>
         </div>
         <div class="step__line" :class="{ 'step__line--done': step > 1 }" />
         <div :class="['step', { 'step--active': step >= 2, 'step--done': step > 2 }]">
@@ -149,17 +156,16 @@ function goBack() {
       <!-- 错误提示 -->
       <div v-if="errorMsg" class="auth-error">{{ errorMsg }}</div>
 
-      <!-- 第1步：手机验证 -->
+      <!-- 第1步：邮箱验证 -->
       <form v-if="step === 1" class="auth-form" @submit.prevent="nextStep">
         <div class="form-field">
-          <label>手机号</label>
+          <label>邮箱地址</label>
           <input
-            v-model="form.phone"
-            type="tel"
-            placeholder="请输入手机号"
-            maxlength="11"
+            v-model="form.email"
+            type="email"
+            placeholder="请输入邮箱地址"
             class="form-input"
-            autocomplete="tel"
+            autocomplete="email"
           >
         </div>
 
@@ -184,7 +190,9 @@ function goBack() {
           </div>
         </div>
 
-        <button type="submit" class="submit-btn">下一步</button>
+        <button type="submit" class="submit-btn" :disabled="loading">
+          {{ loading ? '验证中...' : '下一步' }}
+        </button>
       </form>
 
       <!-- 第2步：设置密码和昵称 -->
@@ -265,8 +273,8 @@ function goBack() {
         <a v-if="step > 1" href="javascript:void(0)" @click="goBack">返回上一步</a>
         <router-link v-else to="/login">立即登录</router-link>
         <span v-if="step === 1" class="auth-card__sep">|</span>
-        <router-link v-if="step === 1" to="/register/email" class="auth-card__switch">
-          使用邮箱注册
+        <router-link v-if="step === 1" to="/register" class="auth-card__switch">
+          使用手机号注册
         </router-link>
       </p>
     </div>
