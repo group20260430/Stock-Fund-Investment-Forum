@@ -549,12 +549,13 @@ CREATE TABLE IF NOT EXISTS group_posts (
   COMMENT='群组帖子关联表';
 
 -- ----------------------------------------------------------------------------
--- 21. messages — 私信表
+-- 21. messages — 私信/群聊消息表
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS messages (
   id              BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT  COMMENT '消息ID',
   sender_id       BIGINT UNSIGNED NOT NULL                    COMMENT '发送者用户ID',
-  receiver_id     BIGINT UNSIGNED NOT NULL                    COMMENT '接收者用户ID',
+  receiver_id     BIGINT UNSIGNED NULL                         COMMENT '接收者用户ID（群聊时为NULL）',
+  group_id        BIGINT UNSIGNED NULL                         COMMENT '群组ID（私信时为NULL）',
   content         TEXT            NOT NULL                     COMMENT '消息正文',
   message_type    ENUM('text','image','file')
                                   NOT NULL DEFAULT 'text'      COMMENT '消息类型',
@@ -568,12 +569,16 @@ CREATE TABLE IF NOT EXISTS messages (
   CONSTRAINT fk_msg_receiver
     FOREIGN KEY (receiver_id) REFERENCES users(id)
     ON DELETE CASCADE,
+  CONSTRAINT fk_msg_group
+    FOREIGN KEY (group_id) REFERENCES `groups`(id)
+    ON DELETE CASCADE,
 
   INDEX idx_msg_conversation (sender_id, receiver_id, created_at),
   INDEX idx_msg_receiver_unread (receiver_id, is_read, created_at),
+  INDEX idx_msg_group           (group_id, created_at),
   INDEX idx_msg_created         (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  COMMENT='私信表';
+  COMMENT='私信/群聊消息表';
 
 -- ----------------------------------------------------------------------------
 -- 22. notifications — 通知表
@@ -581,7 +586,7 @@ CREATE TABLE IF NOT EXISTS messages (
 CREATE TABLE IF NOT EXISTS notifications (
   id              BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT  COMMENT '通知ID',
   user_id         BIGINT UNSIGNED NOT NULL                    COMMENT '接收用户ID',
-  type            ENUM('follow','group_invite','group_join_request','group_approved','group_rejected','new_message','system')
+  type            ENUM('follow','group_invite','group_join_request','group_approved','group_rejected','new_message','new_group_message','mention','system')
                                   NOT NULL                    COMMENT '通知类型',
   title           VARCHAR(200)    NOT NULL                    COMMENT '通知标题',
   content         VARCHAR(500)    NOT NULL                    COMMENT '通知内容',

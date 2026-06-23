@@ -15,6 +15,7 @@ class NotificationType(str, enum.Enum):
     GROUP_APPROVED = "group_approved"
     GROUP_REJECTED = "group_rejected"
     NEW_MESSAGE = "new_message"
+    NEW_GROUP_MESSAGE = "new_group_message"
     MENTION = "mention"
     SYSTEM = "system"
 

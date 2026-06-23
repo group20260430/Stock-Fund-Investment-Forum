@@ -1117,7 +1117,7 @@ Accept: application/json
 |------|------|------|------|
 | `page` | int | N | 页码，默认 1 |
 | `size` | int | N | 每页数量，默认 20，最大 50 |
-| `type` | string | N | 筛选类型：`follow` / `group_join_request` / `group_approved` / `group_rejected` / `new_message` / `system` |
+| `type` | string | N | 筛选类型：`follow` / `group_join_request` / `group_approved` / `group_rejected` / `new_message` / `new_group_message` / `system` |
 | `unread_only` | bool | N | 仅显示未读通知，默认 false |
 
 **成功响应 (200)：**
@@ -1310,21 +1310,59 @@ Accept: application/json
 
 ---
 
-### 5.4 私信系统
+### 5.4 消息系统（私信与群聊）
 
 ---
 
-#### GET /messages — 获取私信列表（按会话分组）
+#### GET /messages — 获取消息列表（按会话分组 / 按群组）
 
 **请求头：** `Authorization: Bearer <token>`
+
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `other_user_id` | int | N | 私信对方用户ID，获取与该用户的私信对话详情 |
+| `group_id` | int | N | 群组ID，获取该群组的群聊消息列表 |
+| `page` | int | N | 页码，默认 1 |
+| `size` | int | N | 每页数量，默认 20，最大 100 |
+
+> 不传 `other_user_id` 和 `group_id` 时返回会话列表（私信按对方去重 + 群聊按群组去重，各取最新一条）。
+
+**群聊响应 (200)：**
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "items": [
+      {
+        "id": 1,
+        "sender_id": 2,
+        "group_id": 1,
+        "content": "大家好",
+        "message_type": "text",
+        "attachment_url": null,
+        "is_read": true,
+        "created_at": "2026-06-01T10:00:00Z",
+        "group": { "id": 1, "name": "价值投资群", "avatar_url": null },
+        "sender": { "id": 2, "nickname": "小明", "avatar_url": null }
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "size": 20
+  }
+}
+```
 
 ---
 
-#### POST /messages — 发送私信
+#### POST /messages — 发送消息（私信或群聊）
 
 **请求头：** `Authorization: Bearer <token>`
 
-**请求体：**
+**请求体（私信）：**
 ```json
 {
   "receiver_id": 2,
@@ -1334,21 +1372,30 @@ Accept: application/json
 }
 ```
 
+**请求体（群聊）：**
+```json
+{
+  "group_id": 1,
+  "content": "这支股票大家怎么看？",
+  "message_type": "text",
+  "attachment_url": null
+}
+```
+
+> `receiver_id` 与 `group_id` 二选一，不能同时指定，也不能都不指定。
+
 **成功响应 (201)：**
 ```json
 {
   "code": 201,
   "message": "发送成功",
-  "data": {
-    "id": 1,
-    "created_at": "2026-06-01T10:00:00Z"
-  }
+  "data": { "id": 1 }
 }
 ```
 
 ---
 
-#### DELETE /messages/{id} — 删除私信
+#### DELETE /messages/{id} — 删除消息
 
 **请求头：** `Authorization: Bearer <token>`（仅限发送者本人）
 

@@ -106,9 +106,19 @@ async function handleAvatarSelected(e) {
         <div class="profile-header__name-row">
           <h1>{{ user.nickname }}</h1>
           <span v-if="user.is_starred" class="star-badge" title="星标用户">⭐</span>
-          <span v-if="user.auth_level === 'professional'" class="auth-badge auth-badge--pro" title="专业认证">V</span>
-          <span v-else-if="user.auth_level === 'verified'" class="auth-badge auth-badge--verified" title="实名认证">V</span>
+          <span class="level-badge">Lv.{{ user.level || 1 }}</span>
+          <span
+            v-if="user.auth_level === 'professional'"
+            class="auth-badge auth-badge--pro"
+            title="专业认证"
+          >V</span>
+          <span
+            v-else-if="user.auth_level === 'verified'"
+            class="auth-badge auth-badge--verified"
+            title="实名认证"
+          >V</span>
         </div>
+        <div class="profile-header__points">{{ user.points || 0 }} 积分</div>
         <p v-if="user.bio" class="profile-header__bio">{{ user.bio }}</p>
         <div class="profile-header__stats">
           <router-link :to="'/users/' + user.id + '/follow?tab=following'">
@@ -238,6 +248,21 @@ async function handleAvatarSelected(e) {
 .profile-header__name-row h1 { font-size: 22px; margin: 0; }
 
 .star-badge { font-size: 16px; }
+
+.level-badge {
+  background: var(--color-primary-light);
+  border-radius: var(--radius-pill);
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 8px;
+}
+
+.profile-header__points {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  margin-bottom: 6px;
+}
 
 .auth-badge {
   border-radius: 50%;
