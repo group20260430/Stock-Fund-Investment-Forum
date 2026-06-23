@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Body, Depends, Query
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.dependencies import get_current_user
@@ -78,7 +78,7 @@ def list_notifications(
 
 @router.put("/notifications/read")
 def mark_notifications_read(
-    notification_ids: list[int] | None = None,
+    notification_ids: list[int] | None = Body(None),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):

@@ -385,12 +385,5 @@ async function handleAvatarSelected(e) {
   .profile-header__actions {
     justify-content: center;
   }
-=======
-  .profile-header__info { flex-direction: column; align-items: center; text-align: center; }
-  .profile-header__avatar { margin-top: -40px; height: 64px; width: 64px; }
-  .profile-header__name-row { justify-content: center; }
-  .profile-header__stats { justify-content: center; }
-  .profile-header__badges { justify-content: center; }
-  .profile-header__actions { justify-content: center; }
 }
 </style>

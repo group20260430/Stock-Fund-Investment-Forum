@@ -23,6 +23,14 @@ const imageInfo = computed(() => {
   return extractImages(props.post.content || props.post.content_summary || '', 4)
 })
 
+const authorProfileUrl = computed(() => {
+  const author = props.post.author
+  if (author && typeof author === 'object' && author.id) {
+    return `/users/${author.id}`
+  }
+  return ''
+})
+
 const authorName = computed(() => {
   return typeof props.post.author === 'object' ? props.post.author.nickname : props.post.author
 })
@@ -52,26 +60,52 @@ function handleShare() {
     <!-- 元信息行 -->
     <div class="post-card__meta">
       <!-- 作者头像 -->
-      <img
-        v-if="authorAvatar"
-        :src="authorAvatar"
-        :alt="authorName"
-        class="post-card__author-avatar"
-        @error="$event.target.style.display = 'none'"
+      <router-link
+        v-if="authorProfileUrl"
+        :to="authorProfileUrl"
+        class="post-card__author-link"
+        @click.stop
       >
-      <span
-        v-else
-        class="post-card__author-avatar post-card__author-avatar--placeholder"
-        :title="authorName"
-      >
-        {{ authorName?.charAt(0) || '?' }}
-      </span>
+        <img
+          v-if="authorAvatar"
+          :src="authorAvatar"
+          :alt="authorName"
+          class="post-card__author-avatar"
+          @error="$event.target.style.display = 'none'"
+        >
+        <span
+          v-else
+          class="post-card__author-avatar post-card__author-avatar--placeholder"
+          :title="authorName"
+        >
+          {{ authorName?.charAt(0) || '?' }}
+        </span>
+      </router-link>
+      <template v-else>
+        <img
+          v-if="authorAvatar"
+          :src="authorAvatar"
+          :alt="authorName"
+          class="post-card__author-avatar"
+          @error="$event.target.style.display = 'none'"
+        >
+        <span
+          v-else
+          class="post-card__author-avatar post-card__author-avatar--placeholder"
+          :title="authorName"
+        >
+          {{ authorName?.charAt(0) || '?' }}
+        </span>
+      </template>
 
       <span v-if="post.category" class="post-card__category">
         {{ typeof post.category === 'object' ? post.category.name : post.category }}
       </span>
       <span v-if="post.is_elite" class="post-card__badge post-card__badge--elite">精</span>
-      <span class="post-card__author">{{ authorName }}</span>
+      <span class="post-card__author">
+        <router-link v-if="authorProfileUrl" :to="authorProfileUrl" class="post-card__author-name" @click.stop>{{ authorName }}</router-link>
+        <template v-else>{{ authorName }}</template>
+      </span>
       <span class="dot">·</span>
       <span class="post-card__time">{{ timeAgo(post.created_at) }}</span>
     </div>
@@ -177,6 +211,22 @@ function handleShare() {
   font-size: 10px;
   font-weight: 700;
   justify-content: center;
+}
+
+.post-card__author-link {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.post-card__author-name {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.post-card__author-name:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
 }
 
 .post-card__category {

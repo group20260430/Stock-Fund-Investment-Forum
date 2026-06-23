@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.notifications import create_notification
@@ -512,7 +512,7 @@ def list_messages(
                 if m.id in unread_ids:
                     m.is_read = True
     if other_user_id is None:
-        # 会话列表：DM 按对方去重 + 群聊按 group_id 去重（取每会话最新一条）
+        # 会话列表：DM 按对方去重 + 群聊按 group_id 去重（取每会话最新一条）+ 统计未读数
         latest_dm: dict[int, Message] = {}
         latest_group: dict[int, Message] = {}
         for message in messages:
@@ -521,15 +521,56 @@ def list_messages(
             else:
                 other_id = message.receiver_id if message.sender_id == user.id else message.sender_id
                 latest_dm.setdefault(other_id, message)
+
+        # 统计 DM 未读数
+        other_ids = list(latest_dm.keys())
+        unread_counts: dict[int, int] = {}
+        if other_ids:
+            rows = (
+                db.query(Message.sender_id, func.count(Message.id))
+                .filter(
+                    Message.receiver_id == user.id,
+                    Message.is_read.is_(False),
+                    Message.sender_id.in_(other_ids),
+                )
+                .group_by(Message.sender_id)
+                .all()
+            )
+            unread_counts = {sender_id: cnt for sender_id, cnt in rows}
+
+        # 合并 DM 和群聊会话列表，按时间排序
         dm_items = sorted(latest_dm.values(), key=lambda m: m.created_at, reverse=True)
         group_items = sorted(latest_group.values(), key=lambda m: m.created_at, reverse=True)
         messages = dm_items + group_items
-        # 按时间排序合并
         messages.sort(key=lambda m: m.created_at, reverse=True)
-    return ApiResponse(code=200, message="success", data={
-        "items": [_message_payload(item, user.id) for item in messages],
-        "total": total, "page": page, "size": size,
-    })
+
+        enriched = []
+        for item in messages:
+            payload = _message_payload(item, user.id)
+            if item.group_id is None:
+                other_id = item.receiver_id if item.sender_id == user.id else item.sender_id
+                payload["unread_count"] = unread_counts.get(other_id, 0)
+                payload["is_read"] = unread_counts.get(other_id, 0) == 0
+            else:
+                # 群聊消息默认已读
+                payload["is_read"] = True
+            enriched.append(payload)
+        return ApiResponse(code=200, message="success", data={
+            "items": enriched,
+            "total": total, "page": page, "size": size,
+        })
+
+
+@router.get("/messages/unread-count")
+def unread_message_count(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """获取当前用户的未读私信数量。"""
+    count = db.query(Message).filter(
+        Message.receiver_id == user.id, Message.is_read.is_(False)
+    ).count()
+    return ApiResponse(code=200, message="success", data={"unread_count": count})
 
 
 @router.delete("/messages/{message_id}")
