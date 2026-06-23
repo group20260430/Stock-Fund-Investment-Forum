@@ -37,6 +37,8 @@ onMounted(() => load())
       <router-link to="/admin/certifications" class="admin-nav__item">认证审核</router-link>
       <router-link to="/admin/sensitive-words" class="admin-nav__item">敏感词</router-link>
       <router-link to="/admin/logs" class="admin-nav__item admin-nav__item--active">操作日志</router-link>
+      <router-link to="/admin/hot-topics" class="admin-nav__item">热门话题分析</router-link>
+      <router-link to="/admin/engagement" class="admin-nav__item">用户参与度</router-link>
     </div>
 
     <Loading v-if="loading" variant="skeleton" :rows="2" />

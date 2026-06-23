@@ -33,6 +33,8 @@ const routes = [
   { path: "/admin/certifications", name: "admin-certifications", component: () => import("../views/admin/Certifications.vue"), meta: { requiresAuth: true, requiresAdmin: true } },
   { path: "/admin/sensitive-words", name: "admin-sensitive-words", component: () => import("../views/admin/SensitiveWords.vue"), meta: { requiresAuth: true, requiresAdmin: true } },
   { path: "/admin/logs", name: "admin-logs", component: () => import("../views/admin/ActivityLogs.vue"), meta: { requiresAuth: true, requiresAdmin: true } },
+  { path: "/admin/hot-topics", name: "admin-hot-topics", component: () => import("../views/admin/HotTopics.vue"), meta: { requiresAuth: true, requiresAdmin: true } },
+  { path: "/admin/engagement", name: "admin-engagement", component: () => import("../views/admin/Engagement.vue"), meta: { requiresAuth: true, requiresAdmin: true } },
 
   // ===== 404 =====
   { path: "/:pathMatch(.*)*", name: "not-found", component: () => import("../views/NotFound.vue"), meta: { layout: false } },
