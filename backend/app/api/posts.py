@@ -20,6 +20,7 @@ from app.models.content import (
 )
 from app.models.operations import ActivityType
 from app.services.activity_service import record_activity
+from app.services.duplicate_content_service import check_duplicate_post_content
 from app.services.mention_service import (
     create_mention_notifications,
     parse_mentions,
@@ -237,13 +238,20 @@ def create_post(data: PostCreate, user: User = Depends(get_current_user), db: Se
     sensitive_result = check_sensitive_texts(db, [data.title, data.content])
     if sensitive_result.should_block:
         raise HTTPException(status_code=400, detail="内容包含禁止发布的敏感词")
+    duplicate_result = check_duplicate_post_content(db, user.id, data.title, data.content)
+    if duplicate_result.should_block:
+        raise HTTPException(status_code=400, detail="鍐呭鐤戜技閲嶅鍙戝竷锛岃鍕块噸澶嶆彁浜?")
     post = Post(
         user_id=user.id,
         category_id=data.category_id,
         title=data.title,
         content=data.content,
         post_type=PostType(data.post_type),
-        status=PostStatus.REVIEWING if sensitive_result.should_review else PostStatus(data.status),
+        status=(
+            PostStatus.REVIEWING
+            if sensitive_result.should_review or duplicate_result.should_review
+            else PostStatus(data.status)
+        ),
         tags=data.tags,
         last_activity_at=datetime.now(timezone.utc),
     )
