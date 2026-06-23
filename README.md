@@ -247,3 +247,13 @@ npm run build
 - 完善移动端适配
 - 生产环境部署（Docker + Nginx）
 - 性能优化与缓存策略
+
+### 全项目一键验证
+
+在项目根目录执行：
+
+```powershell
+python scripts\run_project_checks.py
+```
+
+该脚本会顺序运行后端一键测试和前端生产构建，并输出统一汇总结果。
