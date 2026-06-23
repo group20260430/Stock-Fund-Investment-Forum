@@ -53,6 +53,12 @@ const forumSections = [
 
 const expandedSections = ref([])
 
+function toggleSection(label) {
+  const idx = expandedSections.value.indexOf(label)
+  if (idx >= 0) expandedSections.value.splice(idx, 1)
+  else expandedSections.value.push(label)
+}
+
 const discoverItems = [
   { label: '热门', to: '/', query: { tab: 'hot' }, icon: 'trending' },
   { label: '搜索', to: '/search', icon: 'search' },
