@@ -39,12 +39,13 @@ def seed_categories() -> None:
     from app.db.session import SessionLocal
     from app.models.content import Category
 
+    # 以下旧分类保留在数据库但标记为不活跃（已从侧边栏移除，仅兼容旧数据）
     defaults = [
-        ("综合讨论", "投资话题综合交流", 1),
-        ("股票市场", "A股、港股与海外市场", 2),
-        ("基金投资", "公募基金、ETF与定投", 3),
-        ("问答求助", "投资问题互助", 4),
-        ("投资策略", "资产配置与策略研究", 5),
+        ("综合讨论", "投资话题综合交流", 1, False),
+        ("股票市场", "A股、港股与海外市场", 2, False),
+        ("基金投资", "公募基金、ETF与定投", 3, True),   # 仍用于主题专区
+        ("问答求助", "投资问题互助", 4, False),
+        ("投资策略", "资产配置与策略研究", 5, False),
     ]
     # 公司研究专区行业分类
     industry_categories = [
@@ -79,7 +80,7 @@ def seed_categories() -> None:
     try:
         if db.query(Category).count() == 0:
             db.add_all(
-                [Category(name=name, description=description, sort_order=order) for name, description, order in defaults]
+                [Category(name=name, description=description, sort_order=order, is_active=active) for name, description, order, active in defaults]
             )
             db.add_all(
                 [Category(name=name, description=description, sort_order=order) for name, description, order in industry_categories]
