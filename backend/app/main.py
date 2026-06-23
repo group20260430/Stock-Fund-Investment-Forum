@@ -55,6 +55,26 @@ def seed_categories() -> None:
         ("新能源", "光伏、锂电、风电、储能等新能源行业", 10),
         ("制造业", "高端装备、汽车、化工等制造业", 11),
     ]
+    # 市场讨论区子板块
+    market_categories = [
+        ("A股", "A股市场讨论", 12),
+        ("港股", "港股市场讨论", 13),
+        ("美股", "美股市场讨论", 14),
+        ("期货", "期货市场讨论", 15),
+    ]
+    # 主题专区子板块
+    theme_categories = [
+        ("价值投资", "价值投资理念与实践", 16),
+        ("量化投资", "量化策略与程序化交易", 17),
+        ("基金投资", "公募、私募、ETF等基金讨论", 18),
+        ("新股/新债", "新股申购与新债分析", 19),
+        ("宏观策略", "宏观经济与市场策略", 20),
+    ]
+    # 问答求助区子板块
+    qa_categories = [
+        ("新手提问", "投资入门与基础问题", 21),
+        ("投资解惑", "投资疑难问题解答", 22),
+    ]
     db = SessionLocal()
     try:
         if db.query(Category).count() == 0:
@@ -63,6 +83,15 @@ def seed_categories() -> None:
             )
             db.add_all(
                 [Category(name=name, description=description, sort_order=order) for name, description, order in industry_categories]
+            )
+            db.add_all(
+                [Category(name=name, description=description, sort_order=order) for name, description, order in market_categories]
+            )
+            db.add_all(
+                [Category(name=name, description=description, sort_order=order) for name, description, order in theme_categories]
+            )
+            db.add_all(
+                [Category(name=name, description=description, sort_order=order) for name, description, order in qa_categories]
             )
             db.commit()
     finally:

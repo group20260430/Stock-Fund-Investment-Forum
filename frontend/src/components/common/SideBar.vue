@@ -15,20 +15,20 @@ const forumSections = [
   {
     label: '市场讨论区', icon: 'stock',
     items: [
-      { label: 'A股', to: '/search', query: { keyword: 'A股' } },
-      { label: '港股', to: '/search', query: { keyword: '港股' } },
-      { label: '美股', to: '/search', query: { keyword: '美股' } },
-      { label: '期货', to: '/search', query: { keyword: '期货' } },
+      { label: 'A股', to: '/categories/12' },
+      { label: '港股', to: '/categories/13' },
+      { label: '美股', to: '/categories/14' },
+      { label: '期货', to: '/categories/15' },
     ],
   },
   {
     label: '主题专区', icon: 'discuss',
     items: [
-      { label: '价值投资', to: '/search', query: { keyword: '价值投资' } },
-      { label: '量化投资', to: '/search', query: { keyword: '量化投资' } },
-      { label: '基金投资', to: '/search', query: { keyword: '基金投资' } },
-      { label: '新股/新债', to: '/search', query: { keyword: '新股' } },
-      { label: '宏观策略', to: '/search', query: { keyword: '宏观策略' } },
+      { label: '价值投资', to: '/categories/16' },
+      { label: '量化投资', to: '/categories/17' },
+      { label: '基金投资', to: '/categories/3' },
+      { label: '新股/新债', to: '/categories/19' },
+      { label: '宏观策略', to: '/categories/20' },
     ],
   },
   {
@@ -45,8 +45,8 @@ const forumSections = [
   {
     label: '问答求助区', icon: 'question',
     items: [
-      { label: '新手提问', to: '/search', query: { keyword: '新手' } },
-      { label: '投资解惑', to: '/search', query: { keyword: '投资解惑' } },
+      { label: '新手提问', to: '/categories/21' },
+      { label: '投资解惑', to: '/categories/22' },
     ],
   },
 ]
@@ -121,7 +121,7 @@ function onNavClick() {
             v-for="item in sec.items"
             :key="item.label"
             :to="{ path: item.to, query: item.query }"
-            :class="['nav-item nav-item--child', { active: route.path === item.to && (!item.query || route.query.keyword === item.query.keyword) }]"
+            :class="['nav-item nav-item--child', { active: route.path === item.to }]"
             @click="onNavClick()"
           >
             <span class="nav-item__dot" />
