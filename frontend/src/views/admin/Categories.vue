@@ -77,11 +77,21 @@ function cancelForm() {
 </script>
 
 <template>
-  <div class="admin-categories">
-    <header class="admin-header">
-      <h1>板块管理</h1>
-      <p>管理论坛板块，支持动态添加、编辑和删除</p>
+    <header class="toolbar">
+      <h1>管理后台 / 板块管理</h1>
     </header>
+
+    <div class="admin-nav">
+      <router-link to="/admin" class="admin-nav__item">总览</router-link>
+      <router-link to="/admin/review" class="admin-nav__item">审核队列</router-link>
+      <router-link to="/admin/users" class="admin-nav__item">用户管理</router-link>
+      <router-link to="/admin/certifications" class="admin-nav__item">认证审核</router-link>
+      <router-link to="/admin/sensitive-words" class="admin-nav__item">敏感词</router-link>
+      <router-link to="/admin/logs" class="admin-nav__item">操作日志</router-link>
+      <router-link to="/admin/hot-topics" class="admin-nav__item">热门话题分析</router-link>
+      <router-link to="/admin/engagement" class="admin-nav__item">用户参与度</router-link>
+      <router-link to="/admin/categories" class="admin-nav__item admin-nav__item--active">板块管理</router-link>
+    </div>
 
     <!-- 表单 -->
     <div v-if="showForm" class="admin-card form-card">
@@ -133,32 +143,53 @@ function cancelForm() {
     </div>
 
     <button v-if="!showForm" class="admin-btn admin-btn--primary add-btn" @click="openCreate">+ 新建板块</button>
-  </div>
 </template>
 
 <style scoped>
-.admin-categories { padding: 20px; max-width: 960px; margin: 0 auto; }
-.admin-header { margin-bottom: 24px; }
-.admin-header h1 { margin: 0 0 4px; font-size: 1.4rem; }
-.admin-header p { margin: 0; color: var(--color-text-muted, #6b7280); font-size: 0.9rem; }
-.form-card { padding: 20px; margin-bottom: 24px; background: var(--color-bg-card, #fff); border-radius: 8px; border: 1px solid var(--color-border-input, #e5e7eb); }
+.toolbar { margin-bottom: 24px; }
+.toolbar h1 { font-size: 24px; margin: 0; }
+
+.admin-nav {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  display: flex;
+  gap: 0;
+  margin-bottom: 24px;
+  overflow: hidden;
+  flex-wrap: wrap;
+}
+
+.admin-nav__item {
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 14px 24px;
+  text-decoration: none;
+}
+
+.admin-nav__item:hover { color: var(--color-text-body); }
+.admin-nav__item--active { border-bottom-color: var(--color-primary); color: var(--color-primary); }
+
+.form-card { padding: 20px; margin-bottom: 24px; background: var(--color-bg-card); border-radius: 8px; border: 1px solid var(--color-border); }
 .form-group { margin-bottom: 12px; }
 .form-group label { display: block; margin-bottom: 4px; font-size: 0.85rem; font-weight: 500; }
-.form-input { width: 100%; padding: 8px 12px; border: 1px solid var(--color-border-input, #d1d5db); border-radius: 6px; font-size: 0.9rem; box-sizing: border-box; }
+.form-input { width: 100%; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 6px; font-size: 0.9rem; box-sizing: border-box; }
 .form-input--short { width: 100px; }
 .form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
-.cat-list { background: var(--color-bg-card, #fff); border-radius: 8px; border: 1px solid var(--color-border-input, #e5e7eb); overflow: hidden; }
+.cat-list { background: var(--color-bg-card); border-radius: 8px; border: 1px solid var(--color-border); overflow: hidden; }
 .cat-list__header, .cat-list__row { display: grid; grid-template-columns: 50px 1fr 2fr 70px 60px 100px; gap: 8px; padding: 10px 16px; align-items: center; font-size: 0.85rem; }
-.cat-list__header { background: var(--color-bg-subtle, #f9fafb); font-weight: 600; color: var(--color-text-muted, #6b7280); }
-.cat-list__row { border-top: 1px solid var(--color-border-input, #eee); }
+.cat-list__header { background: var(--color-bg-hover); font-weight: 600; color: var(--color-text-muted); }
+.cat-list__row { border-top: 1px solid var(--color-border); }
 .cat-list__row--inactive { opacity: 0.5; }
-.cat-desc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-muted, #6b7280); }
+.cat-desc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-muted); }
 .cat-actions { display: flex; gap: 4px; }
 .tag-green { color: #059669; font-size: 0.8rem; }
 .tag-gray { color: #9ca3af; font-size: 0.8rem; }
 .add-btn { margin-top: 16px; }
 .admin-btn { padding: 6px 14px; border-radius: 6px; border: 1px solid #d1d5db; background: #fff; cursor: pointer; font-size: 0.85rem; }
-.admin-btn--primary { background: var(--color-primary, #3b82f6); color: #fff; border-color: var(--color-primary, #3b82f6); }
+.admin-btn--primary { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
 .admin-btn--secondary { background: #f3f4f6; color: #374151; }
 .admin-btn--danger { color: #ef4444; border-color: #fca5a5; }
 .admin-btn--sm { padding: 4px 10px; font-size: 0.8rem; }

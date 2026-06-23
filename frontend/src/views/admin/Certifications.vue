@@ -54,6 +54,7 @@ onMounted(load)
       <router-link to="/admin/logs" class="admin-nav__item">操作日志</router-link>
       <router-link to="/admin/hot-topics" class="admin-nav__item">热门话题分析</router-link>
       <router-link to="/admin/engagement" class="admin-nav__item">用户参与度</router-link>
+      <router-link to="/admin/categories" class="admin-nav__item">板块管理</router-link>
     </div>
 
     <div class="filter-bar">
@@ -94,9 +95,9 @@ onMounted(load)
 .toolbar { margin-bottom: 24px; }
 .toolbar h1 { font-size: 24px; margin: 0; }
 .admin-nav { background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 8px; display: flex; gap: 0; margin-bottom: 24px; overflow: hidden; }
-.admin-nav__item { color: var(--color-text-secondary); font-size: 14px; padding: 12px 20px; text-decoration: none; transition: background 0.15s, color 0.15s; }
-.admin-nav__item:hover { background: var(--color-bg-hover); }
-.admin-nav__item--active { background: var(--color-primary); color: #fff; }
+.admin-nav__item { border-bottom: 2px solid transparent; color: var(--color-text-secondary); font-size: 14px; font-weight: 500; padding: 14px 24px; text-decoration: none; }
+.admin-nav__item:hover { color: var(--color-text-body); }
+.admin-nav__item--active { border-bottom-color: var(--color-primary); color: var(--color-primary); }
 .filter-bar { margin-bottom: 16px; }
 .filter-select { border: 1px solid var(--color-border-input); border-radius: 6px; font: inherit; padding: 6px 10px; }
 .list { display: grid; gap: 12px; }
