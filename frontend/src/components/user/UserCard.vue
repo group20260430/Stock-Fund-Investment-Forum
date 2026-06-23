@@ -1,14 +1,33 @@
 <script setup>
-defineProps({
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '../../stores/auth'
+
+const props = defineProps({
   user: { type: Object, required: true },
   showFollowBtn: { type: Boolean, default: true },
 })
 
-defineEmits(['follow'])
+const emit = defineEmits(['follow'])
+
+const router = useRouter()
+const auth = useAuthStore()
+
+const canShowFollowBtn = computed(() => {
+  if (!props.showFollowBtn) return false
+  if (!auth.user) return true // 未登录时也可以展示关注按钮
+  return auth.user.id !== props.user.id
+})
+
+function goToUserProfile() {
+  if (props.user?.id) {
+    router.push(`/users/${props.user.id}`)
+  }
+}
 </script>
 
 <template>
-  <div class="user-card">
+  <div class="user-card" @click="goToUserProfile">
     <img
       :src="user.avatar_url || ''"
       :alt="user.nickname"
@@ -36,7 +55,7 @@ defineEmits(['follow'])
       </div>
     </div>
     <button
-      v-if="showFollowBtn"
+      v-if="canShowFollowBtn"
       :class="['user-card__follow-btn', { 'user-card__follow-btn--active': user.is_followed }]"
       @click.stop="$emit('follow', user.id)"
     >

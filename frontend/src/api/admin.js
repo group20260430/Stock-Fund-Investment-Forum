@@ -60,16 +60,6 @@ export function submitReport(data) {
   return api.post('/report', data)
 }
 
-/** 私信列表 */
-export function fetchMessages(params) {
-  return api.get('/messages', params)
-}
-
-/** 发送私信 */
-export function sendMessage(data) {
-  return api.post('/messages', data)
-}
-
 /** 认证审核列表 */
 export function fetchCertifications(params) {
   return api.get('/admin/certifications', params)

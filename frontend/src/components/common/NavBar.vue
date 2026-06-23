@@ -1,6 +1,7 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { fetchUnreadMessageCount } from '../../api/messages'
 import { useAuthStore } from '../../stores/auth'
 import AppIcon from './AppIcon.vue'
 
@@ -42,6 +43,42 @@ function goTo(path) {
   showUserMenu.value = false
   router.push(path)
 }
+
+// ===== 未读私信角标 =====
+const unreadCount = ref(0)
+let notifyPollTimer = null
+
+async function loadUnreadCount() {
+  if (!auth.isLoggedIn) return
+  try {
+    const result = await fetchUnreadMessageCount()
+    unreadCount.value = result?.unread_count || 0
+  } catch { /* ignore */ }
+}
+
+// 监听"消息已读"事件，即时刷新角标
+function handleMessagesRead() {
+  loadUnreadCount()
+}
+
+onMounted(() => {
+  loadUnreadCount()
+  notifyPollTimer = setInterval(loadUnreadCount, 15000) // 每 15s
+  window.addEventListener('messages-read', handleMessagesRead)
+})
+
+onUnmounted(() => {
+  if (notifyPollTimer) clearInterval(notifyPollTimer)
+  window.removeEventListener('messages-read', handleMessagesRead)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+})
+
+function onVisibilityChange() {
+  if (!document.hidden) {
+    loadUnreadCount()
+  }
+}
+document.addEventListener('visibilitychange', onVisibilityChange)
 </script>
 
 <template>
@@ -79,8 +116,9 @@ function goTo(path) {
     <div class="navbar__right">
       <template v-if="auth.isLoggedIn">
         <!-- 通知 -->
-        <button class="navbar__icon-btn" aria-label="通知">
+        <button class="navbar__icon-btn navbar__bell-btn" aria-label="通知" @click="goTo('/messages')">
           <AppIcon name="bell" :size="20" />
+          <span v-if="unreadCount > 0" class="notify-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
         </button>
 
         <!-- 用户菜单 -->
@@ -101,6 +139,7 @@ function goTo(path) {
             </div>
             <div class="user-dropdown__divider" />
             <button @click="goTo(`/users/${auth.user?.id || 'me'}`)">个人主页</button>
+            <button @click="goTo('/messages')">私信</button>
             <button @click="goTo('/me/settings')">设置</button>
             <button v-if="auth.isAdmin" @click="goTo('/admin')">管理后台</button>
             <div class="user-dropdown__divider" />
@@ -218,6 +257,29 @@ function goTo(path) {
 
 .navbar__icon-btn:hover {
   background: var(--color-bg-hover);
+}
+
+.navbar__bell-btn {
+  position: relative;
+}
+.notify-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: var(--color-danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  line-height: 1;
+  transform: translate(25%, -25%);
+  pointer-events: none;
 }
 
 .navbar__avatar-btn {

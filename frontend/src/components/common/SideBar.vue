@@ -30,6 +30,7 @@ const personalItems = computed(() => {
     { label: '我的收藏', to: '/me/collections', icon: 'collections' },
     { label: '关注列表', to: `/users/${auth.user?.id || 'me'}/follow`, icon: 'followers' },
     { label: '我的群组', to: '/groups', icon: 'groups' },
+    { label: '私信', to: '/messages', icon: 'message' },
   ]
 })
 

@@ -1,6 +1,6 @@
 ﻿<script setup>
-import { ref, onMounted, computed } from "vue"
-import { useRoute } from "vue-router"
+import { ref, watch, onMounted, computed } from "vue"
+import { useRoute, useRouter } from "vue-router"
 import { useAuthStore } from "../stores/auth"
 import { useUserStore } from "../stores/user"
 import { usePostsStore } from "../stores/posts"
@@ -15,6 +15,7 @@ import EmptyState from "../components/common/EmptyState.vue"
 import Pagination from "../components/common/Pagination.vue"
 
 const route = useRoute()
+const router = useRouter()
 const auth = useAuthStore()
 const userStore = useUserStore()
 const postsStore = usePostsStore()
@@ -22,30 +23,60 @@ const toast = useToastStore()
 
 const activeTab = ref("posts")
 const starring = ref(false)
+const loadedUserId = ref(null) // 追踪当前已加载的用户 ID
 
 const isOwnProfile = computed(() => {
   if (!auth.user) return false
   return route.params.id === 'me' || String(auth.user.id) === String(route.params.id)
 })
 
-onMounted(async () => {
-  let userId
+/** 解析路由参数为数字用户 ID，供 API 调用使用 */
+function resolveUserId() {
   if (route.params.id === 'me') {
-    if (auth.user) {
-      userId = auth.user.id
-    } else {
-      // 未登录时访问 "me" — 先跳转登录
-      return
-    }
-  } else {
-    userId = Number(route.params.id)
-    if (isNaN(userId)) return
+    return auth.user?.id
   }
+  const id = Number(route.params.id)
+  return isNaN(id) ? null : id
+}
+
+async function loadProfileData(force = false) {
+  const userId = resolveUserId()
+  if (!userId) {
+    if (route.params.id === 'me' && !auth.user) {
+      router.push({ name: 'login', query: { redirect: route.fullPath } })
+    }
+    return
+  }
+
+  // 同一个用户 ID 已有缓存数据时跳过；force=true 时强制刷新
+  if (!force && loadedUserId.value === userId && userStore.profile) return
+
+  loadedUserId.value = userId
+  // 先清空旧数据，确保 Loading 状态正常展示
+  userStore.profile = null
   await userStore.loadUserProfile(userId)
   if (userStore.profile) {
-    await postsStore.loadPosts({ user_id: route.params.id })
+    await postsStore.loadPosts({ user_id: userId })
   }
-})
+}
+
+// 监听路由参数变化（切换账号或浏览不同用户时重新加载）
+watch(
+  () => route.params.id,
+  () => { loadProfileData() }
+)
+
+// 监听登录用户变化（切换账号后 auth.user 更新时重新加载）
+watch(
+  () => auth.user?.id,
+  (newUid, oldUid) => {
+    if (newUid !== oldUid && route.params.id === 'me') {
+      loadProfileData()
+    }
+  }
+)
+
+onMounted(() => { loadProfileData() })
 
 async function handleFollow(userId) {
   if (!auth.isLoggedIn) return
@@ -102,13 +133,18 @@ async function handleShare(postId) {
 
 function handlePageChange(page) {
   postsStore.pagination.page = page
-  postsStore.loadPosts()
+  const userId = resolveUserId()
+  postsStore.loadPosts({ user_id: userId })
 }
 
 function handleAvatarUpdated(avatarUrl) {
   if (userStore.profile) {
     userStore.profile.avatar_url = avatarUrl
   }
+}
+
+function handleMessage(userId) {
+  router.push({ name: 'messages-conversation', params: { userId } })
 }
 
 const user = computed(() => userStore.profile)
@@ -120,7 +156,7 @@ const user = computed(() => userStore.profile)
     <ErrorState
       v-else-if="userStore.error"
       :message="userStore.error"
-      @retry="userStore.loadUserProfile(route.params.id)"
+      @retry="loadProfileData(true)"
     />
     <template v-else-if="user">
       <UserProfileComponent
@@ -128,6 +164,7 @@ const user = computed(() => userStore.profile)
         :is-own="isOwnProfile"
         @follow="handleFollow"
         @star="handleStar"
+        @message="handleMessage"
         @edit="$router.push('/me/settings')"
         @avatar-updated="handleAvatarUpdated"
       />
