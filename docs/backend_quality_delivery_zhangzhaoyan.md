@@ -70,11 +70,53 @@
 
 * `a57b205 test: add backend smoke test runner`
 
+### 2.7 全项目冒烟验证
+
+已新增并更新 `docs/project_smoke_test_zhangzhaoyan.md`，完成后端一键测试和前端生产构建验证，形成全项目基础冒烟闭环。
+
+当前结果：
+
+* `RESULTS: 8 passed, 0 failed`
+* `npm run build` 通过
+
+关联提交：
+
+* `cfd191d docs: add project smoke test report`
+* `00eaf81 docs: update project smoke test report`
+
+### 2.8 前端构建缺失依赖修复
+
+已修复 Markdown 渲染链路缺失依赖导致的 Vite build 失败，补齐 `marked` / `dompurify` 后，前端生产构建恢复通过。
+
+关联提交：
+
+* `d865c1b fix: add missing marked dependency`
+
+### 2.9 README 验证入口说明
+
+已在 README 中增加“项目验证 / 冒烟测试”小节，补充后端一键测试、前端构建命令和验证报告位置，方便组员和老师快速复现验证结果。
+
+关联提交：
+
+* `7660b1e docs: add project validation instructions`
+
+### 2.10 前端构建 warning 清理
+
+已清理 `auth.js` / `comments.js` 的动态导入与静态导入混用 warning，不处理 Dashboard chunk size，保证 build 通过且仅保留非阻塞提示。
+
+关联提交：
+
+* `efae993 fix: clean mixed dynamic imports in frontend build`
+
 ## 3. 当前验证结果
 
 ```text
 RESULTS: 8 passed, 0 failed
 ```
+
+前端：`npm run build` 通过
+
+剩余问题：`Dashboard` chunk size 超 500KB 的 Vite 非阻塞 warning
 
 覆盖测试：
 
@@ -94,6 +136,10 @@ RESULTS: 8 passed, 0 failed
 * 为内容安全基础能力提供可验证闭环
 * 为后续联调提供统一的一键验证入口
 * 方便项目汇报、分工说明和答辩展示
+* 从后端质量保障扩展到全项目基础冒烟验证
+* 提供 README 级别的验证入口，方便团队复现
+* 修复前端构建阻塞依赖并清理部分构建 warning
+* 当前项目具备“后端回归 + 前端构建”的基础验收闭环
 
 ## 5. 边界说明
 
