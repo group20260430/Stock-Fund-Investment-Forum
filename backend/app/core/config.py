@@ -40,6 +40,12 @@ class Settings(BaseSettings):
     smtp_from_email: str = ""
     smtp_timeout: int = 10
 
+    # --- Admin seed ---
+    admin_phone: str = "13800000000"
+    admin_email: str = "admin@forum.local"
+    admin_password: str = "Admin@123456"
+    admin_nickname: str = "系统管理员"
+
     model_config = SettingsConfigDict(
         env_file=str(_PROJECT_ROOT / ".env"),
         env_file_encoding="utf-8",

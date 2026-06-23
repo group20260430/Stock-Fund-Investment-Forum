@@ -35,6 +35,36 @@ import app.models.operations  # noqa: F401
 import app.models.points  # noqa: F401
 
 
+def seed_admin() -> None:
+    """Create an initial admin user from environment settings (dev convenience)."""
+    if settings.database_url != "sqlite:///./stock_fund_forum.db":
+        return
+
+    from app.core.security import get_password_hash
+    from app.db.session import SessionLocal
+    from app.models.user import AuthLevel, RegisterType, User, UserRole, UserStatus
+
+    db = SessionLocal()
+    try:
+        existing = db.query(User).filter(User.role == UserRole.ADMIN).first()
+        if existing:
+            return
+        admin = User(
+            phone=settings.admin_phone,
+            email=settings.admin_email,
+            password_hash=get_password_hash(settings.admin_password),
+            nickname=settings.admin_nickname,
+            role=UserRole.ADMIN,
+            auth_level=AuthLevel.VERIFIED,
+            status=UserStatus.ACTIVE,
+            register_type=RegisterType.EMAIL if "@" in settings.admin_email else RegisterType.PHONE,
+        )
+        db.add(admin)
+        db.commit()
+    finally:
+        db.close()
+
+
 def seed_categories() -> None:
     from app.db.session import SessionLocal
     from app.models.content import Category
@@ -66,7 +96,7 @@ def seed_categories() -> None:
     theme_categories = [
         ("价值投资", "价值投资理念与实践", 16),
         ("量化投资", "量化策略与程序化交易", 17),
-        ("基金投资", "公募、私募、ETF等基金讨论", 18),
+        ("基金研究", "公募、私募、ETF等基金深度研究", 18),
         ("新股/新债", "新股申购与新债分析", 19),
         ("宏观策略", "宏观经济与市场策略", 20),
     ]
@@ -158,6 +188,7 @@ def seed_demo_content() -> None:
 async def lifespan(app: FastAPI):
     """Create all tables on startup (dev convenience — use migrations in production)."""
     Base.metadata.create_all(bind=engine)
+    seed_admin()
     seed_categories()
     seed_demo_content()
     yield
