@@ -31,6 +31,7 @@ class BanRequest(BaseModel):
 class CategoryRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=50)
     description: str | None = Field(None, max_length=255)
+    parent_id: int | None = Field(None, description="父板块ID，null=顶级分区")
     sort_order: int = 0
     is_active: bool = True
 

@@ -661,13 +661,14 @@ def engagement_report(
 
 @router.get("/admin/categories")
 def list_categories_for_admin(admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
-    """管理员获取全量板块列表（含已隐藏的）。"""
+    """管理员获取全量板块列表（含已隐藏的），含 parent_id。"""
     categories = db.query(Category).order_by(Category.sort_order, Category.id).all()
     return ApiResponse(code=200, message="success", data=[
         {
             "id": item.id,
             "name": item.name,
             "description": item.description,
+            "parent_id": item.parent_id,
             "sort_order": item.sort_order,
             "is_active": item.is_active,
             "post_count": item.post_count,
@@ -705,12 +706,33 @@ def delete_category(category_id: int, admin: User = Depends(get_current_admin), 
     category = db.query(Category).filter(Category.id == category_id).first()
     if category is None:
         raise HTTPException(status_code=404, detail="板块不存在")
-    if category.post_count > 0:
-        category.is_active = False
-    else:
-        db.delete(category)
+    # 先级联处理子板块：将子板块的 parent_id 置空，提升为顶级分区
+    from app.models.content import Post
+    child_ids = [c.id for c in (category.children or [])]
+    if child_ids:
+        db.query(Category).filter(Category.id.in_(child_ids)).update(
+            {"parent_id": None}, synchronize_session=False
+        )
+    # 再清空关联帖子的 category_id
+    db.query(Post).filter(Post.category_id == category_id).update(
+        {"category_id": None}
+    )
+    db.delete(category)
     db.commit()
     return Response(status_code=204)
+
+
+@router.post("/admin/categories/reorder")
+def reorder_categories(admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """重新排序板块：顶级分区按排序，各分区下子板块独立排序。"""
+    sections = db.query(Category).filter(Category.parent_id.is_(None)).order_by(Category.sort_order, Category.id).all()
+    for i, sec in enumerate(sections):
+        sec.sort_order = i + 1
+        children = db.query(Category).filter(Category.parent_id == sec.id).order_by(Category.sort_order, Category.id).all()
+        for j, child in enumerate(children):
+            child.sort_order = j + 1
+    db.commit()
+    return ApiResponse(code=200, message="排序已更新")
 
 
 @router.get("/admin/reports")

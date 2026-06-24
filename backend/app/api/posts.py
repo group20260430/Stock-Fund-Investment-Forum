@@ -181,19 +181,36 @@ def _replace_children(post: Post, data: PostCreate) -> None:
 
 @router.get("/categories")
 def list_categories(db: Session = Depends(get_db)):
-    categories = db.query(Category).filter(Category.is_active.is_(True)).order_by(Category.sort_order, Category.id).all()
+    """获取板块列表（树形结构：顶级分区 → 子板块）。"""
+    sections = (
+        db.query(Category)
+        .filter(Category.is_active.is_(True), Category.parent_id.is_(None))
+        .order_by(Category.sort_order, Category.id)
+        .all()
+    )
     return ApiResponse(
         code=200,
         message="success",
         data=[
             {
-                "id": item.id,
-                "name": item.name,
-                "description": item.description,
-                "sort_order": item.sort_order,
-                "post_count": item.post_count,
+                "id": s.id,
+                "name": s.name,
+                "description": s.description,
+                "sort_order": s.sort_order,
+                "post_count": s.post_count,
+                "children": [
+                    {
+                        "id": c.id,
+                        "name": c.name,
+                        "description": c.description,
+                        "sort_order": c.sort_order,
+                        "post_count": c.post_count,
+                    }
+                    for c in sorted(s.children or [], key=lambda x: (x.sort_order, x.id))
+                    if c.is_active
+                ],
             }
-            for item in categories
+            for s in sections
         ],
     )
 

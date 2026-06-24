@@ -1,16 +1,21 @@
 <script setup>
 import { onMounted, ref } from 'vue'
-
-import { fetchPosts } from '../api/posts'
+import { fetchPosts, fetchCategories } from '../api/posts'
 import PostCard from '../components/PostCard.vue'
 
 const posts = ref([])
+const sections = ref([])
 const loading = ref(true)
 const error = ref('')
 
 onMounted(async () => {
   try {
-    posts.value = await fetchPosts()
+    const [postsData, catsData] = await Promise.all([
+      fetchPosts(),
+      fetchCategories(),
+    ])
+    posts.value = postsData || []
+    sections.value = Array.isArray(catsData) ? catsData : []
   } catch (err) {
     error.value = err.message
   } finally {
@@ -27,11 +32,15 @@ onMounted(async () => {
         <span>Stock & Fund Forum</span>
       </div>
       <nav class="nav-list" aria-label="论坛板块">
-        <a class="active" href="#">综合讨论</a>
-        <a href="#">股票市场</a>
-        <a href="#">基金投资</a>
-        <a href="#">问答求助</a>
-        <a href="#">投资策略</a>
+        <div v-for="sec in sections" :key="sec.id" class="nav-section-group">
+          <strong class="nav-section-title">{{ sec.name }}</strong>
+          <router-link
+            v-for="child in sec.children"
+            :key="child.id"
+            :to="`/categories/${child.id}`"
+            class="nav-child-link"
+          >{{ child.name }}</router-link>
+        </div>
       </nav>
     </aside>
 

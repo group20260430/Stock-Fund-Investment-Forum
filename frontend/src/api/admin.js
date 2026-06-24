@@ -50,6 +50,11 @@ export function deleteCategory(id) {
   return api.delete(`/admin/categories/${id}`)
 }
 
+/** 重新排序板块 */
+export function reorderCategories() {
+  return api.post('/admin/categories/reorder')
+}
+
 /** 举报列表 */
 export function fetchReports(params) {
   return api.get('/admin/reports', params)

@@ -1,7 +1,8 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
+import { fetchCategories } from '../../api/posts'
 import AppIcon from './AppIcon.vue'
 
 const router = useRouter()
@@ -10,53 +11,32 @@ const auth = useAuthStore()
 
 const showMobileMenu = defineModel('showMobileMenu', { type: Boolean, default: false })
 
-// 论坛板块 — 市场讨论区 / 主题专区 / 公司研究专区 / 问答求助区
-const forumSections = [
-  {
-    label: '市场讨论区', icon: 'stock',
-    items: [
-      { label: 'A股', to: '/categories/12' },
-      { label: '港股', to: '/categories/13' },
-      { label: '美股', to: '/categories/14' },
-      { label: '期货', to: '/categories/15' },
-    ],
-  },
-  {
-    label: '主题专区', icon: 'discuss',
-    items: [
-      { label: '价值投资', to: '/categories/16' },
-      { label: '量化投资', to: '/categories/17' },
-      { label: '基金投资', to: '/categories/3' },
-      { label: '新股/新债', to: '/categories/19' },
-      { label: '宏观策略', to: '/categories/20' },
-    ],
-  },
-  {
-    label: '公司研究专区', icon: 'strategy',
-    items: [
-      { label: '科技公司', to: '/categories/6' },
-      { label: '金融公司', to: '/categories/7' },
-      { label: '医药公司', to: '/categories/8' },
-      { label: '消费公司', to: '/categories/9' },
-      { label: '新能源', to: '/categories/10' },
-      { label: '制造业', to: '/categories/11' },
-    ],
-  },
-  {
-    label: '问答求助区', icon: 'question',
-    items: [
-      { label: '新手提问', to: '/categories/21' },
-      { label: '投资解惑', to: '/categories/22' },
-    ],
-  },
-]
-
+const forumSections = ref([])
 const expandedSections = ref([])
 
-function toggleSection(label) {
-  const idx = expandedSections.value.indexOf(label)
+onMounted(async () => {
+  await loadSections()
+})
+
+// 用 key 强制重新挂载，保证从其他页面返回时刷新
+const refreshKey = ref(0)
+async function loadSections() {
+  try {
+    const data = await fetchCategories()
+    forumSections.value = Array.isArray(data) ? data : []
+  } catch {
+    forumSections.value = []
+  }
+  // 默认展开第一个分区
+  if (forumSections.value.length > 0 && expandedSections.value.length === 0) {
+    expandedSections.value.push(forumSections.value[0].name)
+  }
+}
+
+function toggleSection(name) {
+  const idx = expandedSections.value.indexOf(name)
   if (idx >= 0) expandedSections.value.splice(idx, 1)
-  else expandedSections.value.push(label)
+  else expandedSections.value.push(name)
 }
 
 const discoverItems = [
@@ -116,22 +96,22 @@ function onNavClick() {
     <!-- ===== 论坛板块 ===== -->
       <div class="nav-section">
         <div class="nav-section__label">论坛板块</div>
-        <div v-for="sec in forumSections" :key="sec.label" class="nav-group">
-          <button class="nav-group__header" @click="toggleSection(sec.label)">
-            <AppIcon :name="sec.icon" :size="16" />
-            <span>{{ sec.label }}</span>
-            <span class="nav-group__arrow" :class="{ open: expandedSections.includes(sec.label) }">&#9662;</span>
+        <div v-for="sec in forumSections" :key="sec.id" class="nav-group">
+          <button class="nav-group__header" @click="toggleSection(sec.name)">
+            <AppIcon name="stock" :size="16" />
+            <span>{{ sec.name }}</span>
+            <span class="nav-group__arrow" :class="{ open: expandedSections.includes(sec.name) }">&#9662;</span>
           </button>
-          <div v-if="expandedSections.includes(sec.label)" class="nav-group__body">
+          <div v-if="expandedSections.includes(sec.name)" class="nav-group__body">
             <router-link
-              v-for="item in sec.items"
-              :key="item.label"
-              :to="{ path: item.to, query: item.query }"
-              :class="['nav-item nav-item--child', { active: route.path === item.to }]"
+              v-for="child in sec.children"
+              :key="child.id"
+              :to="`/categories/${child.id}`"
+              :class="['nav-item nav-item--child', { active: route.path === `/categories/${child.id}` }]"
               @click="onNavClick()"
             >
               <span class="nav-item__dot" />
-              {{ item.label }}
+              {{ child.name }}
             </router-link>
           </div>
         </div>
