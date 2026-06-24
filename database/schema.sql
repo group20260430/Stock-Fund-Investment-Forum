@@ -712,12 +712,32 @@ CREATE TABLE IF NOT EXISTS sensitive_words (
   COMMENT='敏感词库表';
 
 
+-- ----------------------------------------------------------------------------
+-- 26. compliance_rules — 合规检查规则表
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS compliance_rules (
+  id              BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT  COMMENT '规则ID',
+  name            VARCHAR(100)    NOT NULL                     COMMENT '规则名称',
+  category        ENUM('stock_recommendation','market_manipulation')
+                                  NOT NULL                     COMMENT '检测类别',
+  pattern         VARCHAR(500)    NOT NULL                     COMMENT '正则表达式模式',
+  severity        ENUM('block','review','warn')
+                                  NOT NULL DEFAULT 'review'    COMMENT '触发级别',
+  description     VARCHAR(255)    NULL                         COMMENT '规则说明',
+  is_active       TINYINT(1)     NOT NULL DEFAULT 1            COMMENT '是否启用',
+  created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '添加时间',
+
+  INDEX idx_cr_category_active (category, is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='合规检查规则表';
+
+
 -- ============================================================================
 -- 模块5: 统计与日志系统 (Statistics & Logging) — 1 table
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
--- 26. daily_stats — 每日统计表
+-- 27. daily_stats — 每日统计表
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS daily_stats (
   id              BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT  COMMENT '统计ID',
@@ -738,7 +758,7 @@ CREATE TABLE IF NOT EXISTS daily_stats (
   COMMENT='每日统计表';
 
 -- ----------------------------------------------------------------------------
--- 27. user_activity_log — 用户活动日志表
+-- 28. user_activity_log — 用户活动日志表
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS user_activity_log (
   id              BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT  COMMENT '日志ID',

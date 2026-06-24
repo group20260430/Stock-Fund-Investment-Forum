@@ -1624,6 +1624,106 @@ Accept: application/json
 
 ---
 
+### 6.5 合规检查
+
+---
+
+#### POST /admin/compliance/check — 对文本执行合规检查
+
+**请求头：** `Authorization: Bearer <token>`（管理员）
+
+**请求体：**
+```json
+{
+  "text": "明天000001必涨，大家赶紧买入"
+}
+```
+
+**成功响应 (200)：**
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "level": "review",
+    "should_block": false,
+    "should_review": true,
+    "matches": [
+      {
+        "rule_id": 5,
+        "rule_name": "股票代码推广",
+        "category": "stock_recommendation",
+        "severity": "review",
+        "matched_text": "000001 明天...必涨",
+        "description": "股票代码+促销语言"
+      }
+    ],
+    "categories": ["stock_recommendation"]
+  }
+}
+```
+
+#### GET /admin/compliance/rules — 列出合规规则
+
+**请求头：** `Authorization: Bearer <token>`（管理员）
+
+**成功响应 (200)：**
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {
+      "id": 1,
+      "name": "推荐买入",
+      "category": "stock_recommendation",
+      "pattern": "推荐买入|建议买入|强烈推荐|可以买入|逢低买入",
+      "severity": "review",
+      "description": "明确推荐买入某股票",
+      "is_active": true,
+      "created_at": "2026-06-24T10:00:00"
+    }
+  ]
+}
+```
+
+#### POST /admin/compliance/rules — 创建合规规则
+
+**请求头：** `Authorization: Bearer <token>`（管理员）
+
+**请求体：**
+```json
+{
+  "name": "推荐买入",
+  "category": "stock_recommendation",
+  "pattern": "推荐买入|建议买入|强烈推荐",
+  "severity": "review",
+  "description": "明确推荐买入某股票"
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `category` | string | Y | `stock_recommendation` / `market_manipulation` |
+| `severity` | string | N | `block` / `review` / `warn`（默认 `review`） |
+
+**成功响应 (201)：**
+```json
+{
+  "code": 201,
+  "message": "合规规则创建成功",
+  "data": {"id": 1}
+}
+```
+
+#### DELETE /admin/compliance/rules/{id} — 删除合规规则
+
+**请求头：** `Authorization: Bearer <token>`（管理员）
+
+**成功响应 (204)：** 无内容
+
+---
+
 ## 七、前后端对接规范
 
 ### 7.1 前端请求封装示例
@@ -1806,6 +1906,10 @@ JWT_EXPIRE_HOURS=24
 | | POST | /admin/categories | 创建板块 | Admin |
 | | PUT | /admin/categories/{id} | 编辑板块 | Admin |
 | | DELETE | /admin/categories/{id} | 删除板块 | Admin |
+| | POST | /admin/compliance/check | 合规检查 | Admin |
+| | GET | /admin/compliance/rules | 合规规则列表 | Admin |
+| | POST | /admin/compliance/rules | 创建合规规则 | Admin |
+| | DELETE | /admin/compliance/rules/{id} | 删除合规规则 | Admin |
 | **系统** | GET | /health | 健康检查 | N |
 
 ---

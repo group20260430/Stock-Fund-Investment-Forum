@@ -2489,6 +2489,102 @@ paths:
         "204":
           description: 删除成功
 
+  # ==================== 合规检查 ====================
+  /api/admin/compliance/check:
+    post:
+      tags:
+        - 管理运营系统
+      summary: 对文本执行合规检查
+      operationId: adminComplianceCheck
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+                  minLength: 1
+                  maxLength: 10000
+                  description: 待检测文本
+      responses:
+        "200":
+          description: 合规检查结果
+
+  /api/admin/compliance/rules:
+    get:
+      tags:
+        - 管理运营系统
+      summary: 列出合规规则
+      operationId: adminListComplianceRules
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: 合规规则列表
+    post:
+      tags:
+        - 管理运营系统
+      summary: 创建合规规则
+      operationId: adminCreateComplianceRule
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, category, pattern]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                category:
+                  type: string
+                  enum: [stock_recommendation, market_manipulation]
+                pattern:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                severity:
+                  type: string
+                  enum: [block, review, warn]
+                  default: review
+                description:
+                  type: string
+                  maxLength: 255
+      responses:
+        "201":
+          description: 规则创建成功
+        "400":
+          description: 正则表达式无效
+
+  /api/admin/compliance/rules/{rule_id}:
+    delete:
+      tags:
+        - 管理运营系统
+      summary: 删除合规规则
+      operationId: adminDeleteComplianceRule
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: rule_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: 删除成功
+        "404":
+          description: 规则不存在
+
   # ==================== 系统 ====================
   /api/health:
     get:

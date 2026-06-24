@@ -138,3 +138,25 @@ class UserActivityLog(Base):
     target_type: Mapped[str | None] = mapped_column(String(20))
     target_id: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP, server_default=func.now(), index=True)
+
+
+class ComplianceCategory(str, enum.Enum):
+    STOCK_RECOMMENDATION = "stock_recommendation"
+    MARKET_MANIPULATION = "market_manipulation"
+
+
+class ComplianceRule(Base):
+    __tablename__ = "compliance_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False, comment="规则名称")
+    category: Mapped[ComplianceCategory] = mapped_column(
+        Enum(ComplianceCategory), nullable=False, comment="检测类别"
+    )
+    pattern: Mapped[str] = mapped_column(String(500), nullable=False, comment="正则表达式模式")
+    severity: Mapped[SensitiveLevel] = mapped_column(
+        Enum(SensitiveLevel), default=SensitiveLevel.REVIEW, nullable=False, comment="触发级别"
+    )
+    description: Mapped[str | None] = mapped_column(String(255), comment="规则说明")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP, server_default=func.now())

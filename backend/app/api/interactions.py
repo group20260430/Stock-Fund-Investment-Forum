@@ -27,6 +27,7 @@ from app.services.mention_service import (
 )
 from app.services.points_service import award_points
 from app.services.sensitive_word_service import check_sensitive_texts
+from app.services.compliance_service import check_compliance
 
 router = APIRouter(tags=["interactions"])
 
@@ -115,13 +116,14 @@ def create_comment(
     sensitive_result = check_sensitive_texts(db, [data.content])
     if sensitive_result.should_block:
         raise HTTPException(status_code=400, detail="内容包含禁止发布的敏感词")
+    compliance_result = check_compliance(db, [data.content])
     comment = Comment(
         post_id=post_id,
         user_id=user.id,
         parent_id=parent.id if parent else None,
         reply_to_id=data.reply_to_id,
         content=data.content.strip(),
-        status=CommentStatus.REVIEWING if sensitive_result.should_review else CommentStatus.PUBLISHED,
+        status=CommentStatus.REVIEWING if sensitive_result.should_review or compliance_result.should_review else CommentStatus.PUBLISHED,
     )
     db.add(comment)
     db.flush()

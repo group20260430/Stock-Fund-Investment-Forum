@@ -32,6 +32,8 @@ from app.models.content import (
 )
 from app.models.operations import (
     BanRecord,
+    ComplianceCategory,
+    ComplianceRule,
     DailyStat,
     Report,
     ReviewLog,
@@ -50,6 +52,8 @@ __all__ = [
     "Category",
     "Certification",
     "Comment",
+    "ComplianceCategory",
+    "ComplianceRule",
     "DailyStat",
     "Favorite",
     "FavoriteFolder",

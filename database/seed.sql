@@ -143,7 +143,27 @@ ON DUPLICATE KEY UPDATE
   category = VALUES(category);
 
 -- ============================================================================
--- 8. 收藏文件夹和收藏示例
+-- 8. 合规检查规则初始化
+-- ============================================================================
+INSERT INTO compliance_rules (name, category, pattern, severity, description) VALUES
+  ('推荐买入',          'stock_recommendation',    '推荐买入|建议买入|强烈推荐|可以买入|逢低买入',         'review',  '明确推荐买入某股票'),
+  ('卖出建议',          'stock_recommendation',    '赶紧卖出|尽快卖出|清仓|必须卖出|止损出局',               'review',  '明确建议卖出'),
+  ('价格预测',          'stock_recommendation',    '目标价\s*\d+|[看涨看跌]到\s*\d+|[能会]涨到\s*\d+',      'warn',    '具体价格预测'),
+  ('收益承诺',          'stock_recommendation',    '已[经赚]了\s*\d+%|[赚盈]了\s*\d+个点|跟上的[都全]?吃', 'review',  '承诺/暗示收益'),
+  ('股票代码推广',      'stock_recommendation',    '\d{6}\s*(明天|下周|即将|必涨|大涨)',                    'review',  '股票代码+促销语言'),
+  ('喊单买入',          'stock_recommendation',    '代码\s*\d{6}|加自?选|[私内]幕\s*[消讯]息',              'review',  '喊单/内幕消息'),
+  ('集合买入信号',      'market_manipulation',     '大家[一起同时][买入做多]|集合竞价[买入做多]|一起[买搞]入', 'review',  '协调买入信号'),
+  ('拉高出货',          'market_manipulation',     '拉[高升]出[货仓]|对倒|对敲|自买自卖',                     'review',  '拉升出货/pump and dump'),
+  ('逼仓用语',          'market_manipulation',     '最后[的]?机会|赶紧上车|来不及了|错过[这]?次',             'warn',    'FOMO/逼仓语言'),
+  ('涨停预测',          'stock_recommendation',    '明天[必一定会]?涨停|下周[必一定会]?涨|明天大涨',          'review',  '具体涨停预测'),
+  ('成交量操纵暗示',    'market_manipulation',     '放量[拉推]升|对倒[拉]?[升高]|成交量[会]?放大',            'warn',    '成交量操纵暗示'),
+  ('绝对收益保证',      'stock_recommendation',    '保证[能会]?[赚盈]|稳[赚盈]不赔|包[赚盈]|零风险',          'block',   '绝对收益保证')
+ON DUPLICATE KEY UPDATE
+  pattern = VALUES(pattern),
+  severity = VALUES(severity);
+
+-- ============================================================================
+-- 9. 收藏文件夹和收藏示例
 -- ============================================================================
 INSERT INTO favorite_folders (user_id, name)
 SELECT u.id, '基金分析'

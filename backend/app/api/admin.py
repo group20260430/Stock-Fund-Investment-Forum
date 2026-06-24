@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta, timezone
+import re
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import func, or_
@@ -11,6 +12,8 @@ from app.models.content import Category, Comment, CommentStatus, Like, Post, Pos
 from app.models.operations import (
     BanAction,
     BanRecord,
+    ComplianceCategory,
+    ComplianceRule,
     Report,
     ReportReason,
     ReportStatus,
@@ -27,12 +30,15 @@ from app.schemas.operations import (
     BanRequest,
     CategoryRequest,
     CertificationReviewRequest,
+    ComplianceCheckRequest,
+    ComplianceRuleCreate,
     ReportCreate,
     ReportHandleRequest,
     ReviewRequest,
     SensitiveWordRequest,
 )
 from app.schemas.user import ApiResponse
+from app.services.compliance_service import check_compliance_single_text
 
 router = APIRouter(tags=["admin"])
 
@@ -751,3 +757,94 @@ def activity_logs(
         ],
         "total": total, "page": page, "size": size,
     })
+
+
+# ── 合规检查 ──
+
+
+@router.post("/admin/compliance/check")
+def compliance_check(
+    data: ComplianceCheckRequest,
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """手动对一段文本运行合规检查，返回匹配结果。"""
+    result = check_compliance_single_text(db, data.text)
+    return ApiResponse(code=200, message="success", data={
+        "level": result.level.value if result.level else None,
+        "should_block": result.should_block,
+        "should_review": result.should_review,
+        "matches": [
+            {
+                "rule_id": m.rule_id,
+                "rule_name": m.rule_name,
+                "category": m.category.value,
+                "severity": m.severity.value,
+                "matched_text": m.matched_text,
+                "description": m.description,
+            }
+            for m in result.matches
+        ],
+        "categories": result.categories,
+    })
+
+
+@router.get("/admin/compliance/rules")
+def list_compliance_rules(
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """列出所有合规检查规则。"""
+    rules = db.query(ComplianceRule).order_by(ComplianceRule.created_at.desc()).all()
+    return ApiResponse(code=200, message="success", data=[
+        {
+            "id": r.id,
+            "name": r.name,
+            "category": r.category.value,
+            "pattern": r.pattern,
+            "severity": r.severity.value,
+            "description": r.description,
+            "is_active": r.is_active,
+            "created_at": r.created_at,
+        }
+        for r in rules
+    ])
+
+
+@router.post("/admin/compliance/rules", status_code=201)
+def create_compliance_rule(
+    data: ComplianceRuleCreate,
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """创建一条新的合规检查规则。"""
+    # 校验正则表达式有效性
+    try:
+        re.compile(data.pattern)
+    except re.error as e:
+        raise HTTPException(status_code=400, detail=f"正则表达式无效: {e.msg}")
+    rule = ComplianceRule(
+        name=data.name,
+        category=ComplianceCategory(data.category),
+        pattern=data.pattern,
+        severity=SensitiveLevel(data.severity),
+        description=data.description,
+    )
+    db.add(rule)
+    db.commit()
+    return ApiResponse(code=201, message="合规规则创建成功", data={"id": rule.id})
+
+
+@router.delete("/admin/compliance/rules/{rule_id}", status_code=204)
+def delete_compliance_rule(
+    rule_id: int,
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """删除一条合规检查规则。"""
+    rule = db.query(ComplianceRule).filter(ComplianceRule.id == rule_id).first()
+    if rule is None:
+        raise HTTPException(status_code=404, detail="合规规则不存在")
+    db.delete(rule)
+    db.commit()
+    return Response(status_code=204)

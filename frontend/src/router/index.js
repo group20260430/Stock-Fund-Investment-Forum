@@ -32,6 +32,7 @@ const routes = [
   { path: "/admin/users", name: "admin-users", component: () => import("../views/admin/UserManagement.vue"), meta: { requiresAuth: true, requiresAdmin: true } },
   { path: "/admin/certifications", name: "admin-certifications", component: () => import("../views/admin/Certifications.vue"), meta: { requiresAuth: true, requiresAdmin: true } },
   { path: "/admin/sensitive-words", name: "admin-sensitive-words", component: () => import("../views/admin/SensitiveWords.vue"), meta: { requiresAuth: true, requiresAdmin: true } },
+  { path: "/admin/compliance", name: "admin-compliance", component: () => import("../views/admin/Compliance.vue"), meta: { requiresAuth: true, requiresAdmin: true } },
   { path: "/admin/logs", name: "admin-logs", component: () => import("../views/admin/ActivityLogs.vue"), meta: { requiresAuth: true, requiresAdmin: true } },
   { path: "/admin/categories", name: "admin-categories", component: () => import("../views/admin/Categories.vue"), meta: { requiresAuth: true, requiresAdmin: true } },
   { path: "/admin/hot-topics", name: "admin-hot-topics", component: () => import("../views/admin/HotTopics.vue"), meta: { requiresAuth: true, requiresAdmin: true } },

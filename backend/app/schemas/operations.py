@@ -49,3 +49,15 @@ class SensitiveWordRequest(BaseModel):
 class CertificationReviewRequest(BaseModel):
     action: Literal["approve", "reject"]
     comment: str | None = Field(None, max_length=500)
+
+
+class ComplianceCheckRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=10000)
+
+
+class ComplianceRuleCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    category: Literal["stock_recommendation", "market_manipulation"]
+    pattern: str = Field(..., min_length=1, max_length=500)
+    severity: Literal["block", "review", "warn"] = "review"
+    description: str | None = Field(None, max_length=255)

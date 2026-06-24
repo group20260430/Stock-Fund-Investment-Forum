@@ -28,6 +28,7 @@ from app.services.mention_service import (
 )
 from app.services.points_service import award_points
 from app.services.sensitive_word_service import check_sensitive_texts
+from app.services.compliance_service import check_compliance
 from app.models.user import User, UserRole
 from app.schemas.content import PostCreate, PostUpdate, VoteRequest
 from app.schemas.user import ApiResponse
@@ -238,9 +239,10 @@ def create_post(data: PostCreate, user: User = Depends(get_current_user), db: Se
     sensitive_result = check_sensitive_texts(db, [data.title, data.content])
     if sensitive_result.should_block:
         raise HTTPException(status_code=400, detail="内容包含禁止发布的敏感词")
+    compliance_result = check_compliance(db, [data.title, data.content])
     duplicate_result = check_duplicate_post_content(db, user.id, data.title, data.content)
     if duplicate_result.should_block:
-        raise HTTPException(status_code=400, detail="鍐呭鐤戜技閲嶅鍙戝竷锛岃鍕块噸澶嶆彁浜?")
+        raise HTTPException(status_code=400, detail="内容疑似重复发布，请勿重复提交")
     post = Post(
         user_id=user.id,
         category_id=data.category_id,
@@ -249,7 +251,7 @@ def create_post(data: PostCreate, user: User = Depends(get_current_user), db: Se
         post_type=PostType(data.post_type),
         status=(
             PostStatus.REVIEWING
-            if sensitive_result.should_review or duplicate_result.should_review
+            if sensitive_result.should_review or compliance_result.should_review or duplicate_result.should_review
             else PostStatus(data.status)
         ),
         tags=data.tags,

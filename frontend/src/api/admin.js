@@ -99,3 +99,23 @@ export function fetchHotTopics(params) {
 export function fetchEngagementReport(params) {
   return api.get('/admin/stats/engagement', params)
 }
+
+/** 合规检查：对文本执行合规检测 */
+export function checkCompliance(data) {
+  return api.post('/admin/compliance/check', data)
+}
+
+/** 合规规则列表 */
+export function fetchComplianceRules() {
+  return api.get('/admin/compliance/rules')
+}
+
+/** 添加合规规则 */
+export function addComplianceRule(data) {
+  return api.post('/admin/compliance/rules', data)
+}
+
+/** 删除合规规则 */
+export function deleteComplianceRule(id) {
+  return api.delete(`/admin/compliance/rules/${id}`)
+}
