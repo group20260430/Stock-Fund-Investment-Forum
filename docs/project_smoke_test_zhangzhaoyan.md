@@ -24,7 +24,7 @@ python run_backend_tests.py
 结果：
 
 ```text
-RESULTS: 9 passed, 0 failed
+RESULTS: 10 passed, 0 failed
 ```
 
 覆盖：
@@ -34,6 +34,7 @@ RESULTS: 9 passed, 0 failed
 * 搜索/发现测试
 * 社交/群组测试
 * 敏感词过滤测试
+* 用户参与度报告测试
 * 重复内容检测测试
 * 端到端 E2E 测试
 
@@ -52,7 +53,7 @@ npm run build
 * 前端生产构建通过
 * 已补齐 Markdown 渲染相关依赖 `marked` / `dompurify`
 * 已清理 `auth.js` / `comments.js` 的动态导入与静态导入混用 warning
-* 仍存在 Vite chunk size 非阻塞 warning，不影响本次 build 通过
+* 当前仍存在 `auth.js` mixed import 非阻塞 warning，不影响本次 build 通过
 
 ## 5. 已知边界
 
