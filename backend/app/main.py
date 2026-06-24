@@ -37,7 +37,7 @@ import app.models.points  # noqa: F401
 
 def seed_admin() -> None:
     """Create an initial admin user from environment settings (dev convenience)."""
-    if settings.database_url != "sqlite:///./stock_fund_forum.db":
+    if not settings.database_url.startswith("sqlite"):
         return
 
     from app.core.security import get_password_hash
@@ -131,7 +131,7 @@ def seed_categories() -> None:
 
 def seed_demo_content() -> None:
     """Restore the original demo posts as real SQLite rows for local development."""
-    if settings.database_url != "sqlite:///./stock_fund_forum.db":
+    if not settings.database_url.startswith("sqlite"):
         return
 
     from app.core.security import get_password_hash

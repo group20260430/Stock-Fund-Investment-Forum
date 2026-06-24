@@ -65,6 +65,10 @@ class Settings(BaseSettings):
     )
 
     @property
+    def use_sqlite(self) -> bool:
+        return self.database_url.startswith("sqlite")
+
+    @property
     def access_token_expire_seconds(self) -> int:
         return self.access_token_expire_hours * 3600
 

@@ -1,0 +1,39 @@
+# =====================================================
+# Render Blueprint — 一键部署后端 + 前端
+# =====================================================
+services:
+  # ── 后端 FastAPI ──
+  - type: web
+    name: stock-forum-api
+    env: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        value: sqlite:///./data/stock_fund_forum.db
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        value: '["https://stock-fund-forum.pages.dev","http://localhost:5173"]'
+      - key: ALLOWED_ORIGIN_REGEX
+        value: r"https?://.*\.pages\.dev"
+      - key: ADMIN_PHONE
+        value: "13800000000"
+      - key: ADMIN_EMAIL
+        value: admin@forum.local
+      - key: ADMIN_PASSWORD
+        value: Admin@123456
+      - key: ADMIN_NICKNAME
+        value: 系统管理员
+
+  # ── 前端 Vue 3 ──
+  - type: web
+    name: stock-forum-frontend
+    env: node
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npx vite preview --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://stock-forum-api.onrender.com/api

@@ -1,4 +1,5 @@
 from collections.abc import Generator
+from pathlib import Path
 
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
@@ -11,6 +12,11 @@ _is_sqlite = settings.database_url.startswith("sqlite")
 _connect_args: dict = {}
 if _is_sqlite:
     _connect_args["check_same_thread"] = False
+    # Ensure the SQLite directory exists (Render persistence)
+    _db_path = settings.database_url.replace("sqlite:///", "")
+    if not _db_path.startswith("/"):
+        _db_path = str(Path(__file__).resolve().parent.parent.parent / _db_path)
+    Path(_db_path).parent.mkdir(parents=True, exist_ok=True)
 
 engine = create_engine(
     settings.database_url,
