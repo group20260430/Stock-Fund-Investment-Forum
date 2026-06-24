@@ -1724,6 +1724,70 @@ Accept: application/json
 
 ---
 
+### 6.6 重复内容检测
+
+---
+
+#### POST /admin/duplicate-content/scan — 扫描重复内容
+
+**请求头：** `Authorization: Bearer <token>`（管理员）
+
+**请求体：**
+```json
+{
+  "text": "可选：要检测的文本内容",
+  "start_date": "2026-06-01",
+  "end_date": "2026-06-24"
+}
+```
+
+**成功响应 (200)：**
+```json
+{
+  "code": 200,
+  "message": "扫描完成",
+  "data": {
+    "total_posts_scanned": 150,
+    "pairs": [],
+    "scanned_at": "2026-06-24T12:00:00"
+  }
+}
+```
+
+#### GET /admin/duplicate-content/stats — 重复内容统计
+
+**请求头：** `Authorization: Bearer <token>`（管理员）
+
+**成功响应 (200)：** 返回 total_blocked、total_flagged、recent_posts_scanned、by_similarity（精确/高度/中度重复分布）。
+
+---
+
+### 6.7 用户行为监控
+
+---
+
+#### GET /admin/activity-logs — 活动日志（已增强）
+
+**新增查询参数：** `user_id`、`activity_type`（login/post/comment/like/follow/unfollow/share/vote）、`start_date`、`end_date`。响应新增 `user_nickname` 字段。
+
+#### GET /admin/behavior/user-summary — 用户行为汇总
+
+**查询参数：** `?page=1&size=20&sort_by=total_actions&sort_order=desc`
+
+返回按用户聚合的活动统计：昵称、头像、各类操作计数、最后活跃时间、发帖频率(每周)、注册天数、状态。
+
+#### GET /admin/behavior/user/{user_id}/timeline — 用户活动时间线
+
+**查询参数：** `?days=7`（1-90天）
+
+返回用户基本信息 + 按天分组的活动统计 + 最近50条原始记录。
+
+#### GET /admin/behavior/suspicious — 异常行为检测
+
+检测三类异常：高频发帖(24h>20帖)、新账号高活跃(<7天且>50操作)、多次封禁(≥3次)。返回用户列表含模式类型和严重级别。
+
+---
+
 ## 七、前后端对接规范
 
 ### 7.1 前端请求封装示例
@@ -1910,6 +1974,11 @@ JWT_EXPIRE_HOURS=24
 | | GET | /admin/compliance/rules | 合规规则列表 | Admin |
 | | POST | /admin/compliance/rules | 创建合规规则 | Admin |
 | | DELETE | /admin/compliance/rules/{id} | 删除合规规则 | Admin |
+| | POST | /admin/duplicate-content/scan | 扫描重复内容 | Admin |
+| | GET | /admin/duplicate-content/stats | 重复内容统计 | Admin |
+| | GET | /admin/behavior/user-summary | 用户行为汇总 | Admin |
+| | GET | /admin/behavior/user/{id}/timeline | 用户活动时间线 | Admin |
+| | GET | /admin/behavior/suspicious | 异常行为检测 | Admin |
 | **系统** | GET | /health | 健康检查 | N |
 
 ---

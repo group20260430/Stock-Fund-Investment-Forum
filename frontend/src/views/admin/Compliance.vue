@@ -84,6 +84,8 @@ const severityLabel = (sev) => ({ block: '屏蔽', review: '审核', warn: '警�
       <router-link to="/admin/certifications" class="admin-nav__item">认证审核</router-link>
       <router-link to="/admin/sensitive-words" class="admin-nav__item">敏感词</router-link>
       <router-link to="/admin/compliance" class="admin-nav__item admin-nav__item--active">合规检查</router-link>
+      <router-link to="/admin/duplicate-content" class="admin-nav__item">重复检测</router-link>
+      <router-link to="/admin/behavior" class="admin-nav__item">行为监控</router-link>
       <router-link to="/admin/logs" class="admin-nav__item">操作日志</router-link>
       <router-link to="/admin/hot-topics" class="admin-nav__item">热门话题分析</router-link>
       <router-link to="/admin/engagement" class="admin-nav__item">用户参与度</router-link>

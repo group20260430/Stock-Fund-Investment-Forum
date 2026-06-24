@@ -2,7 +2,7 @@ from datetime import date, datetime, timedelta, timezone
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, desc
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_admin, get_current_user
@@ -10,7 +10,9 @@ from app.db.session import get_db
 from app.models.certification import Certification, CertificationStatus
 from app.models.professional_certification import ProfessionalCertification, ProfessionalCertStatus
 from app.models.content import Category, Comment, CommentStatus, Like, Post, PostStatus, Share
+from app.models.notification import Notification, NotificationType
 from app.models.operations import (
+    ActivityType,
     BanAction,
     BanRecord,
     ComplianceCategory,
@@ -33,15 +35,32 @@ from app.schemas.operations import (
     CertificationReviewRequest,
     ComplianceCheckRequest,
     ComplianceRuleCreate,
+    DuplicateScanRequest,
     ReportCreate,
     ReportHandleRequest,
     ReviewRequest,
     SensitiveWordRequest,
 )
 from app.schemas.user import ApiResponse
-from app.services.compliance_service import check_compliance_single_text
+from app.services.compliance_service import check_compliance, check_compliance_single_text
+from app.services.duplicate_content_service import check_duplicate_post_content
+from app.services.sensitive_word_service import check_sensitive_texts
 
 router = APIRouter(tags=["admin"])
+
+
+def _create_admin_alert(db: Session, title: str, content: str, target_type: str | None = None, target_id: int | None = None) -> None:
+    """向所有管理员推送系统告警通知。"""
+    admins = db.query(User).filter(User.role == UserRole.ADMIN, User.status == UserStatus.ACTIVE).all()
+    for admin in admins:
+        db.add(Notification(
+            user_id=admin.id,
+            type=NotificationType.SYSTEM_ALERT,
+            title=title,
+            content=content[:500],
+            target_type=target_type,
+            target_id=target_id,
+        ))
 
 
 def _validate_report_target(db: Session, target_type: str, target_id: int) -> None:
@@ -88,13 +107,45 @@ def review_queue(
     comment_status = {"pending": CommentStatus.REVIEWING, "approved": CommentStatus.PUBLISHED, "rejected": CommentStatus.REJECTED}[status]
     posts = db.query(Post).filter(Post.status == post_status).all()
     comments = db.query(Comment).filter(Comment.status == comment_status).all()
+
+    def _compute_flags(item, content_type, texts):
+        """Run all content checks to determine why this item was flagged for review."""
+        flags = []
+        title, body = (texts[0], texts[1]) if len(texts) > 1 else (texts[0], None)
+        candidates = [t for t in [title, body] if t]
+        if not candidates:
+            return flags
+        try:
+            sw = check_sensitive_texts(db, candidates)
+            if sw.matched_words:
+                for w in sw.matched_words[:3]:
+                    flags.append(f"sensitive:{w}")
+        except Exception:
+            pass
+        try:
+            comp = check_compliance(db, candidates)
+            for m in comp.matches[:3]:
+                flags.append(f"compliance:{m.rule_name}")
+        except Exception:
+            pass
+        if content_type == "post" and body:
+            try:
+                dup = check_duplicate_post_content(db, item.user_id, title, body)
+                if dup.should_review and dup.similarity:
+                    flags.append(f"duplicate:{int(dup.similarity * 100)}%")
+                elif dup.should_block:
+                    flags.append("duplicate:exact_match")
+            except Exception:
+                pass
+        return flags
+
     items = [
         {
             "id": f"post-{item.id}",
             "content_type": "post",
             "title": item.title,
             "author": {"id": item.author.id, "nickname": item.author.nickname},
-            "flags": [],
+            "flags": _compute_flags(item, "post", [item.title, item.content]),
             "status": status,
             "submitted_at": item.created_at,
         }
@@ -105,7 +156,7 @@ def review_queue(
             "content_type": "comment",
             "title": item.content[:80],
             "author": {"id": item.author.id, "nickname": item.author.nickname},
-            "flags": [],
+            "flags": _compute_flags(item, "comment", [item.content]),
             "status": status,
             "submitted_at": item.created_at,
         }
@@ -261,6 +312,16 @@ def stats_overview(admin: User = Depends(get_current_admin), db: Session = Depen
         {"name": tag, "count": count}
         for tag, count in sorted(tag_counts.items(), key=lambda item: item[1], reverse=True)[:10]
     ]
+    # 系统告警统计
+    alert_count = db.query(Notification).filter(
+        Notification.type == NotificationType.SYSTEM_ALERT,
+        Notification.is_read.is_(False),
+    ).count()
+    suspicious_today = db.query(Notification).filter(
+        Notification.type == NotificationType.SYSTEM_ALERT,
+        func.date(Notification.created_at) == date.today().isoformat(),
+    ).count()
+
     return ApiResponse(code=200, message="success", data={
         "daily_active_users": len(active_ids),
         "new_users_today": _today_count(db, User, User.created_at),
@@ -269,6 +330,8 @@ def stats_overview(admin: User = Depends(get_current_admin), db: Session = Depen
         "pending_review": db.query(Post).filter(Post.status == PostStatus.REVIEWING).count()
         + db.query(Comment).filter(Comment.status == CommentStatus.REVIEWING).count(),
         "reports_today": _today_count(db, Report, Report.created_at),
+        "unread_alerts": alert_count,
+        "suspicious_today": suspicious_today,
         "trend": {"dates": dates, "active_users": active_users, "new_posts": new_posts, "new_comments": new_comments},
         "hot_topics": hot_topics,
         "hot_stocks": [],
@@ -795,16 +858,34 @@ def delete_sensitive_word(word_id: int, admin: User = Depends(get_current_admin)
 def activity_logs(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
+    user_id: int | None = Query(None, ge=1),
+    activity_type: str | None = Query(None, pattern="^(login|post|comment|like|follow|unfollow|share|vote)$"),
+    start_date: date | None = None,
+    end_date: date | None = None,
     admin: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
     query = db.query(UserActivityLog)
+    if user_id:
+        query = query.filter(UserActivityLog.user_id == user_id)
+    if activity_type:
+        query = query.filter(UserActivityLog.activity_type == ActivityType(activity_type))
+    if start_date:
+        query = query.filter(UserActivityLog.created_at >= start_date)
+    if end_date:
+        query = query.filter(UserActivityLog.created_at <= end_date + timedelta(days=1))
     total = query.count()
     logs = query.order_by(UserActivityLog.created_at.desc()).offset((page - 1) * size).limit(size).all()
+    # Resolve user nicknames for the current page
+    uids = list({log.user_id for log in logs})
+    user_map = {u.id: u.nickname for u in db.query(User).filter(User.id.in_(uids)).all()} if uids else {}
     return ApiResponse(code=200, message="success", data={
         "items": [
-            {"id": item.id, "user_id": item.user_id, "activity_type": item.activity_type.value,
-             "target_type": item.target_type, "target_id": item.target_id, "created_at": item.created_at}
+            {"id": item.id, "user_id": item.user_id,
+             "user_nickname": user_map.get(item.user_id),
+             "activity_type": item.activity_type.value,
+             "target_type": item.target_type, "target_id": item.target_id,
+             "created_at": item.created_at}
             for item in logs
         ],
         "total": total, "page": page, "size": size,
@@ -900,3 +981,384 @@ def delete_compliance_rule(
     db.delete(rule)
     db.commit()
     return Response(status_code=204)
+
+
+# ── 重复内容检测 ──
+
+
+@router.post("/admin/duplicate-content/scan")
+def scan_duplicate_content(
+    data: DuplicateScanRequest = DuplicateScanRequest(),
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """扫描重复内容。支持按文本或时间范围扫描。"""
+    text = data.text
+    start_date = data.start_date
+    end_date = data.end_date
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=30)
+    if start_date:
+        cutoff = start_date
+    end = end_date or date.today()
+    end_dt = datetime(end.year, end.month, end.day) + timedelta(days=1)
+
+    posts = db.query(Post).filter(
+        Post.created_at >= cutoff,
+        Post.created_at <= end_dt,
+        Post.status.in_([PostStatus.PUBLISHED, PostStatus.REVIEWING]),
+    ).order_by(Post.created_at.desc()).limit(500).all()
+
+    pairs = []
+    if text and text.strip():
+        from difflib import SequenceMatcher
+        from app.services.duplicate_content_service import _normalize_text
+        normalized_input = _normalize_text(text, text)
+        for post in posts:
+            normalized_post = _normalize_text(post.title, post.content)
+            if len(normalized_input) < 20 or len(normalized_post) < 20:
+                continue
+            sim = round(SequenceMatcher(None, normalized_input, normalized_post).ratio(), 4)
+            if sim >= 0.80:
+                pairs.append({
+                    "source_post_id": None,
+                    "source_title": "输入文本",
+                    "source_author": None,
+                    "matched_post_id": post.id,
+                    "matched_title": post.title[:100],
+                    "matched_author": {"id": post.author.id, "nickname": post.author.nickname} if post.author else None,
+                    "similarity": sim,
+                    "status": "exact_duplicate" if sim >= 0.99 else "near_duplicate",
+                })
+    else:
+        from difflib import SequenceMatcher
+        from app.services.duplicate_content_service import _normalize_text
+        posts_by_user: dict[int, list] = {}
+        for post in posts:
+            posts_by_user.setdefault(post.user_id, []).append(post)
+        for uid, user_posts in posts_by_user.items():
+            for i in range(len(user_posts)):
+                for j in range(i + 1, len(user_posts)):
+                    a, b = user_posts[i], user_posts[j]
+                    na = _normalize_text(a.title, a.content)
+                    nb = _normalize_text(b.title, b.content)
+                    if len(na) < 20 or len(nb) < 20:
+                        continue
+                    sim = round(SequenceMatcher(None, na, nb).ratio(), 4)
+                    if sim >= 0.80:
+                        pairs.append({
+                            "source_post_id": a.id,
+                            "source_title": a.title[:100],
+                            "source_author": {"id": a.author.id, "nickname": a.author.nickname} if a.author else None,
+                            "matched_post_id": b.id,
+                            "matched_title": b.title[:100],
+                            "matched_author": {"id": b.author.id, "nickname": b.author.nickname} if b.author else None,
+                            "similarity": sim,
+                            "status": "exact_duplicate" if sim >= 0.99 else "near_duplicate",
+                        })
+
+    pairs.sort(key=lambda p: p["similarity"], reverse=True)
+    return ApiResponse(code=200, message="扫描完成", data={
+        "total_posts_scanned": len(posts),
+        "pairs": pairs[:50],
+        "scanned_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+    })
+
+
+@router.get("/admin/duplicate-content/stats")
+def duplicate_content_stats(
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """重复内容检测统计数据。"""
+    total_blocked = db.query(Post).filter(Post.status == PostStatus.REJECTED).count()
+    total_flagged = db.query(Post).filter(Post.status == PostStatus.REVIEWING).count()
+
+    recent = db.query(Post).filter(
+        Post.status.in_([PostStatus.PUBLISHED, PostStatus.REVIEWING]),
+    ).order_by(Post.created_at.desc()).limit(100).all()
+
+    exact, high_sim, med_sim = 0, 0, 0
+    from difflib import SequenceMatcher
+    from app.services.duplicate_content_service import _normalize_text
+    posts_by_user: dict[int, list] = {}
+    for post in recent:
+        posts_by_user.setdefault(post.user_id, []).append(post)
+    for uid, user_posts in posts_by_user.items():
+        for i in range(len(user_posts)):
+            for j in range(i + 1, len(user_posts)):
+                a, b = user_posts[i], user_posts[j]
+                na = _normalize_text(a.title, a.content)
+                nb = _normalize_text(b.title, b.content)
+                if len(na) < 20 or len(nb) < 20:
+                    continue
+                sim = SequenceMatcher(None, na, nb).ratio()
+                if sim >= 0.99:
+                    exact += 1
+                elif sim >= 0.95:
+                    high_sim += 1
+                elif sim >= 0.92:
+                    med_sim += 1
+
+    return ApiResponse(code=200, message="success", data={
+        "total_blocked": total_blocked,
+        "total_flagged": total_flagged,
+        "recent_posts_scanned": len(recent),
+        "by_similarity": {
+            "exact_duplicates": exact,
+            "near_duplicates_95_100": high_sim,
+            "near_duplicates_92_95": med_sim,
+        },
+    })
+
+
+# ── 用户行为监控 ──
+
+
+@router.get("/admin/behavior/user-summary")
+def user_behavior_summary(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=50),
+    sort_by: str = Query("total_actions", pattern="^(total_actions|posts_count|comments_count|last_active|account_age)$"),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$"),
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """按用户聚合的活动统计，支持排序和分页。"""
+    post_subq = (
+        db.query(Post.user_id, func.count(Post.id).label("post_count"))
+        .group_by(Post.user_id).subquery()
+    )
+    comment_subq = (
+        db.query(Comment.user_id, func.count(Comment.id).label("comment_count"))
+        .group_by(Comment.user_id).subquery()
+    )
+    like_subq = (
+        db.query(Like.user_id, func.count(Like.id).label("like_count"))
+        .group_by(Like.user_id).subquery()
+    )
+    activity_subq = (
+        db.query(
+            UserActivityLog.user_id,
+            func.count(UserActivityLog.id).label("total_actions"),
+            func.max(UserActivityLog.created_at).label("last_active_at"),
+        )
+        .group_by(UserActivityLog.user_id).subquery()
+    )
+
+    query = (
+        db.query(
+            User.id.label("user_id"),
+            User.nickname,
+            User.avatar_url,
+            User.created_at.label("account_created_at"),
+            User.status,
+            func.coalesce(post_subq.c.post_count, 0).label("posts_count"),
+            func.coalesce(comment_subq.c.comment_count, 0).label("comments_count"),
+            func.coalesce(like_subq.c.like_count, 0).label("likes_count"),
+            func.coalesce(activity_subq.c.total_actions, 0).label("total_actions"),
+            activity_subq.c.last_active_at,
+        )
+        .outerjoin(post_subq, User.id == post_subq.c.user_id)
+        .outerjoin(comment_subq, User.id == comment_subq.c.user_id)
+        .outerjoin(like_subq, User.id == like_subq.c.user_id)
+        .outerjoin(activity_subq, User.id == activity_subq.c.user_id)
+    )
+
+    sort_col = {
+        "total_actions": func.coalesce(activity_subq.c.total_actions, 0),
+        "posts_count": func.coalesce(post_subq.c.post_count, 0),
+        "comments_count": func.coalesce(comment_subq.c.comment_count, 0),
+        "last_active": func.coalesce(activity_subq.c.last_active_at, datetime(2000, 1, 1)),
+        "account_age": User.created_at,
+    }[sort_by]
+    order_fn = desc if sort_order == "desc" else sort_col
+    query = query.order_by(order_fn(sort_col))
+
+    total = query.count()
+    rows = query.offset((page - 1) * size).limit(size).all()
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    items = []
+    for row in rows:
+        age_days = max(1, (now - row.account_created_at).days) if row.account_created_at else 1
+        items.append({
+            "user_id": row.user_id,
+            "nickname": row.nickname,
+            "avatar_url": row.avatar_url,
+            "total_actions": row.total_actions,
+            "posts_count": row.posts_count,
+            "comments_count": row.comments_count,
+            "likes_count": row.likes_count,
+            "last_active_at": row.last_active_at.isoformat() if row.last_active_at else None,
+            "account_age_days": age_days,
+            "posting_frequency": round(row.posts_count / (age_days / 7), 2) if age_days else 0,
+            "status": row.status.value,
+        })
+
+    return ApiResponse(code=200, message="success", data={
+        "items": items, "total": total, "page": page, "size": size,
+    })
+
+
+@router.get("/admin/behavior/user/{user_id}/timeline")
+def user_activity_timeline(
+    user_id: int,
+    days: int = Query(7, ge=1, le=90),
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """单个用户的活动时间线。"""
+    target = db.query(User).filter(User.id == user_id).first()
+    if target is None:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
+    logs = (
+        db.query(UserActivityLog)
+        .filter(UserActivityLog.user_id == user_id, UserActivityLog.created_at >= cutoff)
+        .order_by(UserActivityLog.created_at.desc())
+        .all()
+    )
+
+    from collections import defaultdict
+    daily: dict[str, dict] = defaultdict(lambda: {"login": 0, "post": 0, "comment": 0, "like": 0, "other": 0})
+    for log in logs:
+        date_key = log.created_at.date().isoformat()
+        atype = log.activity_type.value
+        if atype in ("login", "post", "comment", "like"):
+            daily[date_key][atype] += 1
+        else:
+            daily[date_key]["other"] += 1
+
+    # 计算用户近期帖子质量评分
+    from app.services.quality_service import score_content
+    recent_posts = (
+        db.query(Post)
+        .filter(Post.user_id == user_id, Post.created_at >= cutoff)
+        .order_by(Post.created_at.desc()).limit(20).all()
+    )
+    quality_scores = []
+    for p in recent_posts:
+        qs = score_content(p.content)
+        quality_scores.append({
+            "post_id": p.id,
+            "title": p.title[:80],
+            "score": qs.score,
+            "level": qs.level,
+            "flags": qs.flags,
+            "word_count": qs.word_count,
+            "char_count": qs.char_count,
+        })
+    avg_quality = round(sum(s["score"] for s in quality_scores) / max(len(quality_scores), 1), 1)
+
+    return ApiResponse(code=200, message="success", data={
+        "user": {
+            "id": target.id, "nickname": target.nickname,
+            "avatar_url": target.avatar_url, "status": target.status.value,
+            "created_at": target.created_at.isoformat() if target.created_at else None,
+        },
+        "timeline": [
+            {"date": key, **counts} for key, counts in sorted(daily.items())
+        ],
+        "recent_activities": [
+            {
+                "id": log.id, "activity_type": log.activity_type.value,
+                "target_type": log.target_type, "target_id": log.target_id,
+                "created_at": log.created_at.isoformat(),
+            }
+            for log in logs[:50]
+        ],
+        "quality": {
+            "avg_score": avg_quality,
+            "posts_scored": len(quality_scores),
+            "details": quality_scores,
+        },
+    })
+
+
+@router.get("/admin/behavior/suspicious")
+def suspicious_behavior(
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """检测异常用户行为。"""
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    cutoff_24h = now - timedelta(hours=24)
+    cutoff_7d = now - timedelta(days=7)
+
+    suspicious = []
+
+    high_freq = (
+        db.query(Post.user_id, func.count(Post.id).label("cnt"))
+        .filter(Post.created_at >= cutoff_24h)
+        .group_by(Post.user_id)
+        .having(func.count(Post.id) > 20).all()
+    )
+    for uid, cnt in high_freq:
+        suspicious.append({"user_id": uid, "pattern": "high_frequency_posting",
+                           "detail": f"24小时内发帖{cnt}次", "severity": "high"})
+
+    new_active = (
+        db.query(UserActivityLog.user_id, func.count(UserActivityLog.id).label("cnt"))
+        .join(User, UserActivityLog.user_id == User.id)
+        .filter(User.created_at >= cutoff_7d, UserActivityLog.created_at >= cutoff_24h)
+        .group_by(UserActivityLog.user_id)
+        .having(func.count(UserActivityLog.id) > 50).all()
+    )
+    for uid, cnt in new_active:
+        suspicious.append({"user_id": uid, "pattern": "new_account_high_activity",
+                           "detail": f"注册不足7天，24小时内操作{cnt}次", "severity": "medium"})
+
+    multi_ban = (
+        db.query(BanRecord.user_id, func.count(BanRecord.id).label("cnt"))
+        .filter(BanRecord.action == BanAction.BAN)
+        .group_by(BanRecord.user_id)
+        .having(func.count(BanRecord.id) >= 3).all()
+    )
+    for uid, cnt in multi_ban:
+        suspicious.append({"user_id": uid, "pattern": "multiple_bans",
+                           "detail": f"已被封禁{cnt}次", "severity": "high"})
+
+    uids = list({s["user_id"] for s in suspicious})
+    user_map = {u.id: u for u in db.query(User).filter(User.id.in_(uids)).all()} if uids else {}
+
+    merged: dict[int, list] = {}
+    for s in suspicious:
+        merged.setdefault(s["user_id"], []).append(s)
+
+    items = []
+    for uid, entries in merged.items():
+        u = user_map.get(uid)
+        for e in entries:
+            items.append({
+                "user_id": uid,
+                "nickname": u.nickname if u else "未知",
+                "avatar_url": u.avatar_url if u else None,
+                "pattern": e["pattern"],
+                "detail": e["detail"],
+                "severity": e["severity"],
+            })
+
+    items.sort(key=lambda x: {"high": 0, "medium": 1}[x["severity"]])
+
+    # 为高风险项自动生成管理员告警（去重：同一用户+同一模式24h内不重复）
+    recent_cutoff = now - timedelta(hours=24)
+    for entry in items:
+        if entry["severity"] != "high":
+            continue
+        existing = db.query(Notification).filter(
+            Notification.type == NotificationType.SYSTEM_ALERT,
+            Notification.target_type == entry["pattern"],
+            Notification.target_id == entry["user_id"],
+            Notification.created_at >= recent_cutoff,
+        ).first()
+        if not existing:
+            _create_admin_alert(
+                db, title=f"异常行为告警: {entry['nickname']}",
+                content=entry["detail"],
+                target_type=entry["pattern"],
+                target_id=entry["user_id"],
+            )
+    db.commit()
+
+    return ApiResponse(code=200, message="success", data={"items": items, "total": len(items)})

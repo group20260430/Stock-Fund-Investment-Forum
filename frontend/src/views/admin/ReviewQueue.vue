@@ -63,11 +63,19 @@ function contentSummary(item) {
 
 // 举报原因标签颜色
 function flagClass(flag) {
+  if (flag.startsWith('duplicate:')) return 'flag--duplicate'
+  if (flag.startsWith('sensitive:')) return 'flag--sensitive'
+  if (flag.startsWith('compliance:')) return 'flag--compliance'
+  if (flag.startsWith('report:')) return 'flag--report'
   const map = { spam: "flag--spam", abuse: "flag--abuse", fake: "flag--fake", ad: "flag--ad", other: "flag--other" }
   return map[flag] || "flag--other"
 }
 
 function flagLabel(flag) {
+  if (flag.startsWith('duplicate:')) return `重复 ${flag.split(':')[1]}`
+  if (flag.startsWith('sensitive:')) return `敏感词:${flag.split(':')[1]}`
+  if (flag.startsWith('compliance:')) return `违规:${flag.split(':')[1]}`
+  if (flag.startsWith('report:')) return '用户举报'
   const map = { spam: "垃圾广告", abuse: "人身攻击", fake: "虚假信息", ad: "违规荐股", other: "其他" }
   return map[flag] || flag
 }
@@ -85,6 +93,8 @@ function flagLabel(flag) {
       <router-link to="/admin/certifications" class="admin-nav__item">认证审核</router-link>
       <router-link to="/admin/sensitive-words" class="admin-nav__item">敏感词</router-link>
       <router-link to="/admin/compliance" class="admin-nav__item">合规检查</router-link>
+      <router-link to="/admin/duplicate-content" class="admin-nav__item">重复检测</router-link>
+      <router-link to="/admin/behavior" class="admin-nav__item">行为监控</router-link>
       <router-link to="/admin/logs" class="admin-nav__item">操作日志</router-link>
       <router-link to="/admin/hot-topics" class="admin-nav__item">热门话题分析</router-link>
       <router-link to="/admin/engagement" class="admin-nav__item">用户参与度</router-link>
@@ -221,6 +231,10 @@ function flagLabel(flag) {
 .flag--fake { background: #fefce8; color: #ca8a04; }
 .flag--ad { background: #eff6ff; color: #2563eb; }
 .flag--other { background: var(--color-border-light); color: var(--color-text-secondary); }
+.flag--duplicate { background: #fef2f2; color: #dc2626; }
+.flag--sensitive { background: #fff7ed; color: #ea580c; }
+.flag--compliance { background: #eff6ff; color: #2563eb; }
+.flag--report { background: #fefce8; color: #ca8a04; }
 
 .review-card__time { color: var(--color-text-muted); font-size: 12px; margin-left: auto; }
 

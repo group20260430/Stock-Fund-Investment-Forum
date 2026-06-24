@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
-from app.core.dependencies import get_current_user, get_optional_current_user
+from app.core.dependencies import UserRateLimiter, get_current_user, get_optional_current_user
 from app.db.session import get_db
 from app.models.content import (
     Attachment,
@@ -34,6 +34,8 @@ from app.schemas.content import PostCreate, PostUpdate, VoteRequest
 from app.schemas.user import ApiResponse
 
 router = APIRouter(tags=["posts"])
+
+post_rate_limiter = UserRateLimiter(max_requests=5, window_seconds=60, action_name="发帖")
 
 import re
 
@@ -233,6 +235,7 @@ def list_posts(
 
 @router.post("/posts", status_code=201)
 def create_post(data: PostCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    post_rate_limiter.check(user.id)
     category = db.query(Category).filter(Category.id == data.category_id, Category.is_active.is_(True)).first()
     if category is None:
         raise HTTPException(status_code=404, detail="板块不存在")

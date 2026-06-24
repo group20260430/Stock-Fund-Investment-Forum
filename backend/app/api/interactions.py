@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.posts import _get_post_or_404, _post_payload
-from app.core.dependencies import get_current_user, get_optional_current_user
+from app.core.dependencies import UserRateLimiter, get_current_user, get_optional_current_user
 from app.db.session import get_db
 from app.models.content import (
     Comment,
@@ -31,6 +31,7 @@ from app.services.compliance_service import check_compliance
 
 router = APIRouter(tags=["interactions"])
 
+comment_rate_limiter = UserRateLimiter(max_requests=10, window_seconds=60, action_name="评论")
 
 def _comment_payload(comment: Comment, liked_ids: set[int], reply_author: User | None = None) -> dict:
     return {
@@ -101,6 +102,7 @@ def create_comment(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    comment_rate_limiter.check(user.id)
     post = _get_post_or_404(db, post_id)
     parent = None
     if data.parent_id is not None:

@@ -49,10 +49,16 @@ async function request(url, options = {}) {
     // Token 过期 / 未登录 — 清除登录态并跳转
     if (response.status === 401) {
       localStorage.removeItem('token')
-      // 仅当不在登录页时才跳转，避免死循环
       if (!window.location.pathname.includes('/login')) {
         window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`
       }
+    }
+    // 请求频率限制 — 提取 Retry-After 或使用默认等待时间
+    if (response.status === 429) {
+      const retryAfter = response.headers.get('Retry-After')
+      const waitSec = retryAfter ? parseInt(retryAfter, 10) : 60
+      const msg = result.detail || result.message || `操作过于频繁，请${waitSec}秒后再试`
+      throw new Error(msg)
     }
     // 提取后端错误信息（兼容标准 ApiResponse 和 FastAPI 422 验证错误格式）
     let msg = result.message || ''

@@ -48,6 +48,30 @@ class RateLimiter:
         self._store[client_ip].append(now)
 
 
+class UserRateLimiter:
+    """Per-user in-memory sliding-window rate limiter for content actions."""
+
+    def __init__(self, max_requests: int, window_seconds: int, action_name: str = "操作"):
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self.action_name = action_name
+        self._store: dict[int, list[float]] = {}
+
+    def check(self, user_id: int) -> None:
+        """Raise HTTPException(429) if user exceeded the limit."""
+        now = time.time()
+        if user_id not in self._store:
+            self._store[user_id] = []
+        cutoff = now - self.window_seconds
+        self._store[user_id] = [t for t in self._store[user_id] if t > cutoff]
+        if len(self._store[user_id]) >= self.max_requests:
+            raise HTTPException(
+                status_code=429,
+                detail=f"{self.action_name}过于频繁，请稍后再试",
+            )
+        self._store[user_id].append(now)
+
+
 # ---------------------------------------------------------------------------
 # Auth dependencies
 # ---------------------------------------------------------------------------

@@ -129,3 +129,28 @@ export function addComplianceRule(data) {
 export function deleteComplianceRule(id) {
   return api.delete(`/admin/compliance/rules/${id}`)
 }
+
+/** 扫描重复内容 */
+export function scanDuplicateContent(data) {
+  return api.post('/admin/duplicate-content/scan', data)
+}
+
+/** 重复内容统计 */
+export function fetchDuplicateContentStats() {
+  return api.get('/admin/duplicate-content/stats')
+}
+
+/** 用户行为汇总 */
+export function fetchBehaviorUserSummary(params) {
+  return api.get('/admin/behavior/user-summary', params)
+}
+
+/** 用户活动时间线 */
+export function fetchUserTimeline(userId, params) {
+  return api.get(`/admin/behavior/user/${userId}/timeline`, params)
+}
+
+/** 异常行为检测 */
+export function fetchSuspiciousUsers(params) {
+  return api.get('/admin/behavior/suspicious', params)
+}

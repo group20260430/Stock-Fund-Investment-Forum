@@ -77,6 +77,8 @@ const stocksOption = computed(() => {
       <router-link to="/admin/certifications" class="admin-nav__item">认证审核</router-link>
       <router-link to="/admin/sensitive-words" class="admin-nav__item">敏感词</router-link>
       <router-link to="/admin/compliance" class="admin-nav__item">合规检查</router-link>
+      <router-link to="/admin/duplicate-content" class="admin-nav__item">重复检测</router-link>
+      <router-link to="/admin/behavior" class="admin-nav__item">行为监控</router-link>
       <router-link to="/admin/logs" class="admin-nav__item">操作日志</router-link>
       <router-link to="/admin/hot-topics" class="admin-nav__item">热门话题分析</router-link>
       <router-link to="/admin/engagement" class="admin-nav__item">用户参与度</router-link>
@@ -111,6 +113,14 @@ const stocksOption = computed(() => {
         <div class="stat-card stat-card--danger">
           <span class="stat-card__label">今日举报</span>
           <strong class="stat-card__value">{{ stats.reports_today || 0 }}</strong>
+        </div>
+        <div class="stat-card stat-card--danger" v-if="stats.unread_alerts > 0">
+          <span class="stat-card__label">未读告警</span>
+          <strong class="stat-card__value">{{ stats.unread_alerts || 0 }}</strong>
+        </div>
+        <div class="stat-card stat-card--warn" v-if="stats.suspicious_today > 0">
+          <span class="stat-card__label">今日可疑行为</span>
+          <strong class="stat-card__value">{{ stats.suspicious_today || 0 }}</strong>
         </div>
       </div>
 

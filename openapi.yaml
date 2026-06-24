@@ -2585,6 +2585,108 @@ paths:
         "404":
           description: 规则不存在
 
+  # ── 重复内容检测 ──
+  /api/admin/duplicate-content/scan:
+    post:
+      tags:
+        - 管理运营系统
+      summary: 扫描重复内容
+      operationId: adminScanDuplicateContent
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+                  maxLength: 10000
+                start_date:
+                  type: string
+                  format: date
+                end_date:
+                  type: string
+                  format: date
+      responses:
+        "200":
+          description: 扫描结果
+
+  /api/admin/duplicate-content/stats:
+    get:
+      tags:
+        - 管理运营系统
+      summary: 重复内容统计
+      operationId: adminDuplicateContentStats
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: 统计数据
+
+  # ── 用户行为监控 ──
+  /api/admin/behavior/user-summary:
+    get:
+      tags:
+        - 管理运营系统
+      summary: 用户行为汇总
+      operationId: adminBehaviorUserSummary
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: size
+          in: query
+          schema: { type: integer, default: 20 }
+        - name: sort_by
+          in: query
+          schema: { type: string, enum: [total_actions, posts_count, comments_count, last_active, account_age], default: total_actions }
+        - name: sort_order
+          in: query
+          schema: { type: string, enum: [asc, desc], default: desc }
+      responses:
+        "200":
+          description: 用户行为汇总列表
+
+  /api/admin/behavior/user/{user_id}/timeline:
+    get:
+      tags:
+        - 管理运营系统
+      summary: 用户活动时间线
+      operationId: adminUserTimeline
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: days
+          in: query
+          schema: { type: integer, default: 7 }
+      responses:
+        "200":
+          description: 用户活动时间线数据
+        "404":
+          description: 用户不存在
+
+  /api/admin/behavior/suspicious:
+    get:
+      tags:
+        - 管理运营系统
+      summary: 异常行为检测
+      operationId: adminSuspiciousBehavior
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: 异常用户列表
+
   # ==================== 系统 ====================
   /api/health:
     get:

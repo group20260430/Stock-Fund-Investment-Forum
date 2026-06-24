@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
@@ -49,6 +50,12 @@ class SensitiveWordRequest(BaseModel):
 class CertificationReviewRequest(BaseModel):
     action: Literal["approve", "reject"]
     comment: str | None = Field(None, max_length=500)
+
+
+class DuplicateScanRequest(BaseModel):
+    text: str = ""
+    start_date: date | None = None
+    end_date: date | None = None
 
 
 class ComplianceCheckRequest(BaseModel):

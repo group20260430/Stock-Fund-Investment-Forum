@@ -18,6 +18,7 @@ class NotificationType(str, enum.Enum):
     NEW_GROUP_MESSAGE = "new_group_message"
     MENTION = "mention"
     SYSTEM = "system"
+    SYSTEM_ALERT = "system_alert"
 
 
 class Notification(Base):
