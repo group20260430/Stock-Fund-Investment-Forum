@@ -659,6 +659,23 @@ def engagement_report(
     })
 
 
+@router.get("/admin/categories")
+def list_categories_for_admin(admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """管理员获取全量板块列表（含已隐藏的）。"""
+    categories = db.query(Category).order_by(Category.sort_order, Category.id).all()
+    return ApiResponse(code=200, message="success", data=[
+        {
+            "id": item.id,
+            "name": item.name,
+            "description": item.description,
+            "sort_order": item.sort_order,
+            "is_active": item.is_active,
+            "post_count": item.post_count,
+        }
+        for item in categories
+    ])
+
+
 @router.post("/admin/categories", status_code=201)
 def create_category(data: CategoryRequest, admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
     if db.query(Category).filter(Category.name == data.name).first():

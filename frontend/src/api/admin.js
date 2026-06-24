@@ -30,6 +30,11 @@ export function fetchStatsTrend(params) {
   return api.get('/admin/stats/trend', params)
 }
 
+/** 管理员获取全量板块列表（含已隐藏） */
+export function fetchAdminCategories() {
+  return api.get('/admin/categories')
+}
+
 /** 创建板块 */
 export function createCategory(data) {
   return api.post('/admin/categories', data)

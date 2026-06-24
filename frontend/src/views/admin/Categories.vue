@@ -1,16 +1,15 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useToastStore } from '../../stores/toast'
-import { createCategory, updateCategory, deleteCategory } from '../../api/admin'
+import { createCategory, updateCategory, deleteCategory, fetchAdminCategories } from '../../api/admin'
 import Loading from '../../components/common/Loading.vue'
-import { api } from '../../utils/request'
 
 const toast = useToastStore()
 const categories = ref([])
 const loading = ref(true)
 const editing = ref(null) // 正在编辑的分类
 const showForm = ref(false)
-const form = ref({ name: '', description: '', sort_order: 0 })
+const form = ref({ name: '', description: '', sort_order: 0, is_active: true })
 
 onMounted(async () => {
   await loadCategories()
@@ -19,7 +18,7 @@ onMounted(async () => {
 async function loadCategories() {
   loading.value = true
   try {
-    const data = await api.get('/categories')
+    const data = await fetchAdminCategories()
     categories.value = Array.isArray(data) ? data : []
   } catch {
     categories.value = []
@@ -30,13 +29,13 @@ async function loadCategories() {
 
 function openCreate() {
   editing.value = null
-  form.value = { name: '', description: '', sort_order: categories.value.length + 1 }
+  form.value = { name: '', description: '', sort_order: categories.value.length + 1, is_active: true }
   showForm.value = true
 }
 
 function openEdit(cat) {
   editing.value = cat
-  form.value = { name: cat.name, description: cat.description || '', sort_order: cat.sort_order }
+  form.value = { name: cat.name, description: cat.description || '', sort_order: cat.sort_order, is_active: cat.is_active }
   showForm.value = true
 }
 
@@ -111,6 +110,13 @@ function cancelForm() {
         <label>排序</label>
         <input v-model.number="form.sort_order" type="number" class="form-input form-input--short" min="0" />
       </div>
+      <div class="form-group" v-if="editing">
+        <label>状态</label>
+        <label class="toggle-label">
+          <input type="checkbox" v-model="form.is_active" class="toggle-input" />
+          <span class="toggle-text">{{ form.is_active ? '启用' : '停用' }}</span>
+        </label>
+      </div>
       <div class="form-actions">
         <button class="admin-btn admin-btn--secondary" @click="cancelForm">取消</button>
         <button class="admin-btn admin-btn--primary" @click="handleSave">{{ editing ? '保存' : '创建' }}</button>
@@ -175,6 +181,9 @@ function cancelForm() {
 .admin-btn--danger { color: #ef4444; border-color: #fca5a5; }
 .admin-btn--sm { padding: 4px 10px; font-size: 0.8rem; }
 .admin-btn:hover { opacity: 0.9; }
+.toggle-label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.toggle-input { width: 18px; height: 18px; cursor: pointer; }
+.toggle-text { font-size: 0.85rem; color: var(--color-text-secondary); }
 .admin-nav { background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 8px; display: flex; gap: 0; margin-bottom: 24px; overflow: hidden; flex-wrap: wrap; }
 .admin-nav__item { border-bottom: 2px solid transparent; color: var(--color-text-secondary); font-size: 14px; font-weight: 500; padding: 14px 24px; text-decoration: none; }
 .admin-nav__item:hover { color: var(--color-text-body); }
