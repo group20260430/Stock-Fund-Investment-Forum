@@ -1,3 +1,14 @@
 # Cloudflare Pages SPA fallback
-# Vue Router 使用 History 模式，所有路径都需要回退到 index.html
-/*    /index.html   200
+# Vue Router 使用 History 模式，所有路径回退到 index.html
+# 排除实际存在的文件和目录，避免无限重定向
+/*.html    /:splat    200
+/*.css     /:splat    200
+/*.js      /:splat    200
+/*.json    /:splat    200
+/*.png     /:splat    200
+/*.jpg     /:splat    200
+/*.svg     /:splat    200
+/*.ico     /:splat    200
+/*.woff*   /:splat    200
+# SPA fallback — 其余所有路径
+/*         /index.html 200
