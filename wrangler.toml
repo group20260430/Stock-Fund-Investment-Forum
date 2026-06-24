@@ -1,9 +1,0 @@
-# Cloudflare Pages 配置
-# 用于 wrangler CLI 或 GitHub Actions 自动部署
-
-# ── 项目基本设置 ──
-name = "stock-fund-forum"
-compatibility_date = "2025-06-24"
-
-# ── Pages 构建设置 ──
-pages_build_output_dir = "frontend/dist"
