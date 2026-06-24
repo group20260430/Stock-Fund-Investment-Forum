@@ -29,7 +29,7 @@ const trendOption = computed(() => {
   return {
     tooltip: { trigger: "axis" },
     legend: { data: ["活跃用户", "新增帖子", "新增评论"], bottom: 0, textStyle: { fontSize: 12 } },
-    grid: { left: 12, right: 12, top: 40, bottom: 36 },
+    grid: { left: 50, right: 16, top: 40, bottom: 36, containLabel: true },
     xAxis: { type: "category", data: data.dates || ["--"], axisLabel: { fontSize: 11 } },
     yAxis: { type: "value", axisLabel: { fontSize: 11 } },
     series: [
@@ -45,9 +45,9 @@ const topicsOption = computed(() => {
   const data = stats.value?.hot_topics || []
   return {
     tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
-    grid: { left: 12, right: 30, top: 10, bottom: 24 },
+    grid: { left: 10, right: 10, top: 10, bottom: 24, containLabel: true },
     xAxis: { type: "value", axisLabel: { fontSize: 11 } },
-    yAxis: { type: "category", data: data.map(d => d.name || d).reverse(), axisLabel: { fontSize: 11, width: 80, overflow: "truncate" }, inverse: true },
+    yAxis: { type: "category", data: data.map(d => d.name || d).reverse(), axisLabel: { fontSize: 11 }, inverse: true },
     series: [{ type: "bar", data: data.map(d => d.count || d.value || 0).reverse(), barMaxWidth: 20, itemStyle: { color: "#14b8a6", borderRadius: [0, 4, 4, 0] } }],
   }
 })
@@ -57,7 +57,7 @@ const stocksOption = computed(() => {
   const data = stats.value?.hot_stocks || []
   return {
     tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
-    grid: { left: 12, right: 30, top: 10, bottom: 24 },
+    grid: { left: 10, right: 10, top: 10, bottom: 24, containLabel: true },
     xAxis: { type: "value", axisLabel: { fontSize: 11 } },
     yAxis: { type: "category", data: data.map(d => d.name || d.code || d).reverse(), axisLabel: { fontSize: 11 }, inverse: true },
     series: [{ type: "bar", data: data.map(d => d.count || d.value || 0).reverse(), barMaxWidth: 20, itemStyle: { color: "#3b82f6", borderRadius: [0, 4, 4, 0] } }],
@@ -184,6 +184,13 @@ const stocksOption = computed(() => {
   font-size: 15px;
   font-weight: 600;
   margin: 0 0 16px;
+}
+
+.stats-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, 1fr);
+  margin-bottom: 16px;
 }
 
 .chart { width: 100%; height: 280px; }
