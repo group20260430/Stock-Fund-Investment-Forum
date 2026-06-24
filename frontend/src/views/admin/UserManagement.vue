@@ -54,7 +54,6 @@ function handlePageChange(page) { loadUsers(page) }
       <router-link to="/admin/users" class="admin-nav__item admin-nav__item--active">用户管理</router-link>
       <router-link to="/admin/certifications" class="admin-nav__item">认证审核</router-link>
       <router-link to="/admin/sensitive-words" class="admin-nav__item">敏感词</router-link>
-      <router-link to="/admin/compliance" class="admin-nav__item">合规检查</router-link>
       <router-link to="/admin/logs" class="admin-nav__item">操作日志</router-link>
       <router-link to="/admin/hot-topics" class="admin-nav__item">热门话题分析</router-link>
       <router-link to="/admin/engagement" class="admin-nav__item">用户参与度</router-link>
@@ -83,29 +82,8 @@ function handlePageChange(page) { loadUsers(page) }
 .toolbar { margin-bottom: 24px; }
 .toolbar h1 { font-size: 24px; margin: 0; }
 
-.admin-nav {
-  background: var(--color-bg-card);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  display: flex;
-  gap: 0;
-  margin-bottom: 24px;
-  overflow: hidden;
-}
 
-.admin-nav__item {
-  border-bottom: 2px solid transparent;
-  color: var(--color-text-secondary);
-  font-size: 14px;
-  font-weight: 500;
-  padding: 14px 24px;
-  text-decoration: none;
-}
 
-.admin-nav__item:hover { color: var(--color-text-body); }
-.admin-nav__item--active { border-bottom-color: var(--color-primary); color: var(--color-primary); }
-
-.user-list { display: grid; gap: 10px; }
 
 .user-row {
   align-items: center;
@@ -130,7 +108,9 @@ function handlePageChange(page) { loadUsers(page) }
 .ban-btn:hover { background: var(--color-danger-light); }
 
 @media (max-width: 780px) {
-  .admin-nav__item { padding: 10px 14px; font-size: 13px; }
-  .user-row { flex-direction: column; }
 }
-</style>
+.admin-nav { background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 8px; display: flex; gap: 0; margin-bottom: 24px; overflow-x: auto; }
+.admin-nav__item { border-bottom: 2px solid transparent; color: var(--color-text-secondary); font-size: 14px; font-weight: 500; padding: 14px 24px; text-decoration: none; white-space: nowrap; flex-shrink: 0; }
+.admin-nav__item:hover { color: var(--color-text-body); }
+.admin-nav__item--active { border-bottom-color: var(--color-primary); color: var(--color-primary); }
+    </style>

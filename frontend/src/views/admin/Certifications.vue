@@ -62,13 +62,13 @@ onMounted(load)
 
 <template>
     <header class="toolbar"><h1>管理后台 / 认证审核</h1></header>
+
     <div class="admin-nav">
       <router-link to="/admin" class="admin-nav__item">总览</router-link>
       <router-link to="/admin/review" class="admin-nav__item">审核队列</router-link>
       <router-link to="/admin/users" class="admin-nav__item">用户管理</router-link>
       <router-link to="/admin/certifications" class="admin-nav__item admin-nav__item--active">认证审核</router-link>
       <router-link to="/admin/sensitive-words" class="admin-nav__item">敏感词</router-link>
-      <router-link to="/admin/compliance" class="admin-nav__item">合规检查</router-link>
       <router-link to="/admin/logs" class="admin-nav__item">操作日志</router-link>
       <router-link to="/admin/hot-topics" class="admin-nav__item">热门话题分析</router-link>
       <router-link to="/admin/engagement" class="admin-nav__item">用户参与度</router-link>

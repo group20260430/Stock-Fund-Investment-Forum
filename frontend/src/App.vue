@@ -7,9 +7,9 @@ import AppLayout from './components/layout/AppLayout.vue'
 const auth = useAuthStore()
 const route = useRoute()
 
-// 应用初始化：如果有 token 但没有缓存的用户信息，自动拉取
+// 应用初始化：如果有 token 则拉取最新用户信息
 onMounted(() => {
-  if (auth.isLoggedIn && !auth.user) {
+  if (auth.isLoggedIn) {
     auth.fetchUser()
   }
 })
