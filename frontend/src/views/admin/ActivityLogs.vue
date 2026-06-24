@@ -82,8 +82,8 @@ onMounted(() => load())
 .log-detail { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .action-tag { background: var(--color-primary-light); border-radius: 4px; color: var(--color-primary); font-size: 12px; padding: 2px 8px; }
 .empty-state { background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 8px; padding: 40px; text-align: center; color: var(--color-text-muted); }
-.admin-nav { background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 8px; display: flex; gap: 0; margin-bottom: 24px; overflow-x: auto; }
-.admin-nav__item { border-bottom: 2px solid transparent; color: var(--color-text-secondary); font-size: 14px; font-weight: 500; padding: 14px 24px; text-decoration: none; white-space: nowrap; flex-shrink: 0; }
+.admin-nav { background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 8px; display: flex; gap: 0; margin-bottom: 24px; overflow: hidden; flex-wrap: wrap; }
+.admin-nav__item { border-bottom: 2px solid transparent; color: var(--color-text-secondary); font-size: 14px; font-weight: 500; padding: 14px 24px; text-decoration: none; }
 .admin-nav__item:hover { color: var(--color-text-body); }
 .admin-nav__item--active { border-bottom-color: var(--color-primary); color: var(--color-primary); }
     </style>

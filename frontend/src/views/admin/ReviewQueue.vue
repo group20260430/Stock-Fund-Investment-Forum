@@ -266,8 +266,8 @@ function flagLabel(flag) {
 @media (max-width: 780px) {
   .review-card__btns { justify-content: flex-end; }
 }
-.admin-nav { background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 8px; display: flex; gap: 0; margin-bottom: 24px; overflow-x: auto; }
-.admin-nav__item { border-bottom: 2px solid transparent; color: var(--color-text-secondary); font-size: 14px; font-weight: 500; padding: 14px 24px; text-decoration: none; white-space: nowrap; flex-shrink: 0; }
+.admin-nav { background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 8px; display: flex; gap: 0; margin-bottom: 24px; overflow: hidden; flex-wrap: wrap; }
+.admin-nav__item { border-bottom: 2px solid transparent; color: var(--color-text-secondary); font-size: 14px; font-weight: 500; padding: 14px 24px; text-decoration: none; }
 .admin-nav__item:hover { color: var(--color-text-body); }
 .admin-nav__item--active { border-bottom-color: var(--color-primary); color: var(--color-primary); }
     </style>
