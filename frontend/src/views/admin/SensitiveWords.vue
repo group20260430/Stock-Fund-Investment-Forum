@@ -54,6 +54,7 @@ onMounted(load)
 
 <template>
     <header class="toolbar"><h1>管理后台 / 敏感词管理</h1></header>
+
     <div class="admin-nav">
       <router-link to="/admin" class="admin-nav__item">总览</router-link>
       <router-link to="/admin/review" class="admin-nav__item">审核队列</router-link>

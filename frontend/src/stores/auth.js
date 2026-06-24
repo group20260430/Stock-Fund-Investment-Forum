@@ -15,7 +15,11 @@ export const useAuthStore = defineStore('auth', () => {
     const payload = parseToken(token.value)
     return payload?.role || 'user'
   })
-  const isAdmin = computed(() => userRole.value === 'admin')
+  const isAdmin = computed(() => {
+    if (userRole.value === 'admin') return true
+    if (user.value?.role === 'admin') return true
+    return false
+  })
 
   // Actions
   async function login(credentials) {

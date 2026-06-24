@@ -183,37 +183,8 @@ const barChartOption = computed(() => {
 .toolbar { margin-bottom: 24px; }
 .toolbar h1 { font-size: 24px; margin: 0; }
 
-.admin-nav {
-  background: var(--color-bg-card);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  display: flex;
-  gap: 0;
-  margin-bottom: 24px;
-  overflow: hidden;
-  flex-wrap: wrap;
-}
 
-.admin-nav__item {
-  border-bottom: 2px solid transparent;
-  color: var(--color-text-secondary);
-  font-size: 14px;
-  font-weight: 500;
-  padding: 14px 24px;
-  text-decoration: none;
-}
 
-.admin-nav__item:hover { color: var(--color-text-body); }
-.admin-nav__item--active { border-bottom-color: var(--color-primary); color: var(--color-primary); }
-
-.filter-bar {
-  align-items: center;
-  display: flex;
-  gap: 16px;
-  margin-bottom: 16px;
-  font-size: 14px;
-  color: var(--color-text-secondary);
-}
 
 .filter-select {
   border: 1px solid var(--color-border);
@@ -294,10 +265,12 @@ const barChartOption = computed(() => {
 
 @media (max-width: 780px) {
   .stats-grid { grid-template-columns: 1fr 1fr; }
-  .admin-nav__item { padding: 10px 16px; font-size: 13px; }
-  .chart { height: 220px; }
   .filter-bar { flex-direction: column; align-items: flex-start; }
   .topic-table { font-size: 12px; }
   .topic-table th, .topic-table td { padding: 8px 10px; }
 }
-</style>
+.admin-nav { background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 8px; display: flex; gap: 0; margin-bottom: 24px; overflow-x: auto; }
+.admin-nav__item { border-bottom: 2px solid transparent; color: var(--color-text-secondary); font-size: 14px; font-weight: 500; padding: 14px 24px; text-decoration: none; white-space: nowrap; flex-shrink: 0; }
+.admin-nav__item:hover { color: var(--color-text-body); }
+.admin-nav__item--active { border-bottom-color: var(--color-primary); color: var(--color-primary); }
+    </style>

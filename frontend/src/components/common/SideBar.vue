@@ -66,7 +66,7 @@ const discoverItems = [
 
 const personalItems = computed(() => {
   if (!auth.isLoggedIn) return []
-  return [
+  const items = [
     { label: '我的动态', to: '/', query: { tab: 'feed' }, icon: 'feed' },
     { label: '通知', to: '/notifications', icon: 'bell' },
     { label: '我的收藏', to: '/me/collections', icon: 'collections' },
@@ -74,6 +74,11 @@ const personalItems = computed(() => {
     { label: '我的群组', to: '/groups', icon: 'groups' },
     { label: '私信', to: '/messages', icon: 'message' },
   ]
+  // 管理员额外显示"管理后台"入口
+  if (auth.isAdmin) {
+    items.push({ label: '管理后台', to: '/admin', icon: 'settings' })
+  }
+  return items
 })
 
 function isActive(item) {
@@ -108,63 +113,63 @@ function onNavClick() {
       <span>Stock &amp; Fund Forum</span>
     </div>
 
-    <!-- 论坛板块 -->
-    <div class="nav-section">
-      <div class="nav-section__label">论坛板块</div>
-      <div v-for="sec in forumSections" :key="sec.label" class="nav-group">
-        <button class="nav-group__header" @click="toggleSection(sec.label)">
-          <AppIcon :name="sec.icon" :size="16" />
-          <span>{{ sec.label }}</span>
-          <span class="nav-group__arrow" :class="{ open: expandedSections.includes(sec.label) }">&#9662;</span>
-        </button>
-        <div v-if="expandedSections.includes(sec.label)" class="nav-group__body">
-          <router-link
-            v-for="item in sec.items"
-            :key="item.label"
-            :to="{ path: item.to, query: item.query }"
-            :class="['nav-item nav-item--child', { active: route.path === item.to }]"
-            @click="onNavClick()"
-          >
-            <span class="nav-item__dot" />
-            {{ item.label }}
-          </router-link>
+    <!-- ===== 论坛板块 ===== -->
+      <div class="nav-section">
+        <div class="nav-section__label">论坛板块</div>
+        <div v-for="sec in forumSections" :key="sec.label" class="nav-group">
+          <button class="nav-group__header" @click="toggleSection(sec.label)">
+            <AppIcon :name="sec.icon" :size="16" />
+            <span>{{ sec.label }}</span>
+            <span class="nav-group__arrow" :class="{ open: expandedSections.includes(sec.label) }">&#9662;</span>
+          </button>
+          <div v-if="expandedSections.includes(sec.label)" class="nav-group__body">
+            <router-link
+              v-for="item in sec.items"
+              :key="item.label"
+              :to="{ path: item.to, query: item.query }"
+              :class="['nav-item nav-item--child', { active: route.path === item.to }]"
+              @click="onNavClick()"
+            >
+              <span class="nav-item__dot" />
+              {{ item.label }}
+            </router-link>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- 发现 -->
-    <div class="nav-section">
-      <div class="nav-section__label">发现</div>
-      <nav class="nav-list" aria-label="发现">
-        <router-link
-          v-for="item in discoverItems"
-          :key="item.to"
-          :to="{ path: item.to, query: item.query }"
-          :class="['nav-item', { active: isActive(item) }]"
-          @click="onNavClick()"
-        >
-          <AppIcon :name="item.icon" :size="18" />
-          {{ item.label }}
-        </router-link>
-      </nav>
-    </div>
+      <!-- 发现 -->
+      <div class="nav-section">
+        <div class="nav-section__label">发现</div>
+        <nav class="nav-list" aria-label="发现">
+          <router-link
+            v-for="item in discoverItems"
+            :key="item.to"
+            :to="{ path: item.to, query: item.query }"
+            :class="['nav-item', { active: isActive(item) }]"
+            @click="onNavClick()"
+          >
+            <AppIcon :name="item.icon" :size="18" />
+            {{ item.label }}
+          </router-link>
+        </nav>
+      </div>
 
-    <!-- 个人（需登录） -->
-    <div v-if="personalItems.length" class="nav-section">
-      <div class="nav-section__label">个人</div>
-      <nav class="nav-list" aria-label="个人">
-        <router-link
-          v-for="item in personalItems"
-          :key="item.to"
-          :to="{ path: item.to, query: item.query }"
-          :class="['nav-item', { active: isActive(item) }]"
-          @click="onNavClick()"
-        >
-          <AppIcon :name="item.icon" :size="18" />
-          {{ item.label }}
-        </router-link>
-      </nav>
-    </div>
+      <!-- 个人（需登录） -->
+      <div v-if="personalItems.length" class="nav-section">
+        <div class="nav-section__label">个人</div>
+        <nav class="nav-list" aria-label="个人">
+          <router-link
+            v-for="item in personalItems"
+            :key="item.to"
+            :to="{ path: item.to, query: item.query }"
+            :class="['nav-item', { active: isActive(item) }]"
+            @click="onNavClick()"
+          >
+            <AppIcon :name="item.icon" :size="18" />
+            {{ item.label }}
+          </router-link>
+        </nav>
+      </div>
 
     <!-- 底部用户信息（已登录时） -->
     <div v-if="auth.isLoggedIn && auth.user" class="sidebar-footer">
@@ -328,6 +333,16 @@ function onNavClick() {
 .sidebar-user-info {
   display: grid;
   gap: 2px;
+}
+
+.nav-item--back {
+  border-top: 1px solid var(--color-bg-sidebar-hover);
+  margin-top: 8px;
+  padding-top: 16px;
+}
+
+.nav-item--back:hover {
+  color: var(--color-primary-light) !important;
 }
 
 .sidebar-user-info strong {

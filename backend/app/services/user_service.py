@@ -590,7 +590,11 @@ class UserService:
 
         Returns ``(access_token, refresh_token_raw)``.
         """
-        access_token = create_access_token(data={"sub": str(user.id)})
+        access_token = create_access_token(data={
+            "sub": str(user.id),
+            "role": user.role.value if hasattr(user.role, "value") else str(user.role),
+            "auth_level": user.auth_level.value if hasattr(user.auth_level, "value") else str(user.auth_level),
+        })
 
         raw_rt, rt_hash, expires_at = create_refresh_token_record(user.id)
 
