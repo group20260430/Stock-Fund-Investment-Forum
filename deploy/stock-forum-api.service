@@ -1,0 +1,16 @@
+[Unit]
+Description=Stock Fund Investment Forum API (FastAPI via Uvicorn)
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/Stock-Fund-Investment-Forum/backend
+Environment=PATH=/opt/Stock-Fund-Investment-Forum/backend/.venv/bin
+ExecStart=/opt/Stock-Fund-Investment-Forum/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 4
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

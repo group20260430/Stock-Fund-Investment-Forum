@@ -1,0 +1,10 @@
+# Cloudflare Tunnel 配置文件
+# 部署前替换 <隧道UUID> 为实际值
+tunnel: <隧道UUID>
+credentials-file: /root/.cloudflared/<隧道UUID>.json
+
+ingress:
+  - hostname: api.你的域名.com
+    service: http://127.0.0.1:8000
+  # 默认拒绝所有其他域名
+  - service: http_status:404

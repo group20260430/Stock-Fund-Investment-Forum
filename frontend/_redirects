@@ -1,0 +1,3 @@
+# Cloudflare Pages SPA fallback
+# Vue Router 使用 History 模式，所有路径都需要回退到 index.html
+/*    /index.html   200

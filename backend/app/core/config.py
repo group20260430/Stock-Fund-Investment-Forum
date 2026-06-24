@@ -1,5 +1,7 @@
 from pathlib import Path
+import json
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # ── 项目根目录（backend/），用于解析相对路径 ──
@@ -11,6 +13,16 @@ class Settings(BaseSettings):
     version: str = "0.1.0"
     allowed_origins: list[str] = ["http://localhost:5173"]
     allowed_origin_regex: str = r"http://(localhost|127\.0\.0\.1):\d+"
+
+    @field_validator("allowed_origins", mode="before")
+    @classmethod
+    def _parse_allowed_origins(cls, v: object) -> list[str]:
+        """解析环境变量中的 JSON 数组，如 '["https://a.com","https://b.com"]'"""
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            return json.loads(v)
+        return [str(v)]
 
     # --- Database ---
     # 默认使用 backend/ 目录下的 SQLite 文件（通过 _PROJECT_ROOT 解析为绝对路径）
