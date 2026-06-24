@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import { fetchMessages, sendMessage, deleteMessage } from '../api/messages'
 import { search as searchUsers } from '../api/search'
-import { fetchUserProfile } from '../api/users'
+import { fetchMyFollowing, fetchUserProfile } from '../api/users'
 import { markNotificationsRead } from '../api/notifications'
 import AppIcon from '../components/common/AppIcon.vue'
 import Loading from '../components/common/Loading.vue'
@@ -32,7 +32,9 @@ const chatContainer = ref(null)
 const showNewConv = ref(false)
 const searchKeyword = ref('')
 const searchResults = ref([])
+const followingUsers = ref([])
 const searchingUsers = ref(false)
+const loadingFollowing = ref(false)
 let searchTimer = null
 
 // 消息轮询
@@ -271,16 +273,30 @@ async function loadConversationMessages(userId) {
   } catch { /* ignore */ }
 }
 
-function showNewConversation() {
+async function showNewConversation() {
   showNewConv.value = true
   searchKeyword.value = ''
   searchResults.value = []
+  await loadFollowingUsers()
 }
 
 function closeNewConversation() {
   showNewConv.value = false
   searchKeyword.value = ''
   searchResults.value = []
+}
+
+async function loadFollowingUsers() {
+  loadingFollowing.value = true
+  try {
+    const data = await fetchMyFollowing({ page: 1, size: 50 })
+    followingUsers.value = (data?.items || []).filter(u => u.id !== auth.user?.id)
+  } catch (err) {
+    followingUsers.value = []
+    console.error('加载关注列表失败:', err.message)
+  } finally {
+    loadingFollowing.value = false
+  }
 }
 
 async function handleSearchUsers() {
@@ -302,6 +318,11 @@ async function handleSearchUsers() {
 
 function onSearchInput() {
   clearTimeout(searchTimer)
+  if (!searchKeyword.value.trim()) {
+    searchResults.value = []
+    searchingUsers.value = false
+    return
+  }
   searchTimer = setTimeout(handleSearchUsers, 300)
 }
 
@@ -551,31 +572,62 @@ watch(() => route.params.userId, (val) => {
             <input
               v-model="searchKeyword"
               class="new-conv-dialog__input"
-              placeholder="搜索用户昵称..."
+              placeholder="搜索用户昵称，或直接从关注列表选择"
               @input="onSearchInput"
               @keyup.escape="closeNewConversation"
             />
           </div>
           <div class="new-conv-dialog__results">
-            <Loading v-if="searchingUsers" variant="skeleton" :rows="4" />
-            <EmptyState v-else-if="searchKeyword.trim() && searchResults.length === 0" icon="🔍" title="未找到用户" />
-            <button
-              v-for="user in searchResults"
-              :key="user.id"
-              class="user-result-item"
-              @click="startNewChat(user.id)"
-            >
-              <img
-                :src="user.avatar_url || ''"
-                :alt="user.nickname"
-                class="user-result-avatar"
-                @error="$event.target.style.display='none'"
+            <template v-if="searchKeyword.trim()">
+              <div class="new-conv-dialog__section-title">搜索结果</div>
+              <Loading v-if="searchingUsers" variant="skeleton" :rows="4" />
+              <EmptyState v-else-if="searchResults.length === 0" icon="🔍" title="未找到用户" />
+              <button
+                v-for="user in searchResults"
+                :key="user.id"
+                class="user-result-item"
+                @click="startNewChat(user.id)"
+              >
+                <img
+                  :src="user.avatar_url || ''"
+                  :alt="user.nickname"
+                  class="user-result-avatar"
+                  @error="$event.target.style.display='none'"
+                />
+                <div class="user-result-info">
+                  <strong>{{ user.nickname }}</strong>
+                  <span v-if="user.bio">{{ user.bio }}</span>
+                </div>
+              </button>
+            </template>
+            <template v-else>
+              <div class="new-conv-dialog__section-title">我的关注</div>
+              <Loading v-if="loadingFollowing" variant="skeleton" :rows="4" />
+              <EmptyState
+                v-else-if="followingUsers.length === 0"
+                icon="用户"
+                title="暂无关注用户"
+                description="关注用户后，可在这里直接发起私信"
               />
-              <div class="user-result-info">
-                <strong>{{ user.nickname }}</strong>
-                <span v-if="user.bio">{{ user.bio }}</span>
-              </div>
-            </button>
+              <button
+                v-for="user in followingUsers"
+                :key="user.id"
+                class="user-result-item"
+                @click="startNewChat(user.id)"
+              >
+                <img
+                  :src="user.avatar_url || ''"
+                  :alt="user.nickname"
+                  class="user-result-avatar"
+                  @error="$event.target.style.display='none'"
+                />
+                <div class="user-result-info">
+                  <strong>{{ user.nickname }}</strong>
+                  <span v-if="user.bio">{{ user.bio }}</span>
+                  <span v-else>已关注</span>
+                </div>
+              </button>
+            </template>
           </div>
         </div>
       </div>
@@ -892,6 +944,12 @@ watch(() => route.params.userId, (val) => {
 }
 .new-conv-dialog__input:focus { border-color: var(--color-primary); outline: none; }
 .new-conv-dialog__results { flex: 1; overflow-y: auto; padding: 8px; }
+.new-conv-dialog__section-title {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+}
 .user-result-item {
   align-items: center;
   background: none;

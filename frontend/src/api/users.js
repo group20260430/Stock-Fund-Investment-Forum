@@ -20,6 +20,11 @@ export function fetchFollowing(userId, params) {
   return api.get(`/users/${userId}/following`, params)
 }
 
+/** 我的关注列表 */
+export function fetchMyFollowing(params) {
+  return api.get('/users/me/following', params)
+}
+
 /** 设置星标用户 */
 export function setStarred(userId, isStarred) {
   return api.put('/users/me/starred', { user_id: userId, is_starred: isStarred })
