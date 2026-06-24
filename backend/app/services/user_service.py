@@ -34,6 +34,7 @@ from app.schemas.user import (
     PaginatedData,
     ProfessionalCertificationRequest,
     RegisterRequest,
+    ResetPasswordRequest,
     RiskAssessmentRequest,
     RiskHistoryItem,
     SendCodeRequest,
@@ -327,6 +328,34 @@ class UserService:
             "expires_in": 7200,  # 2 hours
             "user": profile,
         }
+
+    @staticmethod
+    def reset_password(db: Session, data: ResetPasswordRequest) -> dict:
+        account = data.account.strip()
+        is_email = "@" in account
+
+        if is_email:
+            normalized = account.lower()
+            user = db.query(User).filter(User.email == normalized).first()
+            key = f"email:reset_password:{normalized}"
+        else:
+            user = db.query(User).filter(User.phone == account).first()
+            key = f"reset_password:{account}"
+
+        if user is None:
+            raise HTTPException(status_code=404, detail="账号未注册")
+
+        stored_code = VerificationCodeStore.get(key)
+        if stored_code is None or stored_code != data.code:
+            raise HTTPException(status_code=401, detail="验证码错误或已过期")
+
+        if user.status != UserStatus.ACTIVE:
+            raise HTTPException(status_code=401, detail="账户已被禁用")
+
+        user.password_hash = get_password_hash(data.new_password)
+        VerificationCodeStore.delete(key)
+        db.commit()
+        return {"reset": True}
 
     @staticmethod
     def refresh_token(raw_refresh_token: str, db: Session) -> dict:

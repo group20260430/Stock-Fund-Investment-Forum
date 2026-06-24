@@ -16,6 +16,7 @@ from app.schemas.user import (
     LoginRequest,
     ProfessionalCertificationRequest,
     RegisterRequest,
+    ResetPasswordRequest,
     RiskAssessmentRequest,
     SendCodeRequest,
     UpdateProfileRequest,
@@ -109,6 +110,18 @@ async def login(
     """用户登录 — 支持密码登录和验证码登录。"""
     result = UserService.login(db, data)
     return ApiResponse(code=200, message="登录成功", data=result)
+
+
+@router.post("/auth/reset-password")
+async def reset_password(
+    data: ResetPasswordRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    _: None = Depends(code_limiter),
+):
+    """忘记密码 — 使用手机号/邮箱验证码重置密码。"""
+    result = UserService.reset_password(db, data)
+    return ApiResponse(code=200, message="密码已重置", data=result)
 
 
 @router.post("/auth/refresh")

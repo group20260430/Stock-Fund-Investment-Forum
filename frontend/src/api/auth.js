@@ -35,6 +35,11 @@ export function loginWithCode(phone, code) {
   return api.post('/auth/login', { phone, code, login_type: 'code' })
 }
 
+/** 忘记密码：验证码重置密码 */
+export function resetPassword(account, code, newPassword) {
+  return api.post('/auth/reset-password', { account, code, new_password: newPassword })
+}
+
 /** 刷新 Token */
 export function refreshToken() {
   return api.post('/auth/refresh')

@@ -1,23 +1,31 @@
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { sendCode as sendCodeApi, sendEmailCode } from '../api/auth'
+import { sendCode as sendCodeApi, sendEmailCode, resetPassword } from '../api/auth'
 
 const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
 
-// 登录模式：password | code
+// 登录模式：password | code | reset
 const mode = ref('password')
 const loading = ref(false)
 const errorMsg = ref('')
+const successMsg = ref('')
 
 const form = reactive({
   phone: '',
   password: '',
   code: '',
   remember: false,
+})
+
+const resetForm = reactive({
+  account: '',
+  code: '',
+  newPassword: '',
+  confirmPassword: '',
 })
 
 const codeSending = ref(false)
@@ -27,18 +35,27 @@ let countdownTimer = null
 function switchMode(m) {
   mode.value = m
   errorMsg.value = ''
+  successMsg.value = ''
+  if (m === 'reset' && form.phone && !resetForm.account) {
+    resetForm.account = form.phone
+  }
 }
 
 async function sendCode() {
-  if (!form.phone || codeCountdown.value > 0) return
+  const account = mode.value === 'reset' ? resetForm.account : form.phone
+  if (!account || codeCountdown.value > 0) return
   codeSending.value = true
+  errorMsg.value = ''
+  successMsg.value = ''
   try {
-    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.phone)
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(account)
+    const codeType = mode.value === 'reset' ? 'reset_password' : 'login'
     if (isEmail) {
-      await sendEmailCode(form.phone, 'login')
+      await sendEmailCode(account, codeType)
     } else {
-      await sendCodeApi(form.phone, 'login')
+      await sendCodeApi(account, codeType)
     }
+    successMsg.value = '验证码已发送，请在 5 分钟内完成操作'
     codeCountdown.value = 60
     countdownTimer = setInterval(() => {
       codeCountdown.value--
@@ -55,7 +72,12 @@ async function sendCode() {
 }
 
 async function handleLogin() {
+  if (mode.value === 'reset') {
+    await handleResetPassword()
+    return
+  }
   errorMsg.value = ''
+  successMsg.value = ''
 
   // 基础校验
   if (!form.phone) {
@@ -92,6 +114,47 @@ async function handleLogin() {
     loading.value = false
   }
 }
+
+async function handleResetPassword() {
+  errorMsg.value = ''
+  successMsg.value = ''
+  if (!resetForm.account) {
+    errorMsg.value = '请输入手机号或邮箱'
+    return
+  }
+  if (!resetForm.code) {
+    errorMsg.value = '请输入验证码'
+    return
+  }
+  if (!resetForm.newPassword) {
+    errorMsg.value = '请输入新密码'
+    return
+  }
+  if (resetForm.newPassword !== resetForm.confirmPassword) {
+    errorMsg.value = '两次输入的新密码不一致'
+    return
+  }
+
+  loading.value = true
+  try {
+    await resetPassword(resetForm.account, resetForm.code, resetForm.newPassword)
+    form.phone = resetForm.account
+    form.password = ''
+    resetForm.code = ''
+    resetForm.newPassword = ''
+    resetForm.confirmPassword = ''
+    switchMode('password')
+    successMsg.value = '密码已重置，请使用新密码登录'
+  } catch (err) {
+    errorMsg.value = err.message || '重置密码失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onUnmounted(() => {
+  if (countdownTimer) clearInterval(countdownTimer)
+})
 </script>
 
 <template>
@@ -120,23 +183,29 @@ async function handleLogin() {
           验证码登录
         </button>
       </div>
+      <p v-if="mode === 'reset'" class="reset-tip">
+        通过手机号或邮箱验证码重置登录密码
+      </p>
 
       <!-- 表单 -->
       <form class="auth-form" @submit.prevent="handleLogin">
         <!-- 错误提示 -->
         <div v-if="errorMsg" class="auth-error">{{ errorMsg }}</div>
+        <div v-if="successMsg" class="auth-success">{{ successMsg }}</div>
 
-        <!-- 手机号 -->
-        <div class="form-field">
-          <label>手机号 / 邮箱</label>
-          <input
-            v-model="form.phone"
-            type="text"
-            placeholder="请输入手机号或邮箱"
-            autocomplete="tel"
-            class="form-input"
-          >
-        </div>
+        <template v-if="mode !== 'reset'">
+          <!-- 手机号 -->
+          <div class="form-field">
+            <label>手机号 / 邮箱</label>
+            <input
+              v-model="form.phone"
+              type="text"
+              placeholder="请输入手机号或邮箱"
+              autocomplete="username"
+              class="form-input"
+            >
+          </div>
+        </template>
 
         <!-- 密码模式 -->
         <template v-if="mode === 'password'">
@@ -156,12 +225,14 @@ async function handleLogin() {
               <input v-model="form.remember" type="checkbox">
               记住登录状态
             </label>
-            <a href="#" class="forgot-link">忘记密码？</a>
+            <button type="button" class="forgot-link" @click="switchMode('reset')">
+              忘记密码？
+            </button>
           </div>
         </template>
 
         <!-- 验证码模式 -->
-        <template v-else>
+        <template v-else-if="mode === 'code'">
           <div class="form-field">
             <label>验证码</label>
             <div class="code-row">
@@ -184,20 +255,81 @@ async function handleLogin() {
           </div>
         </template>
 
+        <!-- 忘记密码模式 -->
+        <template v-else>
+          <div class="form-field">
+            <label>手机号 / 邮箱</label>
+            <input
+              v-model="resetForm.account"
+              type="text"
+              placeholder="请输入已注册的手机号或邮箱"
+              autocomplete="username"
+              class="form-input"
+            >
+          </div>
+
+          <div class="form-field">
+            <label>验证码</label>
+            <div class="code-row">
+              <input
+                v-model="resetForm.code"
+                type="text"
+                placeholder="请输入验证码"
+                maxlength="6"
+                class="form-input code-input"
+              >
+              <button
+                type="button"
+                class="code-btn"
+                :disabled="codeCountdown > 0 || codeSending"
+                @click="sendCode"
+              >
+                {{ codeCountdown > 0 ? `${codeCountdown}s` : codeSending ? '发送中...' : '获取验证码' }}
+              </button>
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label>新密码</label>
+            <input
+              v-model="resetForm.newPassword"
+              type="password"
+              placeholder="8~32位，需包含字母和数字"
+              autocomplete="new-password"
+              class="form-input"
+            >
+          </div>
+
+          <div class="form-field">
+            <label>确认新密码</label>
+            <input
+              v-model="resetForm.confirmPassword"
+              type="password"
+              placeholder="请再次输入新密码"
+              autocomplete="new-password"
+              class="form-input"
+            >
+          </div>
+        </template>
+
         <!-- 提交按钮 -->
         <button
           type="submit"
           class="submit-btn"
           :disabled="loading"
         >
-          {{ loading ? '登录中...' : '登录' }}
+          {{ loading ? (mode === 'reset' ? '提交中...' : '登录中...') : (mode === 'reset' ? '重置密码' : '登录') }}
         </button>
       </form>
 
       <!-- 底部链接 -->
-      <p class="auth-card__footer">
+      <p v-if="mode !== 'reset'" class="auth-card__footer">
         还没有账号？
         <router-link to="/register">立即注册</router-link>
+      </p>
+      <p v-else class="auth-card__footer">
+        想起来了？
+        <button type="button" class="footer-link" @click="switchMode('password')">返回登录</button>
       </p>
     </div>
   </div>
@@ -247,6 +379,13 @@ async function handleLogin() {
   margin-bottom: 28px;
 }
 
+.reset-tip {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  margin: -12px 0 20px;
+  text-align: center;
+}
+
 .auth-tab {
   background: none;
   border: 0;
@@ -280,6 +419,15 @@ async function handleLogin() {
   border: 1px solid var(--color-danger-light);
   border-radius: 8px;
   color: var(--color-danger-hover);
+  font-size: 14px;
+  padding: 10px 14px;
+}
+
+.auth-success {
+  background: var(--color-success-light);
+  border: 1px solid var(--color-success-light);
+  border-radius: 8px;
+  color: var(--color-success);
   font-size: 14px;
   padding: 10px 14px;
 }
@@ -361,8 +509,13 @@ async function handleLogin() {
 }
 
 .forgot-link {
+  background: none;
+  border: 0;
   color: var(--color-primary);
+  cursor: pointer;
+  font: inherit;
   font-size: 13px;
+  padding: 0;
   text-decoration: none;
 }
 
@@ -406,7 +559,18 @@ async function handleLogin() {
   font-weight: 500;
 }
 
-.auth-card__footer a:hover {
+.footer-link {
+  background: none;
+  border: 0;
+  color: var(--color-primary);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 500;
+  padding: 0;
+}
+
+.auth-card__footer a:hover,
+.footer-link:hover {
   text-decoration: underline;
 }
 </style>

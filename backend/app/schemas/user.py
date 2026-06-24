@@ -50,6 +50,23 @@ class LoginRequest(BaseModel):
     login_type: str = Field(..., pattern=r"^(password|code)$")
 
 
+class ResetPasswordRequest(BaseModel):
+    account: str = Field(..., min_length=1, description="手机号或邮箱")
+    code: str = Field(..., pattern=r"^\d{6}$", description="6位验证码")
+    new_password: str = Field(
+        ..., min_length=8, max_length=32, description="新密码，8~32位，含字母+数字"
+    )
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        if not re.search(r"[A-Za-z]", v):
+            raise ValueError("密码必须包含字母")
+        if not re.search(r"\d", v):
+            raise ValueError("密码必须包含数字")
+        return v
+
+
 class EmailRegisterRequest(BaseModel):
     email: str = Field(
         ...,
