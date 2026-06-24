@@ -19,6 +19,7 @@ const routes = [
   { path: "/posts/:id/edit", name: "edit-post", component: () => import("../views/CreatePost.vue"), meta: { requiresAuth: true } },
   { path: "/groups/new", name: "create-group", component: () => import("../views/CreateGroup.vue"), meta: { requiresAuth: true } },
   { path: "/groups/:id", name: "group-detail", component: () => import("../views/GroupDetail.vue"), meta: { requiresAuth: true } },
+  { path: "/notifications", name: "notifications", component: () => import("../views/Notifications.vue"), meta: { requiresAuth: true } },
   { path: "/messages", name: "messages", component: () => import("../views/Messages.vue"), meta: { requiresAuth: true } },
   { path: "/messages/:userId", name: "messages-conversation", component: () => import("../views/Messages.vue"), meta: { requiresAuth: true } },
   { path: "/me/settings", name: "settings", component: () => import("../views/Settings.vue"), meta: { requiresAuth: true } },

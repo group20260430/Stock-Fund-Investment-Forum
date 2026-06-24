@@ -68,6 +68,7 @@ const personalItems = computed(() => {
   if (!auth.isLoggedIn) return []
   return [
     { label: '我的动态', to: '/', query: { tab: 'feed' }, icon: 'feed' },
+    { label: '通知', to: '/notifications', icon: 'bell' },
     { label: '我的收藏', to: '/me/collections', icon: 'collections' },
     { label: '关注列表', to: `/users/${auth.user?.id || 'me'}/follow`, icon: 'followers' },
     { label: '我的群组', to: '/groups', icon: 'groups' },

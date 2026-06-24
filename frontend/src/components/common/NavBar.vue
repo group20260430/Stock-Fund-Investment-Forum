@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { fetchUnreadMessageCount } from '../../api/messages'
+import { fetchUnreadNotificationCount } from '../../api/notifications'
 import { useAuthStore } from '../../stores/auth'
 import AppIcon from './AppIcon.vue'
 
@@ -44,15 +45,20 @@ function goTo(path) {
   router.push(path)
 }
 
-// ===== 未读私信角标 =====
+// ===== 未读通知角标 =====
 const unreadCount = ref(0)
+const unreadMessageCount = ref(0)
 let notifyPollTimer = null
 
 async function loadUnreadCount() {
   if (!auth.isLoggedIn) return
   try {
-    const result = await fetchUnreadMessageCount()
+    const result = await fetchUnreadNotificationCount()
     unreadCount.value = result?.unread_count || 0
+  } catch { /* ignore */ }
+  try {
+    const result = await fetchUnreadMessageCount()
+    unreadMessageCount.value = result?.unread_count || 0
   } catch { /* ignore */ }
 }
 
@@ -116,7 +122,7 @@ document.addEventListener('visibilitychange', onVisibilityChange)
     <div class="navbar__right">
       <template v-if="auth.isLoggedIn">
         <!-- 通知 -->
-        <button class="navbar__icon-btn navbar__bell-btn" aria-label="通知" @click="goTo('/messages')">
+        <button class="navbar__icon-btn navbar__bell-btn" aria-label="通知" @click="goTo('/notifications')">
           <AppIcon name="bell" :size="20" />
           <span v-if="unreadCount > 0" class="notify-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
         </button>
@@ -139,6 +145,7 @@ document.addEventListener('visibilitychange', onVisibilityChange)
             </div>
             <div class="user-dropdown__divider" />
             <button @click="goTo(`/users/${auth.user?.id || 'me'}`)">个人主页</button>
+            <button @click="goTo('/notifications')">通知</button>
             <button @click="goTo('/messages')">私信</button>
             <button @click="goTo('/me/settings')">设置</button>
             <button v-if="auth.isAdmin" @click="goTo('/admin')">管理后台</button>

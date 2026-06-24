@@ -17,7 +17,43 @@ const form = reactive({
   bio: auth.user?.bio || '',
   phone: auth.user?.phone || '',
   email: auth.user?.email || '',
+  investment_tags: auth.user?.investment_tags || [],
+  follow_markets: auth.user?.follow_markets || [],
 })
+
+// 可选的标签选项
+const availableTags = [
+  '价值投资', '成长投资', '量化交易', '技术分析',
+  '长期持有', '短线交易', '股息策略', '定投策略',
+  '宏观分析', '行业研究', '打新策略', '套利交易',
+]
+
+const availableMarkets = [
+  { value: 'a_stock', label: 'A股' },
+  { value: 'hk_stock', label: '港股' },
+  { value: 'us_stock', label: '美股' },
+  { value: 'fund', label: '基金' },
+  { value: 'futures', label: '期货' },
+  { value: 'bond', label: '债券' },
+]
+
+function toggleTag(tag) {
+  const idx = form.investment_tags.indexOf(tag)
+  if (idx >= 0) {
+    form.investment_tags.splice(idx, 1)
+  } else {
+    form.investment_tags.push(tag)
+  }
+}
+
+function toggleMarket(market) {
+  const idx = form.follow_markets.indexOf(market)
+  if (idx >= 0) {
+    form.follow_markets.splice(idx, 1)
+  } else {
+    form.follow_markets.push(market)
+  }
+}
 
 const privacy = reactive({
   profile_visibility: 'public',
@@ -32,7 +68,12 @@ onMounted(loadPrivacy)
 async function handleSave() {
   saving.value = true
   try {
-    await auth.updateProfile(form)
+    await auth.updateProfile({
+      nickname: form.nickname,
+      bio: form.bio,
+      investment_tags: form.investment_tags,
+      follow_markets: form.follow_markets,
+    })
     saved.value = true
     setTimeout(() => { saved.value = false }, 2000)
   } catch (err) {
@@ -133,6 +174,46 @@ async function handlePrivacySave() {
       <button class="save-btn" :disabled="privacySaving" @click="handlePrivacySave">
         {{ privacySaving ? '保存中...' : '保存隐私设置' }}
       </button>
+    </div>
+
+    <!-- 投资偏好 -->
+    <div class="settings-card">
+      <h2>投资偏好</h2>
+
+      <div class="form-field">
+        <label>关注领域</label>
+        <p class="form-hint">选择您关注的市场，将影响个性化推荐内容</p>
+        <div class="chip-group">
+          <button
+            v-for="m in availableMarkets"
+            :key="m.value"
+            :class="['chip', { 'chip--active': form.follow_markets.includes(m.value) }]"
+            @click="toggleMarket(m.value)"
+          >
+            {{ m.label }}
+          </button>
+        </div>
+      </div>
+
+      <div class="form-field">
+        <label>投资经验标签</label>
+        <p class="form-hint">选择与您投资经验相关的标签，帮助其他用户了解您</p>
+        <div class="chip-group">
+          <button
+            v-for="tag in availableTags"
+            :key="tag"
+            :class="['chip', { 'chip--active': form.investment_tags.includes(tag) }]"
+            @click="toggleTag(tag)"
+          >
+            {{ tag }}
+          </button>
+        </div>
+        <div v-if="form.investment_tags.length" class="selected-tags">
+          <span v-for="tag in form.investment_tags" :key="tag" class="selected-tag">
+            {{ tag }} <button class="selected-tag__remove" @click="toggleTag(tag)">&times;</button>
+          </span>
+        </div>
+      </div>
     </div>
 
     <!-- 认证入口 -->
@@ -249,4 +330,66 @@ async function handlePrivacySave() {
 }
 
 .cert-btn--secondary:hover { background: var(--color-primary-light); }
+
+/* ===== 偏好标签选择 ===== */
+.chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  background: var(--color-bg-hover);
+  border: 1px solid var(--color-border-input);
+  border-radius: 20px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 14px;
+  transition: all 0.15s;
+}
+
+.chip:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.chip--active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-bg-card);
+}
+
+.chip--active:hover {
+  background: var(--color-primary-hover);
+}
+
+.selected-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.selected-tag {
+  background: var(--color-primary-light);
+  border-radius: 4px;
+  color: var(--color-primary);
+  font-size: 12px;
+  padding: 4px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.selected-tag__remove {
+  background: none;
+  border: 0;
+  color: var(--color-primary);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+  line-height: 1;
+}
 </style>

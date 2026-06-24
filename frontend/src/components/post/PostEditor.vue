@@ -35,6 +35,7 @@ const form = reactive({
 
 const voteOptionInputs = ref(['', ''])
 
+const isMoment = computed(() => form.post_type === 'moment')
 const previewHtml = computed(() => renderMarkdown(form.content))
 const richTextMode = computed(() => form.post_type === 'long_article')
 
@@ -207,13 +208,13 @@ function removeVoteOption(idx) {
 }
 
 async function handleSubmit() {
-  if (!form.title.trim()) { toast.warning('请输入标题'); return }
+  if (form.post_type !== 'moment' && !form.title.trim()) { toast.warning('请输入标题'); return }
   if (!form.content.trim()) { toast.warning('请输入内容'); return }
   if (!form.category_id) { toast.warning('请选择板块'); return }
 
   const data = {
     category_id: Number(form.category_id),
-    title: form.title.trim(),
+    title: form.post_type === 'moment' ? (form.title.trim() || '实时讨论') : form.title.trim(),
     content: form.content.trim(),
     post_type: form.post_type,
     tags: form.tags,
@@ -273,77 +274,106 @@ async function handleSubmit() {
             <button :class="['type-tab', { 'type-tab--active': form.post_type === 'normal' }]" @click="selectType('normal')">普通帖</button>
             <button :class="['type-tab', { 'type-tab--active': form.post_type === 'long_article' }]" @click="selectType('long_article')">长文</button>
             <button :class="['type-tab', { 'type-tab--active': form.post_type === 'poll' }]" @click="selectType('poll')">投票</button>
+            <button :class="['type-tab', { 'type-tab--active': form.post_type === 'moment' }]" @click="selectType('moment')">实时讨论</button>
           </div>
         </div>
 
-        <!-- 标题 -->
-        <div class="editor__field">
+        <!-- 标题（实时讨论不强制标题） -->
+        <div class="editor__field" :class="{ 'editor__field--moment': isMoment }">
           <input
             v-model="form.title"
             class="editor__input"
             type="text"
-            placeholder="请输入帖子标题 (1-120字)"
-            maxlength="120"
+            :placeholder="isMoment ? '标题（可选，简短描述）' : '请输入帖子标题 (1-120字)'"
+            :maxlength="isMoment ? 50 : 120"
           >
         </div>
 
-        <!-- 编辑 + 预览 左右分栏 -->
-        <div class="editor__field">
-          <label>正文
-            <span v-if="richTextMode" class="editor__label-hint">（富文本编辑器，支持表格、图片、图表）</span>
-            <span v-else class="editor__label-hint">（支持 Markdown 语法）</span>
-          </label>
-
-          <div class="editor__panes">
-            <!-- 左侧：编辑 -->
-            <div class="editor__pane editor__pane--edit">
-              <template v-if="richTextMode">
-                <RichTextEditor v-model="form.content" placeholder="输入长文分析内容..." />
-              </template>
-              <template v-else>
-                <div class="editor__toolbar">
-                  <button title="加粗" @click="insertBold"><b>B</b></button>
-                  <button title="斜体" @click="insertItalic"><i>I</i></button>
-                  <button title="下划线" @click="insertUnderline"><u>U</u></button>
-                  <span class="toolbar-divider" />
-                  <button title="无序列表" @click="insertUl"><AppIcon name="list-bullet" :size="16" /></button>
-                  <button title="有序列表" @click="insertOl"><AppIcon name="list-ordered" :size="16" /></button>
-                  <span class="toolbar-divider" />
-                  <button title="插入链接" @click="insertLink"><AppIcon name="link" :size="16" /></button>
-                  <button title="上传图片并插入" :disabled="uploadingImage" @click="triggerImageInput">
-                    <AppIcon name="image" :size="16" />
-                    <span v-if="uploadingImage" class="spin-icon">⟳</span>
-                  </button>
-                  <button title="上传附件" :disabled="uploading" @click="triggerFileInput">
-                    <AppIcon name="attachment" :size="16" />
-                    <span v-if="uploading" class="spin-icon">⟳</span>
-                  </button>
-                </div>
-                <textarea
-                  ref="textareaRef"
-                  v-model="form.content"
-                  class="editor__textarea"
-                  placeholder="输入 Markdown 正文内容..."
-                  rows="16"
-                />
-              </template>
+        <!-- 实时讨论 - 简洁输入 -->
+        <template v-if="isMoment">
+          <div class="editor__field">
+            <label>正文 <span class="editor__label-hint">（盘中简短文讨论，类似微博）</span></label>
+            <textarea
+              ref="textareaRef"
+              v-model="form.content"
+              class="editor__textarea editor__textarea--moment"
+              placeholder="分享您此刻的市场观点..."
+              rows="4"
+              maxlength="500"
+            />
+            <div class="editor__moment-footer">
+              <span class="editor__char-count">{{ form.content.length }}/500</span>
+              <div class="editor__moment-actions">
+                <button title="上传图片" :disabled="uploadingImage" @click="triggerImageInput">
+                  <AppIcon name="image" :size="16" />
+                </button>
+                <button title="上传附件" :disabled="uploading" @click="triggerFileInput">
+                  <AppIcon name="attachment" :size="16" />
+                </button>
+              </div>
             </div>
+          </div>
+        </template>
 
-            <!-- 右侧：预览（仅 Markdown 模式） -->
-            <div v-if="!richTextMode" class="editor__pane editor__pane--preview">
-              <div class="editor__preview-header">预览</div>
-              <div class="editor__preview-body">
-                <div v-if="form.title" class="editor__preview-title">{{ form.title }}</div>
-                <div v-if="previewHtml" class="editor__preview-content" v-html="previewHtml" />
-                <div v-else class="editor__preview-empty">
-                  <AppIcon name="image" :size="36" />
-                  <p>实时预览</p>
-                  <span>在左侧输入内容后，此处将实时渲染 Markdown 效果</span>
+        <!-- 编辑 + 预览 左右分栏（非实时讨论） -->
+        <template v-else>
+          <div class="editor__field">
+            <label>正文
+              <span v-if="richTextMode" class="editor__label-hint">（富文本编辑器，支持表格、图片、图表）</span>
+              <span v-else class="editor__label-hint">（支持 Markdown 语法）</span>
+            </label>
+
+            <div class="editor__panes">
+              <!-- 左侧：编辑 -->
+              <div class="editor__pane editor__pane--edit">
+                <template v-if="richTextMode">
+                  <RichTextEditor v-model="form.content" placeholder="输入长文分析内容..." />
+                </template>
+                <template v-else>
+                  <div class="editor__toolbar">
+                    <button title="加粗" @click="insertBold"><b>B</b></button>
+                    <button title="斜体" @click="insertItalic"><i>I</i></button>
+                    <button title="下划线" @click="insertUnderline"><u>U</u></button>
+                    <span class="toolbar-divider" />
+                    <button title="无序列表" @click="insertUl"><AppIcon name="list-bullet" :size="16" /></button>
+                    <button title="有序列表" @click="insertOl"><AppIcon name="list-ordered" :size="16" /></button>
+                    <span class="toolbar-divider" />
+                    <button title="插入链接" @click="insertLink"><AppIcon name="link" :size="16" /></button>
+                    <button title="上传图片并插入" :disabled="uploadingImage" @click="triggerImageInput">
+                      <AppIcon name="image" :size="16" />
+                      <span v-if="uploadingImage" class="spin-icon">⟳</span>
+                    </button>
+                    <button title="上传附件" :disabled="uploading" @click="triggerFileInput">
+                      <AppIcon name="attachment" :size="16" />
+                      <span v-if="uploading" class="spin-icon">⟳</span>
+                    </button>
+                  </div>
+                  <textarea
+                    ref="textareaRef"
+                    v-model="form.content"
+                    class="editor__textarea"
+                    placeholder="输入 Markdown 正文内容..."
+                    rows="16"
+                  />
+                </template>
+              </div>
+
+              <!-- 右侧：预览（仅 Markdown 模式） -->
+              <div v-if="!richTextMode" class="editor__pane editor__pane--preview">
+                <div class="editor__preview-header">预览</div>
+                <div class="editor__preview-body">
+                  <div v-if="form.title" class="editor__preview-title">{{ form.title }}</div>
+                  <div v-if="previewHtml" class="editor__preview-content" v-html="previewHtml" />
+                  <div v-else class="editor__preview-empty">
+                    <AppIcon name="image" :size="36" />
+                    <p>实时预览</p>
+                    <span>在左侧输入内容后，此处将实时渲染 Markdown 效果</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        </template>
 
         <!-- 隐藏：图片上传 input -->
         <input
@@ -844,6 +874,61 @@ async function handleSubmit() {
 .editor__tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
 .editor__tag { background: var(--color-primary-light); border-radius: 4px; color: var(--color-primary); font-size: 12px; padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; }
 .editor__tag-remove { background: none; border: 0; color: var(--color-primary); cursor: pointer; font-size: 14px; padding: 0; line-height: 1; }
+
+/* ===== 实时讨论样式 ===== */
+.editor__field--moment {
+  transition: opacity 0.2s;
+}
+
+.editor__textarea--moment {
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.6;
+  resize: vertical;
+  min-height: 100px;
+  border-radius: 8px;
+}
+
+.editor__moment-footer {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+
+.editor__char-count {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.editor__moment-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.editor__moment-actions button {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: flex;
+  height: 32px;
+  justify-content: center;
+  transition: background 0.15s;
+  width: 32px;
+}
+
+.editor__moment-actions button:hover:not(:disabled) {
+  background: var(--color-bg-hover);
+  color: var(--color-primary);
+}
+
+.editor__moment-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 /* 移动端回退为上下堆叠 */
 @media (max-width: 780px) {
