@@ -2,11 +2,13 @@
 import { ref, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useToastStore } from '../stores/toast'
 import { sendCode as sendCodeApi, sendEmailCode } from '../api/auth'
 
 const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
+const toast = useToastStore()
 
 // 登录模式：password | code
 const mode = ref('password')
@@ -34,10 +36,15 @@ async function sendCode() {
   codeSending.value = true
   try {
     const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.phone)
+    let res
     if (isEmail) {
-      await sendEmailCode(form.phone, 'login')
+      res = await sendEmailCode(form.phone, 'login')
     } else {
-      await sendCodeApi(form.phone, 'login')
+      res = await sendCodeApi(form.phone, 'login')
+    }
+    // 开发模式：后端返回验证码，显示在 Toast 上
+    if (res?.dev_code) {
+      toast.info(`验证码：${res.dev_code}（开发模式）`, 10000)
     }
     codeCountdown.value = 60
     countdownTimer = setInterval(() => {
@@ -156,7 +163,7 @@ async function handleLogin() {
               <input v-model="form.remember" type="checkbox">
               记住登录状态
             </label>
-            <a href="#" class="forgot-link">忘记密码？</a>
+            <router-link to="/forgot-password" class="forgot-link">忘记密码？</router-link>
           </div>
         </template>
 

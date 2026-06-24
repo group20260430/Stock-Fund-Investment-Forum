@@ -10,6 +10,16 @@ export function sendEmailCode(email, type = 'register') {
   return api.post('/auth/email/send-code', { email, type })
 }
 
+/** 验证手机验证码 */
+export function verifyCode(phone, code, type = 'register') {
+  return api.post('/auth/verify-code', { phone, code, type })
+}
+
+/** 重置密码 */
+export function resetPassword(phone, code, password) {
+  return api.post('/auth/reset-password', { phone, code, password })
+}
+
 /** 验证邮箱验证码 */
 export function verifyEmailCode(email, code) {
   return api.post('/auth/email/verify-code', { email, code })

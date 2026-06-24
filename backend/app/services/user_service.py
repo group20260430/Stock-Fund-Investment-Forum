@@ -41,6 +41,7 @@ from app.schemas.user import (
     UserProfile,
 )
 from app.services.email_service import EmailSendError, EmailService
+from app.core.config import settings
 
 
 class VerificationCodeStore:
@@ -156,7 +157,52 @@ class UserService:
             f"({data.type}): {code}"
         )
 
-        return {"expire_in": 300}
+        result = {"expire_in": 300}
+        # 开发模式：将验证码返回给前端，方便页面 Toast 展示
+        if not settings.smtp_configured:
+            result["dev_code"] = code
+        return result
+
+    @staticmethod
+    def verify_code(phone: str, code: str, code_type: str) -> dict:
+        """验证手机验证码 — 验证通过后标记已验证。"""
+        key = f"{code_type}:{phone}"
+        stored_code = VerificationCodeStore.get(key)
+        if stored_code is None or stored_code != code:
+            raise HTTPException(status_code=401, detail="验证码错误或已过期")
+
+        VerificationCodeStore.delete(key)
+        # Mark as verified for subsequent operations (10 min TTL)
+        VerificationCodeStore.set(f"verified:{code_type}:{phone}", "1", ttl_seconds=600)
+
+        return {"verified": True}
+
+    @staticmethod
+    def reset_password(db: Session, data) -> dict:
+        """重置密码 — 验证码验证通过后更新密码。"""
+        from app.schemas.user import ResetPasswordRequest
+
+        phone = data.phone
+        code = data.code
+        new_password = data.password
+
+        # Check that code was verified
+        if not VerificationCodeStore.get(f"verified:reset_password:{phone}"):
+            raise HTTPException(status_code=400, detail="请先验证验证码")
+
+        # Find user
+        user = db.query(User).filter(User.phone == phone).first()
+        if user is None:
+            raise HTTPException(status_code=404, detail="该手机号未注册")
+
+        # Update password
+        user.password_hash = get_password_hash(new_password)
+        db.commit()
+
+        # Clean up verification markers
+        VerificationCodeStore.delete(f"verified:reset_password:{phone}")
+
+        return {"success": True}
 
     # ==================================================================
     # Email Verification
@@ -187,7 +233,11 @@ class UserService:
             VerificationCodeStore.delete(key)
             raise HTTPException(status_code=502, detail=str(exc))
 
-        return {"expire_in": 300}
+        result = {"expire_in": 300}
+        # 开发模式：SMTP 未配置时，将验证码返回给前端
+        if not settings.smtp_configured:
+            result["dev_code"] = code
+        return result
 
     @staticmethod
     def verify_email_code(email: str, code: str) -> dict:

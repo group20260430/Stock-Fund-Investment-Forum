@@ -2,10 +2,12 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useToastStore } from '../stores/toast'
 import { sendEmailCode, verifyEmailCode } from '../api/auth'
 
 const router = useRouter()
 const auth = useAuthStore()
+const toast = useToastStore()
 
 const step = ref(1) // 1: 邮箱验证, 2: 设置密码, 3: 完善资料(可选)
 const loading = ref(false)
@@ -30,7 +32,11 @@ async function requestCode() {
   codeSending.value = true
   errorMsg.value = ''
   try {
-    await sendEmailCode(form.email, 'register')
+    const res = await sendEmailCode(form.email, 'register')
+    // 开发模式：后端返回验证码，显示在 Toast 上
+    if (res?.dev_code) {
+      toast.info(`验证码：${res.dev_code}（开发模式）`, 10000)
+    }
     codeCountdown.value = 60
     countdownTimer = setInterval(() => {
       codeCountdown.value--

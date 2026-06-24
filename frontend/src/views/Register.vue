@@ -2,10 +2,12 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { sendCode } from '../api/auth'
+import { useToastStore } from '../stores/toast'
+import { sendCode, verifyCode } from '../api/auth'
 
 const router = useRouter()
 const auth = useAuthStore()
+const toast = useToastStore()
 
 const step = ref(1) // 1: 手机验证, 2: 设置密码, 3: 完善资料(可选)
 const loading = ref(false)
@@ -31,7 +33,11 @@ async function requestCode() {
   codeSending.value = true
   errorMsg.value = ''
   try {
-    await sendCode(form.phone, 'register')
+    const res = await sendCode(form.phone, 'register')
+    // 开发模式：后端返回验证码，显示在 Toast 上
+    if (res?.dev_code) {
+      toast.info(`验证码：${res.dev_code}（开发模式）`, 10000)
+    }
     codeCountdown.value = 60
     countdownTimer = setInterval(() => {
       codeCountdown.value--
@@ -47,7 +53,7 @@ async function requestCode() {
   }
 }
 
-function nextStep() {
+async function nextStep() {
   errorMsg.value = ''
 
   if (step.value === 1) {
@@ -63,8 +69,16 @@ function nextStep() {
       errorMsg.value = '请输入验证码'
       return
     }
-    // 模拟验证码校验（后端实际校验）
-    step.value = 2
+    // 向后端验证验证码
+    loading.value = true
+    try {
+      await verifyCode(form.phone, form.code, 'register')
+      step.value = 2
+    } catch (err) {
+      errorMsg.value = err.message || '验证码错误或已过期'
+    } finally {
+      loading.value = false
+    }
   } else if (step.value === 2) {
     if (!form.password || form.password.length < 8) {
       errorMsg.value = '密码至少8位'
@@ -184,7 +198,9 @@ function goBack() {
           </div>
         </div>
 
-        <button type="submit" class="submit-btn">下一步</button>
+        <button type="submit" class="submit-btn" :disabled="loading">
+          {{ loading ? '验证中...' : '下一步' }}
+        </button>
       </form>
 
       <!-- 第2步：设置密码和昵称 -->

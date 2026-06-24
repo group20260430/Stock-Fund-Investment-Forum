@@ -16,9 +16,11 @@ from app.schemas.user import (
     LoginRequest,
     ProfessionalCertificationRequest,
     RegisterRequest,
+    ResetPasswordRequest,
     RiskAssessmentRequest,
     SendCodeRequest,
     UpdateProfileRequest,
+    VerifyCodeRequest,
 )
 from app.services.user_service import UserService
 
@@ -70,6 +72,29 @@ async def email_send_code(
     """发送邮箱验证码 — 用于邮箱注册/登录验证。"""
     result = await UserService.send_email_code(db, data)
     return ApiResponse(code=200, message="验证码已发送", data=result)
+
+
+@router.post("/auth/verify-code")
+async def verify_code(
+    data: VerifyCodeRequest,
+    request: Request,
+    _: None = Depends(code_limiter),
+):
+    """验证手机验证码 — 验证通过后方可注册/重置密码。"""
+    result = UserService.verify_code(data.phone, data.code, data.type)
+    return ApiResponse(code=200, message="验证成功", data=result)
+
+
+@router.post("/auth/reset-password")
+async def reset_password(
+    data: ResetPasswordRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    _: None = Depends(code_limiter),
+):
+    """重置密码 — 验证码验证通过后，设置新密码。"""
+    result = UserService.reset_password(db, data)
+    return ApiResponse(code=200, message="密码重置成功", data=result)
 
 
 @router.post("/auth/email/verify-code")

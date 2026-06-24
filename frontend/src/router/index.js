@@ -7,6 +7,7 @@ const routes = [
   { path: "/login", name: "login", component: () => import("../views/Login.vue"), meta: { guest: true, layout: false } },
   { path: "/register", name: "register", component: () => import("../views/Register.vue"), meta: { guest: true, layout: false } },
   { path: "/register/email", name: "register-email", component: () => import("../views/RegisterEmail.vue"), meta: { guest: true, layout: false } },
+  { path: "/forgot-password", name: "forgot-password", component: () => import("../views/ForgotPassword.vue"), meta: { guest: true, layout: false } },
   { path: "/posts/:id", name: "post-detail", component: () => import("../views/PostDetail.vue") },
   { path: "/categories/:id", name: "category", component: () => import("../views/Category.vue") },
   { path: "/search", name: "search", component: () => import("../views/Search.vue") },

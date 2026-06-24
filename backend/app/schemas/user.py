@@ -75,6 +75,29 @@ class EmailRegisterRequest(BaseModel):
         return v
 
 
+class VerifyCodeRequest(BaseModel):
+    phone: str = Field(..., pattern=r"^\d{11}$")
+    code: str = Field(..., min_length=6, max_length=6)
+    type: str = Field(..., pattern=r"^(register|login|reset_password)$")
+
+
+class ResetPasswordRequest(BaseModel):
+    phone: str = Field(..., pattern=r"^\d{11}$")
+    code: str = Field(..., min_length=6, max_length=6)
+    password: str = Field(
+        ..., min_length=8, max_length=32, description="新密码，8~32位，含字母+数字"
+    )
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        if not re.search(r"[A-Za-z]", v):
+            raise ValueError("密码必须包含字母")
+        if not re.search(r"\d", v):
+            raise ValueError("密码必须包含数字")
+        return v
+
+
 class UpdateProfileRequest(BaseModel):
     nickname: Optional[str] = Field(None, min_length=2, max_length=20)
     bio: Optional[str] = Field(None, max_length=500)
