@@ -41,6 +41,7 @@ from app.models.operations import (
     UserActivityLog,
 )
 from app.models.points import PointsHistory
+from app.models.professional_certification import ProfessionalCertification, ProfessionalCertStatus
 from app.models.refresh_token import RefreshToken
 from app.models.risk_assessment import RiskAssessment
 from app.models.social import Follow, StarredUser
@@ -67,6 +68,8 @@ __all__ = [
     "NotificationType",
     "PointsHistory",
     "Post",
+    "ProfessionalCertification",
+    "ProfessionalCertStatus",
     "RefreshToken",
     "Report",
     "ReviewLog",

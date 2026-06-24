@@ -1,43 +1,60 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useToastStore } from '../../stores/toast'
-import { fetchCertifications, reviewCertification } from '../../api/admin'
+import {
+  fetchCertifications, reviewCertification,
+  fetchProfessionalCertifications, reviewProfessionalCertification,
+} from '../../api/admin'
 import Loading from '../../components/common/Loading.vue'
 
 const toast = useToastStore()
 
+const activeTab = ref('identity') // identity | professional
 const items = ref([])
 const loading = ref(true)
-const pagination = ref({ page: 1, total: 0 })
 const filter = ref({ status: 'pending' })
 const reviewComment = ref({})
+
+const certTypeLabels = { identity: '实名认证', professional: '专业认证' }
 
 async function load() {
   loading.value = true
   try {
-    const data = await fetchCertifications({ ...filter.value, page: pagination.value.page, size: 20 })
-    items.value = data.items || []
-    pagination.value.total = data.total || 0
+    if (activeTab.value === 'identity') {
+      items.value = await fetchCertifications({ status: filter.value.status }) || []
+    } else {
+      items.value = await fetchProfessionalCertifications({ status: filter.value.status }) || []
+    }
   } catch (err) {
     toast.error('加载失败: ' + err.message)
+    items.value = []
   } finally {
     loading.value = false
   }
 }
 
-async function handleReview(id, action) {
-  if (action === 'reject' && !(reviewComment.value[id] || '').trim()) {
+async function handleReview(item, action) {
+  if (action === 'reject' && !(reviewComment.value[item.id] || '').trim()) {
     toast.warning('拒绝时必须填写审核意见')
     return
   }
   try {
-    await reviewCertification(id, action, reviewComment.value[id] || '')
+    const comment = reviewComment.value[item.id] || ''
+    if (activeTab.value === 'identity') {
+      await reviewCertification(item.id, action, comment)
+    } else {
+      await reviewProfessionalCertification(item.id, action, comment)
+    }
     toast.success(action === 'approve' ? '认证已通过' : '认证已拒绝')
-    items.value = items.value.filter(item => item.id !== id)
-    pagination.value.total = Math.max(0, pagination.value.total - 1)
+    items.value = items.value.filter(i => i.id !== item.id)
   } catch (err) {
     toast.error(err.message || '操作失败')
   }
+}
+
+function switchTab(tab) {
+  activeTab.value = tab
+  load()
 }
 
 onMounted(load)
@@ -58,6 +75,12 @@ onMounted(load)
       <router-link to="/admin/categories" class="admin-nav__item">板块管理</router-link>
     </div>
 
+    <!-- 类型切换 -->
+    <div class="tab-bar">
+      <button :class="['tab', { 'tab--active': activeTab === 'identity' }]" @click="switchTab('identity')">实名认证</button>
+      <button :class="['tab', { 'tab--active': activeTab === 'professional' }]" @click="switchTab('professional')">专业认证</button>
+    </div>
+
     <div class="filter-bar">
       <label>状态：
         <select v-model="filter.status" @change="load()" class="filter-select">
@@ -70,22 +93,40 @@ onMounted(load)
 
     <Loading v-if="loading" variant="skeleton" :rows="3" />
 
-    <div v-else-if="items.length === 0" class="empty-state"><p>暂无认证申请</p></div>
+    <div v-else-if="items.length === 0" class="empty-state"><p>暂无{{ certTypeLabels[activeTab] }}申请</p></div>
 
     <div v-else class="list">
       <div v-for="item in items" :key="item.id" class="review-card">
         <div class="review-card__header">
-          <strong>{{ item.real_name || item.user?.nickname || '未知' }}</strong>
+          <span class="review-card__type-badge">{{ certTypeLabels[activeTab] }}</span>
+          <strong>用户 #{{ item.user_id }}</strong>
           <span :class="['status-badge', 'status-badge--' + item.status]">{{ item.status }}</span>
         </div>
-        <p class="review-card__info">身份证：{{ item.id_number || '未提供' }}</p>
+
+        <!-- 实名认证详情 -->
+        <template v-if="activeTab === 'identity'">
+          <p class="review-card__info">真实姓名：{{ item.real_name || '未提供' }}</p>
+          <p class="review-card__info">身份证号：{{ item.id_number || '未提供' }}</p>
+        </template>
+
+        <!-- 专业认证详情 -->
+        <template v-else>
+          <p class="review-card__info" v-if="item.description">申请说明：{{ item.description }}</p>
+          <div class="review-card__docs" v-if="item.qualification_docs?.length">
+            <p class="review-card__info">资质证明文件：</p>
+            <div v-for="(doc, idx) in item.qualification_docs" :key="idx" class="doc-link">
+              <a :href="doc.url" target="_blank" rel="noopener">{{ doc.name || doc.url }}</a>
+            </div>
+          </div>
+        </template>
+
         <p class="review-card__info">提交时间：{{ item.created_at || '未知' }}</p>
 
         <div v-if="item.status === 'pending'" class="review-card__actions">
-          <button class="btn-approve" @click="handleReview(item.id, 'approve')">通过</button>
+          <button class="btn-approve" @click="handleReview(item, 'approve')">通过</button>
           <div class="reject-group">
             <input v-model="reviewComment[item.id]" class="reject-input" placeholder="拒绝原因（必填）" />
-            <button class="btn-reject" @click="handleReview(item.id, 'reject')">拒绝</button>
+            <button class="btn-reject" @click="handleReview(item, 'reject')">拒绝</button>
           </div>
         </div>
       </div>
@@ -99,12 +140,39 @@ onMounted(load)
 .admin-nav__item { border-bottom: 2px solid transparent; color: var(--color-text-secondary); font-size: 14px; font-weight: 500; padding: 14px 24px; text-decoration: none; }
 .admin-nav__item:hover { color: var(--color-text-body); }
 .admin-nav__item--active { border-bottom-color: var(--color-primary); color: var(--color-primary); }
+
+.tab-bar { display: flex; gap: 0; margin-bottom: 16px; }
+.tab {
+  background: var(--color-bg-hover);
+  border: 0;
+  border-radius: 8px 8px 0 0;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 10px 24px;
+  transition: all 0.15s;
+}
+.tab--active {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-bottom-color: var(--color-bg-card);
+  color: var(--color-primary);
+  margin-bottom: -1px;
+}
+
 .filter-bar { margin-bottom: 16px; }
 .filter-select { border: 1px solid var(--color-border-input); border-radius: 6px; font: inherit; padding: 6px 10px; }
 .list { display: grid; gap: 12px; }
 .review-card { background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 8px; padding: 16px; }
-.review-card__header { align-items: center; display: flex; gap: 8px; margin-bottom: 8px; }
+.review-card__header { align-items: center; display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.review-card__type-badge { background: var(--color-primary-light); border-radius: 4px; color: var(--color-primary); font-size: 11px; font-weight: 600; padding: 2px 6px; }
 .review-card__info { color: var(--color-text-secondary); font-size: 13px; margin: 4px 0; }
+.review-card__docs { margin: 8px 0; }
+.doc-link { margin: 4px 0 4px 16px; }
+.doc-link a { color: var(--color-primary); font-size: 13px; text-decoration: none; }
+.doc-link a:hover { text-decoration: underline; }
 .status-badge { border-radius: 4px; font-size: 12px; font-weight: 600; padding: 2px 8px; }
 .status-badge--pending { background: var(--color-warning-light); color: var(--color-warning); }
 .status-badge--approved { background: var(--color-success-light); color: var(--color-success); }

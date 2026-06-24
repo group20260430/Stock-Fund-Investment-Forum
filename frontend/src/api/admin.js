@@ -60,14 +60,24 @@ export function submitReport(data) {
   return api.post('/report', data)
 }
 
-/** 认证审核列表 */
+/** 实名认证审核列表 */
 export function fetchCertifications(params) {
   return api.get('/admin/certifications', params)
 }
 
-/** 审核认证 */
+/** 审核实名认证 */
 export function reviewCertification(id, action, reason) {
-  return api.post(`/admin/certifications/${id}/review`, { action, reason })
+  return api.post(`/admin/certifications/${id}/review`, { action, comment: reason })
+}
+
+/** 专业认证审核列表 */
+export function fetchProfessionalCertifications(params) {
+  return api.get('/admin/professional-certifications', params)
+}
+
+/** 审核专业认证 */
+export function reviewProfessionalCertification(id, action, reason) {
+  return api.post(`/admin/professional-certifications/${id}/review`, { action, comment: reason })
 }
 
 /** 敏感词列表 */
