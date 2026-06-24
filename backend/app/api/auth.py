@@ -14,6 +14,7 @@ from app.schemas.user import (
     EmailRegisterRequest,
     EmailSendCodeRequest,
     LoginRequest,
+    ProfessionalCertificationRequest,
     RegisterRequest,
     RiskAssessmentRequest,
     SendCodeRequest,
@@ -196,6 +197,17 @@ async def submit_certification(
     """申请实名认证 — 提交身份证信息，等待审核。"""
     result = UserService.submit_certification(db, current_user, data)
     return ApiResponse(code=200, message="认证申请已提交，等待审核", data=result)
+
+
+@router.post("/auth/professional-certification")
+async def submit_professional_certification(
+    data: ProfessionalCertificationRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """申请专业认证 — 上传从业资格、学历证明等材料，审核通过后获得加V标识。"""
+    result = UserService.submit_professional_certification(db, current_user, data)
+    return ApiResponse(code=200, message="专业认证申请已提交，等待审核", data=result)
 
 
 @router.post("/auth/risk-assessment")

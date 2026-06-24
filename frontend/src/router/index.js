@@ -24,6 +24,7 @@ const routes = [
   { path: "/messages/:userId", name: "messages-conversation", component: () => import("../views/Messages.vue"), meta: { requiresAuth: true } },
   { path: "/me/settings", name: "settings", component: () => import("../views/Settings.vue"), meta: { requiresAuth: true } },
   { path: "/me/settings/certification", name: "settings-certification", component: () => import("../views/SettingsCertification.vue"), meta: { requiresAuth: true } },
+  { path: "/me/settings/professional-certification", name: "settings-professional-certification", component: () => import("../views/SettingsProfessionalCertification.vue"), meta: { requiresAuth: true } },
   { path: "/me/settings/assessment", name: "settings-assessment", component: () => import("../views/SettingsAssessment.vue"), meta: { requiresAuth: true } },
   { path: "/me/collections", name: "collections", component: () => import("../views/Collections.vue"), meta: { requiresAuth: true } },
 

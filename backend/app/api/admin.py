@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.dependencies import get_current_admin, get_current_user
 from app.db.session import get_db
 from app.models.certification import Certification, CertificationStatus
+from app.models.professional_certification import ProfessionalCertification, ProfessionalCertStatus
 from app.models.content import Category, Comment, CommentStatus, Like, Post, PostStatus, Share
 from app.models.operations import (
     BanAction,
@@ -702,6 +703,57 @@ def review_certification(
         user.auth_level = AuthLevel.VERIFIED
     db.commit()
     return ApiResponse(code=200, message="认证审核完成", data={"status": cert.status.value})
+
+
+# ==================== 专业认证审核 ====================
+
+
+@router.get("/admin/professional-certifications")
+def list_professional_certifications(
+    status: str = Query("pending", pattern="^(pending|approved|rejected)$"),
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    items = (
+        db.query(ProfessionalCertification)
+        .filter(ProfessionalCertification.status == ProfessionalCertStatus(status))
+        .order_by(ProfessionalCertification.created_at)
+        .all()
+    )
+    return ApiResponse(code=200, message="success", data=[
+        {
+            "id": item.id,
+            "user_id": item.user_id,
+            "qualification_docs": item.qualification_docs or [],
+            "description": item.description,
+            "status": item.status.value,
+            "created_at": item.created_at.isoformat() if item.created_at else None,
+        }
+        for item in items
+    ])
+
+
+@router.post("/admin/professional-certifications/{cert_id}/review")
+def review_professional_certification(
+    cert_id: int,
+    data: CertificationReviewRequest,
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    cert = db.query(ProfessionalCertification).filter(ProfessionalCertification.id == cert_id).first()
+    if cert is None:
+        raise HTTPException(status_code=404, detail="专业认证申请不存在")
+    cert.status = ProfessionalCertStatus.APPROVED if data.action == "approve" else ProfessionalCertStatus.REJECTED
+    cert.reviewer_id = admin.id
+    cert.review_comment = data.comment
+    cert.reviewed_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    if cert.status == ProfessionalCertStatus.APPROVED:
+        user = db.query(User).filter(User.id == cert.user_id).first()
+        if user:
+            user.auth_level = AuthLevel.PROFESSIONAL
+            user.is_professional = True
+    db.commit()
+    return ApiResponse(code=200, message="专业认证审核完成", data={"status": cert.status.value})
 
 
 @router.get("/admin/sensitive-words")

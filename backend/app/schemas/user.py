@@ -97,6 +97,28 @@ class CertificationRequest(BaseModel):
     )
 
 
+class QualificationDoc(BaseModel):
+    """单个资质证明文件"""
+    name: str = Field(..., min_length=1, max_length=100, description="文件名称，如'证券从业资格证'")
+    url: str = Field(..., min_length=1, max_length=500, description="文件URL")
+
+
+class ProfessionalCertificationRequest(BaseModel):
+    """专业认证申请"""
+    qualification_docs: list[QualificationDoc] = Field(
+        ..., min_length=1, max_length=10, description="资质证明文件列表"
+    )
+    description: str | None = Field(
+        None, max_length=500, description="申请说明，如从业经历简述"
+    )
+
+
+class ProfessionalCertificationResponse(BaseModel):
+    """专业认证申请响应"""
+    certification_id: int
+    status: str = "pending"
+
+
 class QuestionAnswer(BaseModel):
     question_id: int
     answer: str

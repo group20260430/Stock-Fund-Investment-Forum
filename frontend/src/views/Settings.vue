@@ -216,12 +216,21 @@ async function handlePrivacySave() {
       </div>
     </div>
 
-    <!-- 认证入口 -->
+    <!-- 实名认证 -->
     <div class="settings-card">
-      <h2>身份认证</h2>
-      <p class="settings-card__desc">完成实名认证后可获得认证标识和专业用户权限</p>
+      <h2>实名认证</h2>
+      <p class="settings-card__desc">提交身份证信息完成实名认证，获得认证标识</p>
       <button class="cert-btn" @click="$router.push('/me/settings/certification')">
         去认证
+      </button>
+    </div>
+
+    <!-- 专业认证 -->
+    <div class="settings-card">
+      <h2>专业认证</h2>
+      <p class="settings-card__desc">上传从业资格、学历证明等材料，审核通过后获得 <strong style="color:var(--color-primary)">加V标识</strong></p>
+      <button class="cert-btn cert-btn--pro" @click="$router.push('/me/settings/professional-certification')">
+        申请专业认证
       </button>
     </div>
 
@@ -322,6 +331,14 @@ async function handlePrivacySave() {
   font-size: 14px;
   padding: 8px 20px;
 }
+
+.cert-btn--pro {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
+}
+
+.cert-btn--pro:hover { background: var(--color-primary-light); }
 
 .cert-btn--secondary {
   background: var(--color-bg-card);

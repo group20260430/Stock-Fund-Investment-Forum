@@ -16,6 +16,7 @@ from app.core.security import (
     verify_password,
 )
 from app.models.certification import Certification, CertificationStatus
+from app.models.professional_certification import ProfessionalCertification, ProfessionalCertStatus
 from app.models.refresh_token import RefreshToken
 from app.models.risk_assessment import RiskAssessment, RiskLevelEnum
 from app.models.user import AuthLevel, RegisterType, RiskLevel, User, UserStatus
@@ -31,6 +32,7 @@ from app.schemas.user import (
     EmailSendCodeRequest,
     LoginRequest,
     PaginatedData,
+    ProfessionalCertificationRequest,
     RegisterRequest,
     RiskAssessmentRequest,
     RiskHistoryItem,
@@ -420,6 +422,37 @@ class UserService:
         db.commit()
         db.refresh(cert)
 
+        return {"status": "pending", "certification_id": cert.id}
+
+    @staticmethod
+    def submit_professional_certification(
+        db: Session, user: User, data: ProfessionalCertificationRequest
+    ) -> dict:
+        """Submit a professional certification application with qualification documents."""
+        # Check for existing pending professional certification
+        existing = (
+            db.query(ProfessionalCertification)
+            .filter(
+                ProfessionalCertification.user_id == user.id,
+                ProfessionalCertification.status == ProfessionalCertStatus.PENDING,
+            )
+            .first()
+        )
+        if existing:
+            raise HTTPException(
+                status_code=409,
+                detail="已有待审核的专业认证申请，请等待审核结果",
+            )
+
+        cert = ProfessionalCertification(
+            user_id=user.id,
+            qualification_docs=[doc.model_dump() for doc in data.qualification_docs],
+            description=data.description,
+            status=ProfessionalCertStatus.PENDING,
+        )
+        db.add(cert)
+        db.commit()
+        db.refresh(cert)
         return {"status": "pending", "certification_id": cert.id}
 
     @staticmethod
