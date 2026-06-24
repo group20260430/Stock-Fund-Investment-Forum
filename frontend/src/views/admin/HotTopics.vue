@@ -5,7 +5,6 @@ import { use } from "echarts/core"
 import { CanvasRenderer } from "echarts/renderers"
 import { BarChart } from "echarts/charts"
 import { GridComponent, TooltipComponent } from "echarts/components"
-import AppLayout from "../../components/layout/AppLayout.vue"
 import Loading from "../../components/common/Loading.vue"
 import EmptyState from "../../components/common/EmptyState.vue"
 import { fetchHotTopics } from "../../api/admin"
@@ -75,7 +74,6 @@ const barChartOption = computed(() => {
 </script>
 
 <template>
-  <AppLayout>
     <header class="toolbar">
       <h1>管理后台 / 热门话题分析</h1>
     </header>
@@ -89,6 +87,7 @@ const barChartOption = computed(() => {
       <router-link to="/admin/logs" class="admin-nav__item">操作日志</router-link>
       <router-link to="/admin/hot-topics" class="admin-nav__item admin-nav__item--active">热门话题分析</router-link>
       <router-link to="/admin/engagement" class="admin-nav__item">用户参与度</router-link>
+      <router-link to="/admin/categories" class="admin-nav__item">板块管理</router-link>
     </div>
 
     <div class="filter-bar">
@@ -175,7 +174,6 @@ const barChartOption = computed(() => {
     <div v-else class="empty-state">
       <p>无法加载热门话题数据，请检查后端服务</p>
     </div>
-  </AppLayout>
 </template>
 
 <style scoped>

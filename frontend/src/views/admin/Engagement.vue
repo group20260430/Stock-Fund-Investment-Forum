@@ -5,7 +5,6 @@ import { use } from "echarts/core"
 import { CanvasRenderer } from "echarts/renderers"
 import { LineChart, PieChart } from "echarts/charts"
 import { GridComponent, TooltipComponent, LegendComponent } from "echarts/components"
-import AppLayout from "../../components/layout/AppLayout.vue"
 import Loading from "../../components/common/Loading.vue"
 import { fetchEngagementReport } from "../../api/admin"
 import { useToastStore } from "../../stores/toast"
@@ -75,7 +74,6 @@ const distributionChartOption = computed(() => {
 </script>
 
 <template>
-  <AppLayout>
     <header class="toolbar">
       <h1>管理后台 / 用户参与度报告</h1>
     </header>
@@ -89,6 +87,7 @@ const distributionChartOption = computed(() => {
       <router-link to="/admin/logs" class="admin-nav__item">操作日志</router-link>
       <router-link to="/admin/hot-topics" class="admin-nav__item">热门话题分析</router-link>
       <router-link to="/admin/engagement" class="admin-nav__item admin-nav__item--active">用户参与度</router-link>
+      <router-link to="/admin/categories" class="admin-nav__item">板块管理</router-link>
     </div>
 
     <div class="filter-bar">
@@ -186,7 +185,6 @@ const distributionChartOption = computed(() => {
     <div v-else class="empty-state">
       <p>无法加载用户参与度数据，请检查后端服务</p>
     </div>
-  </AppLayout>
 </template>
 
 <style scoped>
