@@ -38,6 +38,7 @@ from app.models.operations import (
     SensitiveWord,
     UserActivityLog,
 )
+from app.models.oauth import OAuthAccount, OAuthProvider
 from app.models.points import PointsHistory
 from app.models.professional_certification import ProfessionalCertification, ProfessionalCertStatus
 from app.models.refresh_token import RefreshToken
@@ -62,6 +63,8 @@ __all__ = [
     "Message",
     "Notification",
     "NotificationType",
+    "OAuthAccount",
+    "OAuthProvider",
     "PointsHistory",
     "Post",
     "ProfessionalCertification",

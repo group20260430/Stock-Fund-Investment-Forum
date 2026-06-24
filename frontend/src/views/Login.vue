@@ -2,7 +2,7 @@
 import { ref, reactive, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { sendCode as sendCodeApi, sendEmailCode, resetPassword } from '../api/auth'
+import { getQQLoginUrl, sendCode as sendCodeApi, sendEmailCode, resetPassword } from '../api/auth'
 
 const router = useRouter()
 const route = useRoute()
@@ -150,6 +150,13 @@ async function handleResetPassword() {
   } finally {
     loading.value = false
   }
+}
+
+function handleQQLogin() {
+  errorMsg.value = ''
+  successMsg.value = ''
+  const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
+  window.location.href = getQQLoginUrl(redirect)
 }
 
 onUnmounted(() => {
@@ -321,6 +328,13 @@ onUnmounted(() => {
           {{ loading ? (mode === 'reset' ? '提交中...' : '登录中...') : (mode === 'reset' ? '重置密码' : '登录') }}
         </button>
       </form>
+
+      <div v-if="mode !== 'reset'" class="oauth-login">
+        <div class="oauth-login__divider"><span>或</span></div>
+        <button type="button" class="qq-login-btn" @click="handleQQLogin">
+          使用 QQ 登录
+        </button>
+      </div>
 
       <!-- 底部链接 -->
       <p v-if="mode !== 'reset'" class="auth-card__footer">
@@ -544,6 +558,44 @@ onUnmounted(() => {
 .submit-btn:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+.oauth-login {
+  margin-top: 20px;
+}
+
+.oauth-login__divider {
+  align-items: center;
+  color: var(--color-text-muted);
+  display: flex;
+  font-size: 12px;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.oauth-login__divider::before,
+.oauth-login__divider::after {
+  background: var(--color-border);
+  content: "";
+  flex: 1;
+  height: 1px;
+}
+
+.qq-login-btn {
+  background: #12b7f5;
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 12px 14px;
+  width: 100%;
+}
+
+.qq-login-btn:hover {
+  background: #0aa4df;
 }
 
 .auth-card__footer {

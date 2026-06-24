@@ -32,6 +32,7 @@ import app.models.social  # noqa: F401
 import app.models.community  # noqa: F401
 import app.models.notification  # noqa: F401
 import app.models.operations  # noqa: F401
+import app.models.oauth  # noqa: F401
 import app.models.points  # noqa: F401
 
 
