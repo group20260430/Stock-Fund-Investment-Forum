@@ -236,7 +236,6 @@ async function handleReorder() {
 .cat-list { background: var(--color-bg-card); border-radius: 8px; border: 1px solid var(--color-border); overflow: hidden; }
 .cat-list__header, .cat-list__row { display: grid; grid-template-columns: 50px 1fr 70px 80px 70px 180px; gap: 16px; padding: 10px 16px; align-items: center; font-size: 0.85rem; }
 .cat-list__header :nth-child(n+3), .cat-list__row :nth-child(n+3) { text-align: right; }
-.cat-list__header :nth-child(6) { padding-right: 75px; }
 .cat-list__header :nth-child(2), .cat-list__row :nth-child(2) { text-align: left; }
 .cat-list__header { background: var(--color-bg-hover); font-weight: 600; color: var(--color-text-muted); }
 .cat-list__row { border-top: 1px solid var(--color-border); }

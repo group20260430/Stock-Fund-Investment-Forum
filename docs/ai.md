@@ -1,8 +1,8 @@
 # AI 使用文档
 
 > **项目**：股票基金投资论坛（Stock-Fund-Investment-Forum）
-> **记录周期**：2026-04-30 ~ 2026-06-25
-> **AI 工具**：GitHub Copilot（模型：DeepSeek V4 Flash）
+> **记录周期**：2026-04-30 ~ 2026-06-17
+> **AI 工具**：GitHub Copilot（模型：DeepSeek V4 Flash）+claude code（模型：DeepSeek V4 Flash）
 > **覆盖阶段**：需求分析 → 系统设计 → 编码实现 → 测试调试
 
 ---
@@ -475,7 +475,7 @@ V1.1优化：
 
 ### 交互11：隐私设置 — Pydantic 部分更新
 
-**日期：** 2026-06-12｜**对应文件：** `backend/app/api/auth.py`
+**日期：** 2026-06-05｜**对应文件：** `backend/app/api/auth.py`
 
 **原始提示词：**
 ```
@@ -513,279 +513,419 @@ V1.1：增加 stored = {} 的默认值处理
 
 ---
 
-### 交互12：JWT Token 安全加固
+### 交互12：JWT Token 认证体系搭建 + 数据库自动初始化
 
-**日期：** 2026-06-05｜**对应文件：** `backend/app/services/user_service.py`
-
-**原始提示词：**
-```
-实现JWT Token Rotation：
-每次刷新时吊销旧Refresh Token、检测已吊销Token→401并告警、
-Token哈希存储（不存明文）、设置过期时间。
-防止Token重放攻击。
-```
-
-**AI输出摘要：**
-`refresh_token()` 方法实现：查询 RefreshToken（by hash）→ 检查 is_revoked → 吊销旧 Token → 签发新 Token 对。Token 哈希存储避免明文泄露。
-
-**可能存在的问题：**
-1. 仅吊销单个 Token，未处理批量吊销场景
-2. 缺少吊销时间戳记录
-3. 缺少疑似泄露的告警机制
-
-**迭代优化：**
-```
-V1.1增强：
-- 检测已吊销Token重试时，吊销该用户全部 RefreshToken（Token族吊销）
-- 增加 revoked_at 吊销时间戳
-- 疑似Token泄露时输出告警日志
-```
-
-**人工修改迭代过程：**
-
-| 轮次 | 修改项 | 修改前（AI生成） | 修改后（人工修正） | 修改原因 |
-|------|--------|-----------------|-------------------|---------|
-| V1→V2 | Token吊销 | 仅吊销单个 | Token族吊销（全部） | 疑似泄露时全面保护 |
-| V1→V2 | 时间记录 | 无 | 增加 revoked_at | 审计需要 |
-| V1→V2 | 告警 | 无 | 疑似泄露输出告警日志 | 安全监控 |
-
----
-
-### 交互13：前端请求封装 — Token 注入与错误处理
-
-**日期：** 2026-06-08｜**对应文件：** `frontend/src/utils/request.js`
+**日期：** 2026-06-09｜**对应文件：** `backend/app/core/config.py`、`backend/app/core/security.py`、`backend/app/core/dependencies.py`、`backend/app/main.py`、`backend/.env`
 
 **原始提示词：**
 ```
-实现前端HTTP请求封装：自动附加JWT Token、
-统一错误处理、401时清除登录态跳转登录页、
-429限流提示、统一解包后端data字段。
+阅读项目中的各项定义文档，了解项目的预期功能和详细后端API标准，严格遵循规定的技术和安全标准。
+我是负责后端的，帮我检查JWT Token鉴定。
+
+DATABASE=stock_fund_forum9 JWT_SECRET=dev-jwt-secret-change-in-production-a7f3c9e JWT_ALGORITHM=HS256
 ```
 
 **AI输出摘要：**
-基于原生 fetch 的请求封装，自动注入 `Authorization: Bearer <token>` 头，401 清除 token 跳转登录页，429 从 Retry-After 头读取等待时间提示用户，统一解包 data 字段。
 
-**可能存在的问题：**
-1. 未处理 FastAPI 422 验证错误的特殊格式（`result.detail` 数组）
-2. 缺少便捷方法导出
+| 组件 | 文件 | 功能 |
+|:----:|------|------|
+| Settings | `config.py` | 从环境变量读取 `jwt_secret`、`jwt_algorithm`、`database_url` |
+| JWT 工具 | `security.py` | `create_access_token()` + `decode_access_token()`，含 exp/iat/type 声明 |
+| 密码工具 | `security.py` | `get_password_hash()` (bcrypt cost=12) + `verify_password()` |
+| 依赖注入 | `dependencies.py` | `get_current_user()` 解析 Bearer Token → 返回 User 对象 |
+| 限流器 | `dependencies.py` | `RateLimiter`（IP 维度）+ `UserRateLimiter`（用户维度） |
+| 启动初始化 | `main.py` | `lifespan` 自动建表 + 种子数据（管理员/板块/演示内容） |
 
-**迭代优化：**
-```
-V1.1：
-- 增加 FastAPI 422 验证错误兼容解析（result.detail数组）
-- 统一解包 data 字段，业务代码无需手动处理
-- 导出便捷方法 api.get/post/put/patch/delete
-```
-
-**人工修改迭代过程：**
-
-| 轮次 | 修改项 | 修改前（AI生成） | 修改后（人工修正） | 修改原因 |
-|------|--------|-----------------|-------------------|---------|
-| V1→V2 | 422错误 | 未处理 | 兼容解析 result.detail 数组 | FastAPI校验格式特殊 |
-| V1→V2 | data解包 | 手动解包 | api方法统一解包data字段 | 减少重复代码 |
-| V1→V2 | 便捷方法 | 未提供 | 导出 get/post/put/patch/delete | 简化调用 |
-
----
-
-### 交互14：行情数据源三级降级
-
-**日期：** 2026-06-18｜**对应文件：** `backend/app/api/market.py`
-
-**错误日志：**
-```
-httpx.ConnectTimeout: timed out
-URL: https://push2.eastmoney.com/api/qt/ulist.np/get
-```
-
-**AI分析：**
-东方财富 API 超时，需实现多级降级策略避免单点故障。建议三级降级方案：
-
-| 级别 | 数据源 | 超时 |
-|:----:|--------|:----:|
-| 一级 | 东方财富 | 5s |
-| 二级 | 新浪财经（降级） | 5s |
-| 三级 | 空数据标记 | — |
-
+**主要修改 — main.py 启动生命周期改造：**
 ```python
-try:
-    return parse_eastmoney(await fetch_eastmoney(timeout=5.0))
-except (ConnectTimeout, HTTPStatusError):
-    try:
-        return parse_sina(await fetch_sina(timeout=5.0))
-    except (ConnectTimeout, HTTPStatusError):
-        return {"source": "none", "data": [], "message": "行情数据暂不可用"}
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Create all tables on startup (dev convenience — use migrations in production)."""
+    Base.metadata.create_all(bind=engine)   # 自动建表
+    seed_admin()                             # 初始化管理员
+    seed_categories()                        # 初始化板块
+    seed_demo_content()                      # 初始化演示数据
+    yield
+```
+
+同时确保所有模型在 `create_all` 前被导入注册：
+```python
+import app.models.user           # noqa: F401
+import app.models.refresh_token  # noqa: F401
+import app.models.certification   # noqa: F401
+...
 ```
 
 **可能存在的问题：**
-1. 三级降级后仍返回空数据，前端无缓存兜底
-2. 每次请求都按三级顺序，响应延迟高
+1. `create_all` 仅适用于开发环境，生产环境应使用 Alembic 迁移
+2. 种子数据中的管理员密码来自环境变量，首次部署需设置
+3. 板块种子数据固定，生产环境应通过管理后台动态管理
 
 **迭代优化：**
 ```
-V1.1：增加前端缓存，行情数据缓存30秒
-V1.1：失败后直接返回上次成功数据，不阻塞页面
+V1.1：config.py 增加 jwt_secret/jwt_algorithm 从环境变量读取
+V1.1：main.py 增加 lifespan 生命周期 + 模型导入
+V1.1：dependencies.py 增加 get_current_user 依赖
+V1.1：security.py 统一 JWT 创建/验证/密码哈希
 ```
-
-**人工修改迭代过程：**
-
-| 轮次 | 修改项 | 修改前（AI生成） | 修改后（人工修正） | 修改原因 |
-|------|--------|-----------------|-------------------|---------|
-| V1→V2 | 降级策略 | 三级完仍返回空 | 增加前端缓存30秒 | 提升用户体验 |
-| V1→V2 | 超时 | 默认30s | 每级5s | 避免用户长时间等待 |
-
----
-
-### 交互15：前端评论组件 — 楼中楼递归渲染
-
-**日期：** 2026-06-08｜**对应文件：** `frontend/src/components/comment/CommentItem.vue`
-
-**原始提示词：**
-```
-生成Vue 3评论列表组件，支持楼中楼：
-头像/昵称/时间/内容/点赞数、parent_id缩进、
-点击回复展开输入框、@用户名回复、Pinia管理数据。
-```
-
-**AI输出摘要：**
-`CommentList.vue` + `CommentItem.vue` 递归组件实现楼中楼结构，Pinia store 管理评论数据，`@`提及功能自动补全用户名。
-
-**可能存在的问题：**
-1. 递归组件未设置 name 属性 — Vue 3 递归必须显式声明
-2. 无限递归导致性能问题
-3. 首次渲染加载全部评论，性能差
-
-**迭代优化：**
-```
-V1.1：
-- 显式设置 name: 'CommentItem'
-- 限制楼中楼最多2层深度
-- 懒加载：首次只加载一级评论，点击「展开」加载子评论
-```
-
-**人工修改迭代过程：**
-
-| 轮次 | 修改项 | 修改前（AI生成） | 修改后（人工修正） | 修改原因 |
-|------|--------|-----------------|-------------------|---------|
-| V1→V2 | 组件name | 未设置 | 显式设置 `name: 'CommentItem'` | Vue 3递归必须 |
-| V1→V2 | 递归深度 | 无限制 | 限制2层 | 深层递归性能差 |
-| V1→V2 | 加载策略 | 全量加载 | 懒加载一级评论 | 评论多时首屏慢 |
-
----
-
-### 交互16：管理后台板块管理 — CSS Grid 布局
-
-**日期：** 2026-06-20｜**对应文件：** `frontend/src/views/admin/Categories.vue`
-
-**原始提示词：**
-```
-生成管理后台板块管理页面的grid布局：
-表头：排序、名称、类型、帖子数、状态、操作。
-顶级分区突出显示，子板块缩进，CSS Grid布局对齐。
-```
-
-**AI输出摘要：**
-CSS Grid 布局实现，使用 `grid-template-columns: 50px 1fr 70px 80px 70px max-content`，顶级分区加粗显示。
-
-**可能存在的问题：**
-1. `max-content` 导致表头和数据行列宽不一致
-2. 子板块缺少缩进效果，层级关系不清晰
-
-**迭代优化：**
-```
-V1.1：最后一列改为固定宽度180px
-V1.1：子板块增加左侧padding缩进
-V1.2：增加「操作」列下拉菜单
-```
-
-**人工修改迭代过程：**
-
-| 轮次 | 修改项 | 修改前（AI生成） | 修改后（人工修正） | 修改原因 |
-|------|--------|-----------------|-------------------|---------|
-| V1→V2 | grid列宽 | 最后列max-content | 固定180px | 行列宽不一致 |
-| V1→V2 | 子板块 | 未缩进 | 增加left padding | 层级关系不清晰 |
-| V2→V3 | 操作菜单 | 按钮直接显示 | 改为下拉菜单 | 减少页面冗余 |
-
----
-
-### 交互17：Bug 定位 — 点赞唯一约束冲突
-
-**日期：** 2026-06-10｜**对应文件：** `backend/app/api/interactions.py`
-
-**错误日志：**
-```
-sqlalchemy.exc.IntegrityError: UNIQUE constraint failed: likes.user_id
-```
-
-**AI分析：**
-用户对同一帖子重复点赞导致唯一约束冲突。原有逻辑是先删除再新增，在并发场景下出现竞态条件：两个请求同时通过删除检查，然后同时插入，导致唯一约束冲突。
-
-**修复方案：**
-改为 toggle 逻辑：先查询是否存在，存在则删除（取消），不存在则新增（点赞），避免并发冲突。
 
 **人工修改迭代过程：**
 
 | 轮次 | 修改项 | 修改前 | 修改后 | 修改原因 |
-|------|--------|-------|--------|---------|
-| V1→V2 | 点赞逻辑 | 直接insert | 先查询存在性再操作 | 避免唯一约束冲突报500 |
+|:----:|--------|-------|-------|---------|
+| V1→V2 | JWT Secret | 硬编码 `"your-jwt-secret-key-change-in-production"` | 从 `JWT_SECRET` 环境变量读取 | 敏感信息不应硬编码 |
+| V1→V2 | 数据库建表 | 手动执行 schema.sql | `lifespan` 自动 `create_all` | 开发环境便利性 |
+| V1→V2 | 模型注册 | 部分模型未导入 | 全部 import models.* (noqa: F401) | 确保 metadata 完整 |
+| V1→V2 | 种子数据 | 无 | 自动创建管理员+板块+演示帖子 | 开发环境快速启动 |
 
 ---
 
-### 交互18：前端调试 — 页面空白
+### 交互13：邮箱注册机制 — 后端 SMTP 验证码 + 前端邮箱注册页
 
-**日期：** 2026-06-25｜**对应文件：** `frontend/src/api/auth.js`
+**日期：** 2026-06-12｜**对应文件：** `backend/app/services/email_service.py`、`backend/app/api/auth.py`、`backend/.env`、`frontend/src/views/RegisterEmail.vue`、`frontend/src/views/Register.vue`、`frontend/src/router/index.js`
 
-**问题现象：**
-前端页面完全空白，无任何内容显示，无报错弹窗。
+**原始提示词：**
+```
+阅读项目文档，理解项目功能目标、开发路线和接口标准，检查项目文件，了解项目结构。
+尽可能避免对标准的更改，若不得不更改则必须按照一致的标准更新相应定义文档。
 
-**调试过程：**
-1. 检查入口文件 `main.js` → `App.vue` → `router/index.js` 路由链
-2. 浏览器控制台捕获隐藏错误
-3. 定位到错误位置：`Identifier 'resetPassword' has already been declared`
+现在向项目后端引入邮箱注册机制，使用服务器固定的SMTP邮箱向用户注册使用的邮箱发送
+固定格式的验证码邮件，并验证该验证码正确后允许用户继续注册。
+注意发送验证码用的SMTP邮箱、授权码等均应在.env进行本地设置以避免隐私信息泄露。
 
-**AI分析：**
-`auth.js` 文件第21行和第56行存在两个同名 `resetPassword` 函数，JavaScript ES6 不允许同一作用域内重复声明，导致整个脚本加载失败，页面空白。
+之后，在前端引入风格、排版和各项标准与手机注册页面一致的邮箱认证页面，
+并在默认的手机号注册页面合适位置添加用于邮箱登录的重定向（同理，以及反向的重定向）。
+```
 
-**修复：**
-将第二个重置密码函数重命名为 `resetPasswordByAccount`，更新所有调用处。
+**AI输出摘要：**
+
+**后端实现：**
+| 组件 | 文件 | 说明 |
+|:----:|------|------|
+| EmailService | `email_service.py` | SMTP 发送验证码，含 console fallback（开发模式） |
+| SMTP 配置 | `.env` | `SMTP_HOST/PORT/USER/PASSWORD/FROM_EMAIL` |
+| 限流器 | `auth.py` | `email_register_limiter`（5次/60秒） |
+| API 端点 | `auth.py` | `POST /auth/email/send-code`、`/auth/email/verify-code`、`/auth/email/register` |
+
+SMTP 配置通过 `settings.smtp_configured` 检测，未配置时自动降级为控制台打印验证码，方便开发调试。
+
+**前端实现：**
+| 页面 | 路由 | 说明 |
+|------|:----:|------|
+| `RegisterEmail.vue` | `/register/email` | 三步流程：邮箱验证→设置密码→完善资料 |
+| `Register.vue` | `/register` | 手机号注册页，底部增加"使用邮箱注册"链接 |
+
+页面风格与手机注册完全一致（`auth-card`、`auth-page` 样式复用）。
+双向重定向：手机注册页 → "使用邮箱注册" → `/register/email`；邮箱注册页 → "使用手机注册" → `/register`。
+
+**可能存在的问题：**
+1. SMTP 发送是阻塞操作，直接调用会阻塞 FastAPI 事件循环
+2. 开发模式下验证码直接打印在控制台，前端无法获取
+
+**迭代优化：**
+```
+V1.1：SMTP发送改为 asyncio.to_thread + timeout，避免阻塞事件循环
+V1.1：开发模式下 API 返回 dev_code 字段，前端通过 Toast 展示
+```
 
 **人工修改迭代过程：**
 
 | 轮次 | 修改项 | 修改前 | 修改后 | 修改原因 |
-|------|--------|-------|--------|---------|
-| V1→V2 | 函数命名 | 两个resetPassword | resetPassword + resetPasswordByAccount | 同名声明冲突导致页面空白 |
+|:----:|--------|-------|-------|---------|
+| V1→V2 | SMTP 调用 | 直接同步调用 | `asyncio.to_thread(EmailService._send_smtp, ...)` + 超时 | 避免阻塞 FastAPI 异步事件循环 |
+| V1→V2 | 开发验证码 | 仅打印控制台 | API 返回 `dev_code`，前端 Toast 展示 | 开发时无法查看控制台，调试不便 |
 
 ---
 
-### 交互19：生成单元测试 — 成就服务
+### 交互14：管理运营系统前端 — 重复内容检测 + 行为监控
 
-**日期：** 2026-06-16｜**对应文件：** `backend/tests/unit/test_achievement_service.py`
+**日期：** 2026-06-13｜**对应文件：** `frontend/src/views/admin/DuplicateContent.vue`、`frontend/src/views/admin/BehaviorMonitor.vue`、`frontend/src/views/admin/ActivityLogs.vue`、`frontend/src/api/admin.js`、`frontend/src/router/index.js`
 
 **原始提示词：**
 ```
-为 AchievementService.calculate_achievements 生成 Pytest 单元测试：
-MagicMock模拟db.session、新用户无徽章、发帖里程碑测试、
-参数化测试覆盖边界值、测试影响力值公式。
+现在项目中缺少功能：
+内容审核-重复内容检测后端已实现但前端无展示；
+用户行为监控（发帖频率/内容质量）后端有ActivityLog但前端无行为监控展示页面；
+二者皆从属于管理运营系统。
+依次实现二者对应的前端，注意若需创建新界面，则前端页面风格和排版逻辑应合理且与当前已有界面保持一致。
 ```
 
 **AI输出摘要：**
-覆盖 16 种徽章验证（发帖达人、精华作者、人气之星、粉丝破百、评论先锋、风险评估完成、实名认证、群组创建等）、影响力值公式验证、发帖里程碑边界值测试。
+分析后端已有的 API 和前端已有的管理后台页面风格后，新建了 2 个管理页面：
+
+**页面一：重复内容检测** (`/admin/duplicate-content`)
+| Tab | 功能 | 说明 |
+|:---:|------|------|
+| 文本扫描 | 输入文本+时间范围，扫描重复 | 调用 `POST /admin/duplicate-content/scan` |
+| 统计概览 | 展示重复统计数据 | 调用 `GET /admin/duplicate-content/stats` |
+
+- `scanDuplicateContent()` 调用后端扫描接口
+- `fetchDuplicateContentStats()` 加载统计数据
+- 相似度显示使用 `similarityBadgeClass()` 区分精确匹配(≥0.99)/高相似(≥0.95)/中等(≥0.92)
+
+**页面二：行为监控** (`/admin/behavior`)
+| Tab | 功能 | API |
+|:---:|------|-----|
+| 操作日志 | 活动日志列表，可筛选类型/时间 | `GET /admin/activity-logs` |
+| 用户行为汇总 | 用户行为统计数据，可排序 | `GET /admin/behavior/user-summary` |
+| 可疑行为 | 可疑用户列表 | `GET /admin/behavior/suspicious` |
+
+- 支持用户时间线弹窗查看（`showTimeline` 模态框）
+- 活动类型中文映射（`activityLabelMap`）
+- 筛选器：用户关键词、活动类型、日期范围
 
 **可能存在的问题：**
-1. Mock 链重复度高，每个测试用例都写了相同的 Mock 代码
-2. 缺少边界值场景（如0帖、1帖、999帖）
+1. 重复内容检测的文本扫描和统计概览放在同一个页面，Tab 切换可能导致状态混乱
+2. 行为监控页面同时包含操作日志、用户汇总、可疑行为，数据量较大时加载性能需优化
 
 **迭代优化：**
 ```
-V1.1：将复杂Mock链抽取为 _make_db() 辅助方法
-V1.1：补充参数化测试覆盖边界值（0、1、999）
+V1.1：DuplicateContent 拆分为 scan/stats 两个 Tab，各自独立加载
+V1.1：BehaviorMonitor 增加筛选器和分页组件，避免一次性加载过多数据
+V1.2：ActivityLogs 作为独立页面保留，BehaviorMonitor 中通过 Tab 包含日志查看
+```
+
+**人工修改迭代过程：**
+
+| 轮次 | 修改项 | 修改前 | 修改后 | 修改原因 |
+|:----:|--------|-------|-------|---------|
+| V1→V2 | 重复内容页 | 单个视图 | scan/stats 双 Tab | 扫描和统计功能不同，分开更清晰 |
+| V1→V2 | 行为监控页 | 无筛选 | 增加类型/时间筛选器 | 日志量大时需要筛选 |
+| V1→V2 | 活动日志路由 | 仅 BehaviorMonitor 内嵌 | 独立 `/admin/logs` + BehaviorMonitor Tab | 两种访问方式，方便快捷查看 |
+
+---
+
+### 交互15：找回密码全流程 — 后端验证码校验 + 前端重置页面
+
+**日期：** 2026-06-13｜**对应文件：** `backend/app/schemas/user.py`、`backend/app/services/user_service.py`、`backend/app/api/auth.py`、`frontend/src/api/auth.js`、`frontend/src/views/ForgotPassword.vue`、`frontend/src/views/Register.vue`、`frontend/src/views/Login.vue`、`frontend/src/router/index.js`
+
+**原始提示词：**
+```
+注册方面的验证码，不能随便一个验证码都能通过
+实现忘记密码时的验证码交互过程
+```
+
+**AI输出摘要：**
+- 生成了 `VerifyCodeRequest` 和 `ResetPasswordRequest` 两个 Pydantic Schema
+- 生成了 `verify_code()` 和 `reset_password()` 两个 Service 方法
+- 生成了 `/auth/verify-code` 和 `/auth/reset-password` 两个 API 端点
+- 生成了前端 `verifyCode()` 和 `resetPassword()` API 函数
+- 生成了 `ForgotPassword.vue` 三步交互页面（step 1→2→3）
+- 生成了路由配置
+
+**可能存在的问题：**
+1. AI 生成的 `ResetPasswordRequest` 中密码字段命名为 `new_password`，而前端已有逻辑使用 `password`，命名不一致
+2. AI 初始生成的注册页面验证码校验逻辑缺少 loading 状态反馈
+3. 重置密码成功后应自动跳转登录页，AI 初始版本缺少跳转逻辑
+
+**迭代优化：**
+```
+V1.1：ResetPasswordRequest 密码字段改为 password（与前端保持一致）
+V1.1：Register.vue submit 按钮增加 loading 状态
+V1.1：ForgotPassword.vue Step 3 增加"去登录"按钮和自动跳转
 ```
 
 **人工修改迭代过程：**
 
 | 轮次 | 修改项 | 修改前（AI生成） | 修改后（人工修正） | 修改原因 |
 |------|--------|-----------------|-------------------|---------|
-| V1→V2 | Mock复用 | 每个测试重复Mock链 | 抽取 _make_db() 方法 | 减少重复代码 |
-| V1→V2 | 边界覆盖 | 缺少边界值 | 参数化测试补充 | 提升测试覆盖率 |
+| V1→V2 | Schema字段名 | `new_password: str` | `password: str` | 与前端现有逻辑保持一致 |
+| V1→V2 | 注册loading | 无loading状态 | submit时显示loading | 防止用户重复点击 |
+| V1→V2 | 成功跳转 | 仅显示成功提示 | 增加"去登录"按钮+3秒自动跳转 | 提升用户体验 |
+
+
+---
+
+### 交互16：管理后台板块列表 Grid 对齐修复
+
+**日期：** 2026-06-14｜**对应文件：** `frontend/src/views/admin/Categories.vue`
+
+**原始提示词：**
+```
+类型、帖子数这些展示的距离不用这么远但也不能那么近，正常一点
+
+帖子数，类型这些跟下面真实数据应对齐
+
+```
+
+**AI输出摘要：**
+逐轮调整板块管理页面的 Grid 布局：
+
+| 轮次 | 修改内容 | 问题 |
+|:----:|---------|------|
+| V1 | 名称列可伸缩，类型/帖子数/状态固定70px靠右，操作列自适应，gap:12px | 间距过紧 |
+| V2 | 名称列 1fr，操作列 max-content，gap: 16px | 子板块整行 padding-left 导致与表头错位 |
+| V3 | 去掉 cat-list__row--child 的 padding-left，子板块缩进改由名称列内的 `<span class="cat-indent" />` 控制 | ✅ 各列对齐 |
+
+**可能存在的问题：**
+1. 间距从 12px 改为 16px 后需确认按钮区是否有足够空间
+2. 操作列使用 `max-content` 在按钮较多时列宽可能波动
+
+**迭代优化：**
+```
+V1.1：gap: 12px → 16px
+V1.2：操作列 180px → max-content
+V1.3：cat-list__row--child 去掉 padding-left，子板块缩进改由 cat-indent 控制
+```
+
+**人工修改迭代过程：**
+
+| 轮次 | 修改项 | 修改前 | 修改后 | 修改原因 |
+|:----:|--------|-------|-------|---------|
+| V1→V2 | grid 间距 | `gap: 12px` | `gap: 16px` | 12px 太挤 |
+| V1→V2 | 操作列 | 固定宽度 | `max-content` | 自适应按钮宽度 |
+| V2→V3 | 子板块缩进 | 整行 `padding-left` | 名称列内 `<span class="cat-indent" />` | 整行 padding 导致与表头错位 |
+
+---
+
+### 交互17：页面导航空白 Bug 修复 — Transition 碎片根节点
+
+**日期：** 2026-06-14｜**对应文件：** `frontend/src/App.vue`
+
+**原始提示词：**
+```
+解决前端导航后页面变空白的问题
+```
+
+**AI输出摘要：**
+定位到根因：`App.vue` 中 `<transition mode="out-in">` 直接包裹 `<component :is="Component">`。但大部分页面组件（Home、Category 等）是 **Fragment（多根节点）** — 模板中多个并列的 `<template v-if>/<template v-else>` 块。
+
+Vue 3 的 `<Transition mode="out-in">` 要求先等旧页面完全离开、再让新页面进入。当组件是 Fragment 时，`transitionend` 事件可能无法正常触发，导致旧页面离开了、新页面一直卡在 `opacity: 0`，整个内容区变空白。
+
+**修复方案：** 在 `<component>` 外层增加一个 `<div>` 包装，保证 transition 作用在单个根元素上：
+
+```vue
+<router-view v-slot="{ Component, route: resolvedRoute }">
+  <transition name="page" mode="out-in" appear>
+    <div :key="resolvedRoute.path" class="route-page-wrapper">
+      <component :is="Component" />
+    </div>
+  </transition>
+</router-view>
+```
+
+**可能存在的问题：**
+1. 包装用的 `<div>` 可能影响页面布局排版
+2. 不同页面的 wrapper 高度不一致可能导致 transition 动画抖动
+
+**迭代优化：**
+```
+V1.1：wrapper 增加 class="route-page-wrapper"，通过 CSS 控制不影响布局
+V1.1：key 绑定 resolvedRoute.path 确保路由变化时正确触发 transition
+```
+
+**人工修改迭代过程：**
+
+| 轮次 | 修改项 | 修改前 | 修改后 | 修改原因 |
+|:----:|--------|-------|-------|---------|
+| V1→V2 | 组件包装 | 直接 `<component :is="Component">` | `<div class="route-page-wrapper"><component .../></div>` | Fragment 多根节点导致 transitionend 无法触发 |
+| V1→V2 | transition key | 无 key | `:key="resolvedRoute.path"` | 确保路由切换时正确卸载/挂载组件 |
+
+---
+
+### 交互18：导航栏点击刷新问题修复 — SideBar 链接改造
+
+**日期：** 2026-06-15｜**对应文件：** `frontend/src/components/common/SideBar.vue`
+
+**原始提示词：**
+```
+解决一下每点击一次导航栏里的某一项页面都要刷新一次的问题
+```
+
+**AI输出摘要：**
+定位到根因：`SideBar.vue` 中所有导航链接使用了 `<a href="javascript:void(0)" @click="navigate(item)">` 这种过时的反模式。
+
+问题分析：
+1. `href="javascript:void(0)"` 依赖 `javascript:` 伪协议阻止浏览器导航，但现代浏览器的 Content Security Policy 可能拦截这类 URL，导致浏览器执行实际的页面跳转（全页刷新）
+2. `@click` 缺少 `.prevent` 修饰符，完全依赖 `javascript:void(0)` 阻止默认行为，不够健壮
+
+**修复方案：** 将所有 `<a href="javascript:void(0)" @click="navigate(item)">` 替换为 Vue Router 的 `<router-link :to="...">` 组件。
+
+**可能存在的问题：**
+1. 移动端菜单自动关闭功能（`onNavClick()`）需要保留
+2. `<router-link>` 默认渲染为 `<a>` 标签，需确保原有 CSS 样式不受影响
+
+**迭代优化：**
+```
+V1.1：去掉 @click="navigate(item)"，改用 @click="onNavClick()" 保留关闭移动端菜单功能
+V1.1：论坛板块使用 :to="`/categories/${child.id}`"
+V1.1：发现和个人使用 :to="{ path: item.to, query: item.query }"
+```
+
+**人工修改迭代过程：**
+
+| 轮次 | 修改项 | 修改前（原代码） | 修改后（人工修正） | 修改原因 |
+|------|--------|-----------------|-------------------|---------|
+| V1→V2 | 导航方式 | `<a href="javascript:void(0)">` | `<router-link :to="...">` | CSP 可能拦截 javascript: 协议，导致全页刷新 |
+| V1→V2 | 点击事件 | `@click="navigate(item)"` | `@click="onNavClick()"` | router-link 自带导航，只需关闭移动端菜单 |
+| V1→V2 | 分组项路由 | 自定义 navigate 函数 | 直接 `:to="\`/categories/\${child.id}\`"` | 利用 router-link 原生 SPA 导航能力 |
+
+**修改范围（4 处）：**
+
+| 区域 | 链接数 | 路径格式 |
+|:----:|:------:|---------|
+| 论坛板块 (`navItems`) | 5 个 | `:to="\`/categories/${child.id}\`"` |
+| 分组导航 (`categoryGroups` 子项) | 13 个 | `:to="\`/categories/${child.id}\`"` |
+| 发现 (`discoverItems`) | 2 个 | `:to="{ path: item.to, query: item.query }"` |
+| 个人 (`personalItems`) | 5 个 | `:to="{ path: item.to, query: item.query }"` |
+
+---
+
+### 交互19：行情数据服务单元测试 — Mock 降级 + K 线覆盖
+
+**日期：** 2026-06-16｜**对应文件：** `backend/tests/unit/test_market_service.py`、`backend/app/api/market.py`
+
+**原始提示词：**
+```
+【测试用例 - 使用 pytest-httpx 或 respx mock】
+- 东方财富正常 → 返回东方财富格式数据
+- 东方财富超时 → 自动降级到新浪
+- 两个数据源都失败 → 返回空数据标记
+- K线数据不同周期（日/周/月/5分钟）
+- 内置指数返回验证：上证(000001)，沪深300(000300)，深证成指(399001)
+```
+
+**AI输出摘要：**
+使用 `respx` mock HTTP 请求，对行情数据服务编写了 **12 个测试用例**：
+
+**指数查询测试（7 个）：**
+| 测试 | 场景 | 验证点 |
+|:----:|------|--------|
+| `test_eastmoney_success` | 东方财富正常返回 | 价格/涨跌幅/涨跌额/涨跌方向 |
+| `test_eastmoney_timeout_falls_back_to_sina` | 东方财富超时 | 自动降级到新浪，message 含 "sina" |
+| `test_both_sources_fail_returns_fallback` | 两个都失败 | 返回空数据标记，price=None |
+| `test_eastmoney_empty_data_falls_back` | 东方财富 data=None | 降级到新浪 |
+| `test_multiple_indices` | 多个指数同时查询 | 返回多个结果，涨跌方向正确 |
+| `test_default_indices_when_no_secids` | 不传 secids | 使用默认列表（3个指数） |
+| `test_specific_index_code` | 特定指数代码 | 上证000001/深证399001 |
+
+**K 线查询测试（5 个）：**
+| 测试 | 场景 | 验证点 |
+|:----:|------|--------|
+| `test_kline_normal` | 正常 K 线数据 | 日期/开/高/低/收/成交量 |
+| `test_kline_empty_response` | K 线空 data | 返回空数组 |
+| `test_kline_network_error` | K 线网络错误 | 返回 500+空数组 |
+| `test_kline_different_periods` | 日线(klt=101)/周线(klt=102) | 不同周期均可正常解析 |
+| `test_kline_partial_data_skipped` | 部分数据字段不足 | 跳过异常行 |
+
+**可能存在的问题：**
+1. `respx` 的 mock 路由必须与真实代码中的 URL 完全一致，否则不会生效
+2. 新浪财经返回 GB18030 编码，mock 内容需 `.encode("gb18030")`
+3. 多个 mock 路由在同一测试中共存可能导致路由匹配错误
+
+**迭代优化：**
+```
+V1.1：东方财富空 data 场景增加 None 处理（data.diff 可能为 None）
+V1.1：K线异常行跳过逻辑增加字段数不足5个时的容错
+```
+
+**人工修改迭代过程：**
+
+| 轮次 | 修改项 | 修改前 | 修改后 | 修改原因 |
+|:----:|--------|-------|-------|---------|
+| V1→V2 | 空 data 处理 | 未测试 | 增加 `test_eastmoney_empty_data_falls_back` | 真实场景中 API 可能返回空 data |
+| V1→V2 | K 线异常行 | 未测试 | 增加 `test_kline_partial_data_skipped` | 外部数据格式不稳定 |
+| V1→V2 | 新浪编码 | 无 | 新浪 mock 使用 `encode("gb18030")` | 与实际编码一致 |
 
 ---
 
