@@ -3,7 +3,7 @@ import { ref, reactive, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
-import { getQQLoginUrl, sendCode as sendCodeApi, sendEmailCode } from '../api/auth'
+import { getQQLoginUrl, getWeChatLoginUrl, getWeiboLoginUrl, sendCode as sendCodeApi, sendEmailCode, resetPassword as resetPasswordByAccount } from '../api/auth'
 
 const router = useRouter()
 const route = useRoute()
@@ -143,7 +143,7 @@ async function handleResetPassword() {
 
   loading.value = true
   try {
-    await resetPassword(resetForm.account, resetForm.code, resetForm.newPassword)
+    await resetPasswordByAccount(resetForm.account, resetForm.code, resetForm.newPassword)
     form.phone = resetForm.account
     form.password = ''
     resetForm.code = ''
@@ -158,11 +158,16 @@ async function handleResetPassword() {
   }
 }
 
-function handleQQLogin() {
+function handleOAuthLogin(provider) {
   errorMsg.value = ''
   successMsg.value = ''
   const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
-  window.location.href = getQQLoginUrl(redirect)
+  const urls = {
+    qq: getQQLoginUrl(redirect),
+    wechat: getWeChatLoginUrl(redirect),
+    weibo: getWeiboLoginUrl(redirect),
+  }
+  window.location.href = urls[provider]
 }
 
 onUnmounted(() => {
@@ -335,9 +340,17 @@ onUnmounted(() => {
 
       <div v-if="mode !== 'reset'" class="oauth-login">
         <div class="oauth-login__divider"><span>或</span></div>
-        <button type="button" class="qq-login-btn" @click="handleQQLogin">
-          使用 QQ 登录
-        </button>
+        <div class="oauth-buttons">
+          <button type="button" class="oauth-btn oauth-btn--qq" @click="handleOAuthLogin('qq')">
+            <AppIcon name="qq" :size="18" /> QQ 登录
+          </button>
+          <button type="button" class="oauth-btn oauth-btn--wechat" @click="handleOAuthLogin('wechat')">
+            <AppIcon name="wechat" :size="18" /> 微信登录
+          </button>
+          <button type="button" class="oauth-btn oauth-btn--weibo" @click="handleOAuthLogin('weibo')">
+            <AppIcon name="weibo" :size="18" /> 微博登录
+          </button>
+        </div>
       </div>
 
       <!-- 底部链接 -->
@@ -585,22 +598,32 @@ onUnmounted(() => {
   height: 1px;
 }
 
-.qq-login-btn {
-  background: #12b7f5;
-  border: 0;
+.oauth-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.oauth-btn {
   border-radius: 8px;
-  color: #fff;
+  border: 1px solid var(--color-border);
   cursor: pointer;
   font: inherit;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
-  padding: 12px 14px;
+  padding: 10px 14px;
+  transition: background 0.2s;
   width: 100%;
 }
 
-.qq-login-btn:hover {
-  background: #0aa4df;
+.oauth-btn:hover {
+  opacity: 0.85;
 }
+
+.oauth-btn--qq { background: #12b7f5; color: #fff; border-color: #12b7f5; }
+.oauth-btn--wechat { background: #07c160; color: #fff; border-color: #07c160; }
+.oauth-btn--weibo { background: #e6162d; color: #fff; border-color: #e6162d; }
 
 .auth-card__footer {
   color: var(--color-text-secondary);

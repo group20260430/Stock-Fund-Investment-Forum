@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.posts import _get_post_or_404, _post_payload
@@ -15,7 +16,7 @@ from app.models.content import (
     Share,
     ShareType,
 )
-from app.models.user import User, UserRole
+from app.models.user import User, UserRole, UserStatus
 from app.schemas.interactions import CollectRequest, CommentCreate, ShareRequest
 from app.schemas.user import ApiResponse
 from app.models.operations import ActivityType
@@ -103,6 +104,14 @@ def create_comment(
     db: Session = Depends(get_db),
 ):
     comment_rate_limiter.check(user.id)
+    # 禁言检查：被禁言用户不能评论
+    if user.status == UserStatus.SILENCED:
+        silenced_until = user.silenced_until
+        if silenced_until and silenced_until < datetime.now(timezone.utc).replace(tzinfo=None):
+            user.status = UserStatus.ACTIVE
+            user.silenced_until = None
+        else:
+            raise HTTPException(status_code=403, detail="您已被禁言，无法评论")
     post = _get_post_or_404(db, post_id)
     parent = None
     if data.parent_id is not None:

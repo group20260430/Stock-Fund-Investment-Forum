@@ -18,6 +18,14 @@ TEST_SCRIPTS = [
     "test_community_api.py",
     "test_social_api.py",
     "test_e2e.py",
+    "test_email_auth_api.py",
+    "test_upload_api.py",
+    "test_admin_category_api.py",
+    "test_admin_warn_api.py",
+    "test_professional_certification_api.py",
+    "test_advanced_search_api.py",
+    "test_message_types_api.py",
+    "test_oauth_api.py",
 ]
 
 

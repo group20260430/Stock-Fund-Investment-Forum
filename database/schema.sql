@@ -45,6 +45,8 @@ CREATE TABLE IF NOT EXISTS users (
   investment_tags JSON            NULL                         COMMENT '投资标签',
   follow_markets  JSON            NULL                         COMMENT '关注市场',
   is_professional TINYINT(1)     NOT NULL DEFAULT 0            COMMENT '是否专业认证',
+  warn_count      INT         NOT NULL DEFAULT 0              COMMENT '违规警告次数',
+  silenced_until  TIMESTAMP       NULL                         COMMENT '禁言到期时间',
   ban_expires_at  TIMESTAMP       NULL                         COMMENT '封禁到期时间',
   banned_reason   VARCHAR(255)    NULL                         COMMENT '封禁原因',
   followers_count INT UNSIGNED   NOT NULL DEFAULT 0            COMMENT '粉丝数(冗余)',

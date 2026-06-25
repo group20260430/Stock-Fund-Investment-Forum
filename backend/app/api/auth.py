@@ -25,6 +25,8 @@ from app.schemas.user import (
 )
 from app.services.user_service import UserService
 from app.services.qq_oauth_service import QQOAuthService
+from app.services.wechat_oauth_service import WeChatOAuthService
+from app.services.weibo_oauth_service import WeiboOAuthService
 
 router = APIRouter(tags=["用户系统"])
 
@@ -158,6 +160,50 @@ async def qq_callback(
         raise HTTPException(status_code=400, detail="QQ 登录缺少 code")
     result = await QQOAuthService.handle_callback(db, code, state)
     return RedirectResponse(QQOAuthService.build_frontend_redirect(result))
+
+
+@router.get("/auth/wechat/login")
+async def wechat_login(redirect: str | None = Query("/", description="登录成功后的前端跳转路径")):
+    """微信登录入口 — 返回微信授权页跳转。"""
+    return RedirectResponse(WeChatOAuthService.build_authorize_url(redirect))
+
+
+@router.get("/auth/wechat/callback")
+async def wechat_callback(
+    code: str | None = Query(None),
+    state: str | None = Query(None),
+    error: str | None = Query(None),
+    db: Session = Depends(get_db),
+):
+    """微信 OAuth 回调。"""
+    if error:
+        raise HTTPException(status_code=400, detail=f"微信登录失败: {error}")
+    if not code:
+        raise HTTPException(status_code=400, detail="微信登录缺少 code")
+    result = await WeChatOAuthService.handle_callback(db, code, state)
+    return RedirectResponse(WeChatOAuthService.build_frontend_redirect(result))
+
+
+@router.get("/auth/weibo/login")
+async def weibo_login(redirect: str | None = Query("/", description="登录成功后的前端跳转路径")):
+    """微博登录入口 — 返回微博授权页跳转。"""
+    return RedirectResponse(WeiboOAuthService.build_authorize_url(redirect))
+
+
+@router.get("/auth/weibo/callback")
+async def weibo_callback(
+    code: str | None = Query(None),
+    state: str | None = Query(None),
+    error: str | None = Query(None),
+    db: Session = Depends(get_db),
+):
+    """微博 OAuth 回调。"""
+    if error:
+        raise HTTPException(status_code=400, detail=f"微博登录失败: {error}")
+    if not code:
+        raise HTTPException(status_code=400, detail="微博登录缺少 code")
+    result = await WeiboOAuthService.handle_callback(db, code, state)
+    return RedirectResponse(WeiboOAuthService.build_frontend_redirect(result))
 
 
 @router.post("/auth/reset-password")

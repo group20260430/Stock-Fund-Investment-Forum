@@ -251,7 +251,67 @@ def ban_user(
     if target is None:
         raise HTTPException(status_code=404, detail="用户不存在")
     if target.id == admin.id:
-        raise HTTPException(status_code=400, detail="不能封禁自己")
+        raise HTTPException(status_code=400, detail="不能对自己执行操作")
+
+    if data.action == "warn":
+        # 警告：不限制账号，仅记录并通知
+        target.warn_count = (target.warn_count or 0) + 1
+        db.add(BanRecord(
+            user_id=target.id,
+            admin_id=admin.id,
+            action=BanAction.WARN,
+            reason=data.reason,
+            duration_hours=None,
+        ))
+        # 发送系统通知给被警告用户
+        db.add(Notification(
+            user_id=target.id,
+            type=NotificationType.SYSTEM_ALERT,
+            title="收到违规警告",
+            content=f"您因「{data.reason or '违规行为'}」收到一次警告（第{target.warn_count}次）。请遵守论坛规则，累计多次警告将被封禁。",
+            target_type=None,
+            target_id=None,
+            sender_id=admin.id,
+        ))
+        db.commit()
+        return ApiResponse(code=200, message="警告已发送", data={
+            "action": "warn",
+            "warn_count": target.warn_count,
+        })
+
+    if data.action in ("mute", "unmute"):
+        if data.action == "mute":
+            target.status = UserStatus.SILENCED
+            target.silenced_until = (
+                datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=data.duration_hours)
+                if data.duration_hours else None
+            )
+            target.banned_reason = data.reason
+            # 发送禁言通知
+            duration_str = f"{data.duration_hours}小时" if data.duration_hours else " indefinite period"
+            db.add(Notification(
+                user_id=target.id,
+                type=NotificationType.SYSTEM_ALERT,
+                title="您已被禁言",
+                content=f"您因「{data.reason or '违规行为'}」被禁言{duration_str}。禁言期间可登录浏览，但无法发帖和评论。",
+                target_type=None,
+                target_id=None,
+                sender_id=admin.id,
+            ))
+        else:
+            target.status = UserStatus.ACTIVE
+            target.silenced_until = None
+            target.banned_reason = None
+        db.add(BanRecord(
+            user_id=target.id,
+            admin_id=admin.id,
+            action=BanAction(data.action),
+            reason=data.reason,
+            duration_hours=data.duration_hours,
+        ))
+        db.commit()
+        return ApiResponse(code=200, message="操作成功", data={"status": target.status.value})
+
     if data.action == "ban":
         target.status = UserStatus.DISABLED
         target.banned_reason = data.reason
@@ -263,6 +323,7 @@ def ban_user(
         target.status = UserStatus.ACTIVE
         target.banned_reason = None
         target.ban_expires_at = None
+        target.silenced_until = None
     db.add(BanRecord(
         user_id=target.id,
         admin_id=admin.id,

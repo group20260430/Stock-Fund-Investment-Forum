@@ -17,6 +17,7 @@ class UserRole(str, enum.Enum):
 
 class UserStatus(str, enum.Enum):
     ACTIVE = "active"
+    SILENCED = "silenced"
     DISABLED = "disabled"
 
 
@@ -70,6 +71,8 @@ class User(Base):
     follow_markets: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
     privacy_settings: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     is_professional: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    warn_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    silenced_until: Mapped[Optional[datetime]] = mapped_column(TIMESTAMP, nullable=True)
     ban_expires_at: Mapped[Optional[datetime]] = mapped_column(TIMESTAMP, nullable=True)
     banned_reason: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     followers_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

@@ -70,61 +70,64 @@ def seed_categories() -> None:
     from app.db.session import SessionLocal
     from app.models.content import Category
 
-    # 以下旧分类保留在数据库但标记为不活跃（已从侧边栏移除，仅兼容旧数据）
-    defaults = [
-        ("综合讨论", "投资话题综合交流", 1, False),
-        ("股票市场", "A股、港股与海外市场", 2, False),
-        ("基金投资", "公募基金、ETF与定投", 3, True),   # 仍用于主题专区
-        ("问答求助", "投资问题互助", 4, False),
-        ("投资策略", "资产配置与策略研究", 5, False),
+    categories_data = [
+        # 顶级分区
+        ("市场讨论区", "按市场划分的投资讨论区", 1, True, None),
+        ("主题专区", "专题投资讨论区", 2, True, None),
+        ("公司研究专区", "按行业、个股深度讨论", 3, True, None),
+        ("问答求助区", "新手提问、投资解惑", 4, True, None),
     ]
-    # 公司研究专区行业分类
-    industry_categories = [
-        ("科技公司", "半导体、AI、互联网等科技公司深度讨论", 6),
-        ("金融公司", "银行、券商、保险等金融公司研究", 7),
-        ("医药公司", "医药生物、医疗器械、创新药等", 8),
-        ("消费公司", "食品饮料、家电、零售等消费行业", 9),
-        ("新能源", "光伏、锂电、风电、储能等新能源行业", 10),
-        ("制造业", "高端装备、汽车、化工等制造业", 11),
+    # 子分类 — 市场讨论区
+    market_children = [
+        ("A股", "A股市场讨论", 1),
+        ("港股", "港股市场讨论", 2),
+        ("美股", "美股市场讨论", 3),
+        ("期货", "期货市场讨论", 4),
     ]
-    # 市场讨论区子板块
-    market_categories = [
-        ("A股", "A股市场讨论", 12),
-        ("港股", "港股市场讨论", 13),
-        ("美股", "美股市场讨论", 14),
-        ("期货", "期货市场讨论", 15),
+    # 子分类 — 主题专区
+    theme_children = [
+        ("价值投资", "价值投资理念与实践", 1),
+        ("量化投资", "量化策略与程序化交易", 2),
+        ("基金投资", "公募、私募、ETF等基金深度研究", 3),
+        ("新股/新债", "新股申购与新债分析", 4),
+        ("宏观策略", "宏观经济与市场策略研讨", 5),
     ]
-    # 主题专区子板块
-    theme_categories = [
-        ("价值投资", "价值投资理念与实践", 16),
-        ("量化投资", "量化策略与程序化交易", 17),
-        ("基金研究", "公募、私募、ETF等基金深度研究", 18),
-        ("新股/新债", "新股申购与新债分析", 19),
-        ("宏观策略", "宏观经济与市场策略", 20),
+    # 子分类 — 公司研究专区
+    industry_children = [
+        ("科技公司", "半导体、AI、互联网等科技公司", 1),
+        ("金融公司", "银行、券商、保险等金融公司", 2),
+        ("医药公司", "医药生物、医疗器械、创新药等", 3),
+        ("消费公司", "食品饮料、家电、零售等消费行业", 4),
+        ("新能源", "光伏、锂电、风电、储能等", 5),
+        ("制造业", "高端装备、汽车、化工等", 6),
     ]
-    # 问答求助区子板块
-    qa_categories = [
-        ("新手提问", "投资入门与基础问题", 21),
-        ("投资解惑", "投资疑难问题解答", 22),
+    # 子分类 — 问答求助区
+    qa_children = [
+        ("新手提问", "投资入门与基础问题", 1),
+        ("投资解惑", "投资疑难问题解答", 2),
     ]
+
     db = SessionLocal()
     try:
         if db.query(Category).count() == 0:
-            db.add_all(
-                [Category(name=name, description=description, sort_order=order, is_active=active) for name, description, order, active in defaults]
-            )
-            db.add_all(
-                [Category(name=name, description=description, sort_order=order) for name, description, order in industry_categories]
-            )
-            db.add_all(
-                [Category(name=name, description=description, sort_order=order) for name, description, order in market_categories]
-            )
-            db.add_all(
-                [Category(name=name, description=description, sort_order=order) for name, description, order in theme_categories]
-            )
-            db.add_all(
-                [Category(name=name, description=description, sort_order=order) for name, description, order in qa_categories]
-            )
+            # 创建顶级分区并记录 ID
+            parent_map = {}
+            for name, desc, order, active, _ in categories_data:
+                cat = Category(name=name, description=desc, sort_order=order, is_active=active)
+                db.add(cat)
+                db.flush()
+                parent_map[name] = cat.id
+
+            # 创建子分类（关联 parent_id）
+            for name, desc, order in market_children:
+                db.add(Category(name=name, description=desc, sort_order=order, parent_id=parent_map["市场讨论区"]))
+            for name, desc, order in theme_children:
+                db.add(Category(name=name, description=desc, sort_order=order, parent_id=parent_map["主题专区"]))
+            for name, desc, order in industry_children:
+                db.add(Category(name=name, description=desc, sort_order=order, parent_id=parent_map["公司研究专区"]))
+            for name, desc, order in qa_children:
+                db.add(Category(name=name, description=desc, sort_order=order, parent_id=parent_map["问答求助区"]))
+
             db.commit()
     finally:
         db.close()
@@ -159,11 +162,11 @@ def seed_demo_content() -> None:
 
         categories = {item.name: item for item in db.query(Category).all()}
         demo_posts = [
-            ("综合讨论", "A股市场今日讨论", "今天大盘震荡上行，成交量有所放大，新能源和半导体板块表现活跃。", ["A股", "大盘分析"]),
+            ("A股", "A股市场今日讨论", "今天大盘震荡上行，成交量有所放大，新能源和半导体板块表现活跃。", ["A股", "大盘分析"]),
             ("基金投资", "指数基金长期配置思路", "宽基指数基金仍是长期配置的常用选择，可关注沪深300和中证500的定投机会。", ["指数基金", "定投", "配置"]),
-            ("问答求助", "新手该怎么选基金？", "刚开始理财，想了解适合新手的基金筛选方法，欢迎大家交流。", ["新手", "基金入门"]),
-            ("投资策略", "2026下半年投资策略展望", "结合宏观数据和市场估值，重点关注消费复苏和科技创新两条主线。", ["投资策略", "展望", "A股"]),
-            ("股票市场", "港股通标的分析：腾讯VS阿里", "对比腾讯和阿里的估值、业务增长点和长期投资价值。", ["港股", "腾讯", "阿里"]),
+            ("新手提问", "新手该怎么选基金？", "刚开始理财，想了解适合新手的基金筛选方法，欢迎大家交流。", ["新手", "基金入门"]),
+            ("宏观策略", "2026下半年投资策略展望", "结合宏观数据和市场估值，重点关注消费复苏和科技创新两条主线。", ["投资策略", "展望", "A股"]),
+            ("港股", "港股通标的分析：腾讯VS阿里", "对比腾讯和阿里的估值、业务增长点和长期投资价值。", ["港股", "腾讯", "阿里"]),
         ]
         for index, (category_name, title, content, tags) in enumerate(demo_posts):
             category = categories[category_name]

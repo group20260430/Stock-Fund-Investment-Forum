@@ -63,4 +63,9 @@ export const iconMap = {
   arrowDown:  'heroicons-outline:arrow-trending-down',
   external:   'heroicons-outline:arrow-top-right-on-square',
   flag:       'heroicons-outline:flag',
+
+  // === 第三方登录品牌 ===
+  qq:         'fa-brands:qq',
+  wechat:     'fa-brands:weixin',
+  weibo:      'fa-brands:weibo',
 }

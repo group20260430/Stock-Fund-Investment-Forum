@@ -344,7 +344,7 @@ class UserService:
         else:
             raise HTTPException(status_code=400, detail="不支持的登录方式")
 
-        if user.status != UserStatus.ACTIVE:
+        if user.status == UserStatus.DISABLED:
             raise HTTPException(status_code=401, detail="账户已被禁用")
 
         # Issue tokens
@@ -399,7 +399,7 @@ class UserService:
         if stored_code is None or stored_code != data.code:
             raise HTTPException(status_code=401, detail="验证码错误或已过期")
 
-        if user.status != UserStatus.ACTIVE:
+        if user.status == UserStatus.DISABLED:
             raise HTTPException(status_code=401, detail="账户已被禁用")
 
         user.password_hash = get_password_hash(data.new_password)
@@ -438,7 +438,7 @@ class UserService:
 
         # Issue new pair
         user = db.query(User).filter(User.id == stored.user_id).first()
-        if user is None or user.status != UserStatus.ACTIVE:
+        if user is None or user.status == UserStatus.DISABLED:
             raise HTTPException(status_code=401, detail="用户不存在或已被禁用")
 
         access_token, new_refresh_token = UserService._issue_token_pair(db, user)
@@ -690,27 +690,9 @@ class UserService:
 
     @staticmethod
     def _build_profile(user: User, db: Session) -> UserProfile:
-        posts_count = 0
-        elite_posts = 0
+        from app.services.achievement_service import calculate_achievements
 
-        try:
-            from sqlalchemy import text
-
-            result = db.execute(
-                text("SELECT COUNT(*) as cnt FROM posts WHERE user_id = :uid"),
-                {"uid": user.id},
-            ).first()
-            if result:
-                posts_count = result[0] or 0
-        except Exception:
-            posts_count = 0
-
-        achievements = Achievements(
-            posts_count=posts_count,
-            elite_posts=elite_posts,
-            influence_score=posts_count * 10,
-            badges=["新手入门"] if posts_count > 0 else [],
-        )
+        achievements = calculate_achievements(db, user)
 
         profile = UserProfile(
             id=user.id,

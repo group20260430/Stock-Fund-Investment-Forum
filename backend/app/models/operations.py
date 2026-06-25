@@ -40,6 +40,9 @@ class ReviewAction(str, enum.Enum):
 
 
 class BanAction(str, enum.Enum):
+    WARN = "warn"
+    MUTE = "mute"
+    UNMUTE = "unmute"
     BAN = "ban"
     UNBAN = "unban"
 

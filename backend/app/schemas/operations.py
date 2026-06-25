@@ -23,7 +23,7 @@ class ReviewRequest(BaseModel):
 
 
 class BanRequest(BaseModel):
-    action: Literal["ban", "unban"]
+    action: Literal["warn", "mute", "unmute", "ban", "unban"]
     reason: str | None = Field(None, max_length=500)
     duration_hours: int | None = Field(None, ge=1, le=24 * 365)
 

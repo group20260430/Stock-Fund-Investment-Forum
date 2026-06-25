@@ -1,3 +1,8 @@
+"""QQ OAuth service — dev mode (simulated) and real mode.
+
+In dev mode (oauth_dev_mode=True), the service simulates a successful OAuth
+flow without calling the real QQ API, returning a mock user profile.
+"""
 import json
 import secrets
 from urllib.parse import parse_qs, urlencode
@@ -19,65 +24,81 @@ QQ_TOKEN_URL = "https://graph.qq.com/oauth2.0/token"
 QQ_OPENID_URL = "https://graph.qq.com/oauth2.0/me"
 QQ_USER_INFO_URL = "https://graph.qq.com/user/get_user_info"
 
+DEV_QQ_PROFILE = {
+    "openid": "dev_qq_openid",
+    "unionid": "dev_qq_unionid",
+    "nickname": "QQ用户",
+    "figureurl_qq_2": "https://example.com/qq_avatar.png",
+    "gender": "男",
+    "province": "广东",
+    "city": "深圳",
+}
+
 
 class QQOAuthService:
+    """QQ OAuth service with dev mode support."""
+
     @staticmethod
     def build_authorize_url(redirect: str | None = None) -> str:
+        if settings.oauth_dev_mode:
+            state = QQOAuthService._make_state(redirect)
+            params = urlencode({"code": "dev_qq_code", "state": state, "redirect": redirect or "/"})
+            return f"{settings.frontend_base_url.rstrip('/')}/auth/qq/callback?{params}"
         QQOAuthService._ensure_configured()
         state = QQOAuthService._make_state(redirect)
-        params = {
+        params = urlencode({
             "response_type": "code",
             "client_id": settings.qq_oauth_app_id,
             "redirect_uri": settings.qq_oauth_redirect_uri,
             "state": state,
-        }
-        return f"{QQ_AUTHORIZE_URL}?{urlencode(params)}"
+        })
+        return f"{QQ_AUTHORIZE_URL}?{params}"
 
     @staticmethod
     async def handle_callback(db: Session, code: str, state: str | None) -> dict:
-        QQOAuthService._ensure_configured()
         redirect = QQOAuthService._parse_state(state)
-        access_token = await QQOAuthService._fetch_access_token(code)
-        openid_payload = await QQOAuthService._fetch_openid(access_token)
-        openid = openid_payload.get("openid")
-        if not openid:
-            raise HTTPException(status_code=502, detail="QQ 未返回 openid")
 
-        profile = await QQOAuthService._fetch_user_info(access_token, openid)
-        user = QQOAuthService._find_or_create_user(db, openid, openid_payload.get("unionid"), profile)
+        if settings.oauth_dev_mode:
+            profile = dict(DEV_QQ_PROFILE)
+            profile["openid"] = f"dev_qq_{code}"
+        else:
+            QQOAuthService._ensure_configured()
+            access_token = await QQOAuthService._fetch_access_token(code)
+            openid_payload = await QQOAuthService._fetch_openid(access_token)
+            openid = openid_payload.get("openid")
+            if not openid:
+                raise HTTPException(status_code=502, detail="QQ 未返回 openid")
+            profile = await QQOAuthService._fetch_user_info(access_token, openid)
+            profile["openid"] = openid
+            profile["unionid"] = openid_payload.get("unionid")
+
+        openid = profile["openid"]
+        unionid = profile.get("unionid")
+        user = QQOAuthService._find_or_create_user(db, openid, unionid, profile)
         token, refresh_token = UserService._issue_token_pair(db, user)
         return {
-            "token": token,
-            "refresh_token": refresh_token,
-            "expires_in": 7200,
+            "token": token, "refresh_token": refresh_token, "expires_in": 7200,
             "user": UserService._build_profile(user, db),
             "redirect": redirect or "/",
         }
 
     @staticmethod
     def build_frontend_redirect(result: dict) -> str:
-        fragment = urlencode(
-            {
-                "token": result["token"],
-                "refresh_token": result["refresh_token"],
-                "expires_in": str(result["expires_in"]),
-                "redirect": result.get("redirect") or "/",
-            }
-        )
+        fragment = urlencode({
+            "token": result["token"], "refresh_token": result["refresh_token"],
+            "expires_in": str(result["expires_in"]),
+            "redirect": result.get("redirect") or "/",
+        })
         return f"{settings.frontend_base_url.rstrip('/')}/oauth/qq/callback#{fragment}"
 
     @staticmethod
     def _ensure_configured() -> None:
-        if not settings.qq_oauth_app_id or not settings.qq_oauth_app_key:
+        if not settings.oauth_dev_mode and (not settings.qq_oauth_app_id or not settings.qq_oauth_app_key):
             raise HTTPException(status_code=500, detail="QQ 登录尚未配置 APP ID / APP Key")
 
     @staticmethod
     def _make_state(redirect: str | None) -> str:
-        payload = {
-            "type": "qq_oauth_state",
-            "nonce": secrets.token_urlsafe(12),
-            "redirect": redirect or "/",
-        }
+        payload = {"type": "qq_oauth_state", "nonce": secrets.token_urlsafe(12), "redirect": redirect or "/"}
         return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
     @staticmethod
@@ -86,10 +107,10 @@ class QQOAuthService:
             return "/"
         try:
             payload = jwt.decode(state, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
-        except jwt.InvalidTokenError as exc:
-            raise HTTPException(status_code=400, detail="QQ 登录 state 无效") from exc
+        except jwt.InvalidTokenError:
+            return "/"
         if payload.get("type") != "qq_oauth_state":
-            raise HTTPException(status_code=400, detail="QQ 登录 state 类型错误")
+            return "/"
         redirect = str(payload.get("redirect") or "/")
         return redirect if redirect.startswith("/") else "/"
 
@@ -151,28 +172,20 @@ class QQOAuthService:
         nickname = (profile.get("nickname") or "QQ用户").strip()[:50]
         avatar_url = profile.get("figureurl_qq_2") or profile.get("figureurl_qq_1") or profile.get("figureurl_2")
         user = User(
-            phone=None,
-            email=None,
+            phone=None, email=None,
             password_hash=get_password_hash(secrets.token_urlsafe(32)),
-            nickname=nickname,
-            avatar_url=avatar_url,
+            nickname=nickname, avatar_url=avatar_url,
             register_type=RegisterType.QQ,
             auth_level=AuthLevel.BASIC,
             status=UserStatus.ACTIVE,
         )
         db.add(user)
         db.flush()
-        db.add(
-            OAuthAccount(
-                user_id=user.id,
-                provider=OAuthProvider.QQ,
-                openid=openid,
-                unionid=unionid,
-                nickname=nickname,
-                avatar_url=avatar_url,
-                raw_profile=profile,
-            )
-        )
+        db.add(OAuthAccount(
+            user_id=user.id, provider=OAuthProvider.QQ,
+            openid=openid, unionid=unionid,
+            nickname=nickname, avatar_url=avatar_url, raw_profile=profile,
+        ))
         db.commit()
         db.refresh(user)
         return user

@@ -10,6 +10,8 @@ from app.db.base import Base
 
 class OAuthProvider(str, enum.Enum):
     QQ = "qq"
+    WECHAT = "wechat"
+    WEIBO = "weibo"
 
 
 class OAuthAccount(Base):

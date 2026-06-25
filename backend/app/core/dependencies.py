@@ -96,7 +96,7 @@ def get_current_user(
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
         raise HTTPException(status_code=401, detail="用户不存在或已被禁用")
-    if user.status != UserStatus.ACTIVE:
+    if user.status == UserStatus.DISABLED:
         raise HTTPException(status_code=401, detail="账户已被禁用")
 
     return user

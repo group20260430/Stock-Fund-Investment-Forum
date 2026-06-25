@@ -52,8 +52,18 @@ export function getQQLoginUrl(redirect = '/') {
   return `${API_BASE}/auth/qq/login?redirect=${encodeURIComponent(redirect)}`
 }
 
-/** 忘记密码：验证码重置密码 */
-export function resetPassword(account, code, newPassword) {
+/** 微信登录授权地址 */
+export function getWeChatLoginUrl(redirect = '/') {
+  return `${API_BASE}/auth/wechat/login?redirect=${encodeURIComponent(redirect)}`
+}
+
+/** 微博登录授权地址 */
+export function getWeiboLoginUrl(redirect = '/') {
+  return `${API_BASE}/auth/weibo/login?redirect=${encodeURIComponent(redirect)}`
+}
+
+/** 忘记密码：验证码重置密码（支持邮箱/账号） */
+export function resetPasswordByAccount(account, code, newPassword) {
   return api.post('/auth/reset-password', { account, code, new_password: newPassword })
 }
 

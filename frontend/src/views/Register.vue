@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import { sendCode, verifyCode } from '../api/auth'
+import { getQQLoginUrl, getWeChatLoginUrl, getWeiboLoginUrl } from '../api/auth'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -130,6 +131,16 @@ function goBack() {
   } else {
     router.push('/login')
   }
+}
+
+function handleOAuthRegister(provider) {
+  const redirect = '/'
+  const urls = {
+    qq: getQQLoginUrl(redirect),
+    wechat: getWeChatLoginUrl(redirect),
+    weibo: getWeiboLoginUrl(redirect),
+  }
+  window.location.href = urls[provider]
 }
 </script>
 
@@ -273,6 +284,22 @@ function goBack() {
           {{ loading ? '注册中...' : '完成注册' }}
         </button>
         <button type="button" class="skip-btn" @click="skipStep3">跳过</button>
+      </div>
+
+      <!-- 第三方登录 -->
+      <div v-if="step === 1" class="oauth-login">
+        <div class="oauth-login__divider"><span>或</span></div>
+        <div class="oauth-buttons">
+          <button type="button" class="oauth-btn oauth-btn--qq" @click="handleOAuthRegister('qq')">
+            <AppIcon name="qq" :size="18" /> QQ 注册
+          </button>
+          <button type="button" class="oauth-btn oauth-btn--wechat" @click="handleOAuthRegister('wechat')">
+            <AppIcon name="wechat" :size="18" /> 微信注册
+          </button>
+          <button type="button" class="oauth-btn oauth-btn--weibo" @click="handleOAuthRegister('weibo')">
+            <AppIcon name="weibo" :size="18" /> 微博注册
+          </button>
+        </div>
       </div>
 
       <!-- 底部链接 -->
@@ -527,6 +554,53 @@ function goBack() {
 .radio-item input {
   accent-color: var(--color-primary);
 }
+
+.oauth-login {
+  margin: 24px 0 0;
+}
+
+.oauth-login__divider {
+  align-items: center;
+  color: var(--color-text-muted);
+  display: flex;
+  font-size: 13px;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.oauth-login__divider::before,
+.oauth-login__divider::after {
+  border-top: 1px solid var(--color-border);
+  content: '';
+  flex: 1;
+}
+
+.oauth-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.oauth-btn {
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 14px;
+  transition: background 0.2s;
+  width: 100%;
+}
+
+.oauth-btn:hover {
+  opacity: 0.85;
+}
+
+.oauth-btn--qq { background: #12b7f5; color: #fff; border-color: #12b7f5; }
+.oauth-btn--wechat { background: #07c160; color: #fff; border-color: #07c160; }
+.oauth-btn--weibo { background: #e6162d; color: #fff; border-color: #e6162d; }
 
 .auth-card__footer {
   color: var(--color-text-secondary);

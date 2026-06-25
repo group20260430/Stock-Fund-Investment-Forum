@@ -52,10 +52,25 @@ class Settings(BaseSettings):
     smtp_from_email: str = ""
     smtp_timeout: int = 10
 
+    # --- OAuth (Dev Mode) ---
+    # 在 dev_mode 下，OAuth 登录绕过第三方授权直接模拟成功回调
+    oauth_dev_mode: bool = True
+
     # --- QQ OAuth ---
     qq_oauth_app_id: str = ""
     qq_oauth_app_key: str = ""
     qq_oauth_redirect_uri: str = "http://localhost:8000/api/auth/qq/callback"
+
+    # --- WeChat OAuth ---
+    wechat_oauth_app_id: str = ""
+    wechat_oauth_app_secret: str = ""
+    wechat_oauth_redirect_uri: str = "http://localhost:8000/api/auth/wechat/callback"
+
+    # --- Weibo OAuth ---
+    weibo_oauth_app_id: str = ""
+    weibo_oauth_app_secret: str = ""
+    weibo_oauth_redirect_uri: str = "http://localhost:8000/api/auth/weibo/callback"
+
     frontend_base_url: str = "http://localhost:5173"
 
     # --- Admin seed ---

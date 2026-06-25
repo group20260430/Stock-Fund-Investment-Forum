@@ -29,7 +29,7 @@ from app.services.mention_service import (
 from app.services.points_service import award_points
 from app.services.sensitive_word_service import check_sensitive_texts
 from app.services.compliance_service import check_compliance
-from app.models.user import User, UserRole
+from app.models.user import User, UserRole, UserStatus
 from app.schemas.content import PostCreate, PostUpdate, VoteRequest
 from app.schemas.user import ApiResponse
 
@@ -253,6 +253,15 @@ def list_posts(
 @router.post("/posts", status_code=201)
 def create_post(data: PostCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     post_rate_limiter.check(user.id)
+    # 禁言检查：被禁言用户不能发帖
+    if user.status == UserStatus.SILENCED:
+        silenced_until = user.silenced_until
+        if silenced_until and silenced_until < datetime.now(timezone.utc).replace(tzinfo=None):
+            # 禁言已到期，自动恢复
+            user.status = UserStatus.ACTIVE
+            user.silenced_until = None
+        else:
+            raise HTTPException(status_code=403, detail="您已被禁言，无法发帖")
     category = db.query(Category).filter(Category.id == data.category_id, Category.is_active.is_(True)).first()
     if category is None:
         raise HTTPException(status_code=404, detail="板块不存在")
