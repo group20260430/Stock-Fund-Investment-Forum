@@ -25,18 +25,18 @@
 | 字符集 | utf8mb4 |
 | 排序规则 | utf8mb4_unicode_ci |
 | 存储引擎 | InnoDB |
-| 表总数 | 29 |
+| 表总数 | 33 |
 | 模块数 | 5 |
 
 ### 模块分布
 
 | 模块 | 表数 | 说明 |
 |------|------|------|
-| 用户系统 | 6 | users, verification_codes, certifications, professional_certifications, risk_assessments, refresh_tokens |
+| 用户系统 | 7 | users, oauth_accounts, verification_codes, certifications, professional_certifications, risk_assessments, refresh_tokens |
 | 内容系统 | 11 | categories, posts, comments, post_tags, attachments, likes, favorites, favorite_folders, shares, vote_options, vote_records |
 | 社交系统 | 6 | follows, starred_users, groups, group_members, group_posts, messages |
-| 运营管理 | 4 | reports, review_logs, ban_records, sensitive_words, compliance_rules |
-| 统计日志 | 2 | daily_stats, user_activity_log, notifications, points_history |
+| 运营管理 | 6 | reports, review_logs, ban_records, sensitive_words, compliance_rules, user_activity_log |
+| 通知统计 | 3 | notifications, points_history, daily_stats |
 
 ---
 
@@ -120,17 +120,21 @@ CREATE TABLE users (
     nickname        VARCHAR(50) NOT NULL,
     avatar_url      VARCHAR(500),
     bio             TEXT,
-    role            ENUM('user','admin') DEFAULT 'user',
-    status          ENUM('active','banned','disabled') DEFAULT 'active',
-    auth_level      ENUM('basic','verified','real_name','professional') DEFAULT 'basic',
-    risk_level      ENUM('conservative','moderate','aggressive','radical'),
+    role            ENUM('user','moderator','admin') DEFAULT 'user',
+    status          ENUM('active','silenced','disabled') DEFAULT 'active',
+    auth_level      ENUM('none','basic','verified','professional') DEFAULT 'none',
+    risk_level      ENUM('conservative','moderate','aggressive'),
+    is_professional BOOLEAN DEFAULT FALSE,
     points          INT DEFAULT 0,
     level           INT DEFAULT 1,
-    tags            JSON,
-    favorite_markets JSON,
-    risk_preference VARCHAR(50),
+    warn_count      INT DEFAULT 0 COMMENT '违规警告次数',
+    register_type   ENUM('phone','email','qq','wechat','weibo') DEFAULT 'phone',
+    investment_tags JSON,
+    follow_markets  JSON,
     privacy_settings JSON,
-    register_type   ENUM('phone','email') DEFAULT 'phone',
+    ban_expires_at  DATETIME COMMENT '封禁到期时间',
+    banned_reason   VARCHAR(255),
+    silenced_until  DATETIME COMMENT '禁言到期时间',
     created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_users_status (status),
@@ -151,6 +155,23 @@ CREATE TABLE refresh_tokens (
     FOREIGN KEY (user_id) REFERENCES users(id),
     INDEX idx_refresh_tokens_hash (token_hash),
     INDEX idx_refresh_tokens_user (user_id)
+);
+```
+
+#### oauth_accounts — 第三方账号绑定
+```sql
+CREATE TABLE oauth_accounts (
+    id          INT PRIMARY KEY AUTO_INCREMENT,
+    user_id     INT NOT NULL,
+    provider    ENUM('qq','wechat','weibo') NOT NULL,
+    openid      VARCHAR(255) NOT NULL,
+    unionid     VARCHAR(255),
+    nickname    VARCHAR(100),
+    avatar_url  VARCHAR(500),
+    raw_profile JSON,
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_oauth (provider, openid),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 ```
 

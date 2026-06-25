@@ -446,7 +446,48 @@ Headers: Authorization: Bearer {token}, Content-Type: multipart/form-data
 响应 200: { "data": { "url": "https://...", "file_name": "abc.jpg", "file_size": 1024 } }
 ```
 
-### 4.3 API安全规范
+### 4.4 新增API（开发迭代补充）
+
+#### 邮箱认证
+```
+POST /auth/email/send-code     # 发送邮箱验证码
+  { "email":"user@test.com", "type":"register/login/reset_password" }
+
+POST /auth/email/verify-code   # 验证邮箱验证码
+  { "email":"user@test.com", "code":"123456" }
+
+POST /auth/email/register      # 邮箱注册
+  { "email":"user@test.com", "password":"***", "nickname":"昵称" }
+```
+
+#### OAuth 第三方登录（dev mode，无需真实 APP ID）
+```
+GET  /auth/qq/login?redirect=/       # QQ 登录入口 → 307 跳转
+GET  /auth/qq/callback?code=&state=  # QQ 回调 → 307 跳转前端 + token fragment
+GET  /auth/wechat/login?redirect=/   # 微信登录入口
+GET  /auth/wechat/callback?code=&state=
+GET  /auth/weibo/login?redirect=/    # 微博登录入口
+GET  /auth/weibo/callback?code=&state=
+```
+
+#### 违规处理（三级：警告 → 禁言 → 封号）
+```
+POST /admin/users/{id}/ban
+  # 警告: {"action":"warn","reason":"违规荐股"}
+  # 禁言: {"action":"mute","reason":"频繁发广告","duration_hours":24}
+  # 解禁: {"action":"unmute"}
+  # 封禁: {"action":"ban","reason":"严重违规","duration_hours":72}
+  # 解封: {"action":"unban"}
+```
+
+#### 专业认证
+```
+POST /auth/professional-certification      # 用户提交专业认证申请
+  { "qualification_docs":[{"name":"证券从业资格证","url":"/uploads/cert.pdf"}],
+    "description":"5年证券从业经验" }
+```
+
+### 4.5 API安全规范
 
 | 安全要求 | 说明 |
 |---------|------|
