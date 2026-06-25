@@ -2,7 +2,7 @@
 
 **项目**：股票基金投资论坛 (Stock Fund Investment Forum)  
 **测试框架**：pytest 9.1.1 + pytest-mock 3.15.1 + pytest-asyncio 1.4.0 + respx 0.23.1  
-**运行日期**：2026-06-24  
+**运行日期**：2026-06-20  
 **测试目录**：`backend/tests/unit/`
 
 ---
