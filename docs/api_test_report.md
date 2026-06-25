@@ -1,6 +1,6 @@
 # API 接口测试结果报告
 
-> 生成日期：2026-06-20
+> 日期：2026-06-20
 > 测试环境：FastAPI TestClient + SQLite (内存数据库)
 > 基础 URL：http://localhost:8000/api
 
