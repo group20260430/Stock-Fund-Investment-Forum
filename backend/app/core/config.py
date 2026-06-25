@@ -52,6 +52,12 @@ class Settings(BaseSettings):
     smtp_from_email: str = ""
     smtp_timeout: int = 10
 
+    # --- QQ OAuth ---
+    qq_oauth_app_id: str = ""
+    qq_oauth_app_key: str = ""
+    qq_oauth_redirect_uri: str = "http://localhost:8000/api/auth/qq/callback"
+    frontend_base_url: str = "http://localhost:5173"
+
     # --- Admin seed ---
     admin_phone: str = "13800000000"
     admin_email: str = "admin@forum.local"

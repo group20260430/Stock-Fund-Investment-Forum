@@ -1,5 +1,7 @@
 import { api } from '../utils/request'
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
+
 /** 发送验证码 */
 export function sendCode(phone, type = 'register') {
   return api.post('/auth/send-code', { phone, type })
@@ -43,6 +45,16 @@ export function loginWithPassword(phone, password) {
 /** 验证码登录 */
 export function loginWithCode(phone, code) {
   return api.post('/auth/login', { phone, code, login_type: 'code' })
+}
+
+/** QQ 登录授权地址 */
+export function getQQLoginUrl(redirect = '/') {
+  return `${API_BASE}/auth/qq/login?redirect=${encodeURIComponent(redirect)}`
+}
+
+/** 忘记密码：验证码重置密码 */
+export function resetPassword(account, code, newPassword) {
+  return api.post('/auth/reset-password', { account, code, new_password: newPassword })
 }
 
 /** 刷新 Token */

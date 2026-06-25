@@ -36,6 +36,7 @@ class RiskLevel(str, enum.Enum):
 class RegisterType(str, enum.Enum):
     PHONE = "phone"
     EMAIL = "email"
+    QQ = "qq"
     WECHAT = "wechat"
     WEIBO = "weibo"
 

@@ -60,11 +60,11 @@
 
 ### 2.6 后端一键测试入口
 
-已新增 `backend/run_backend_tests.py`，支持在 `backend` 目录或项目根目录运行，顺序执行 9 个主要后端测试脚本并输出统一汇总结果。
+已新增 `backend/run_backend_tests.py`，支持在 `backend` 目录或项目根目录运行，顺序执行 10 个主要后端测试脚本并输出统一汇总结果。
 
 当前验证结果：
 
-* `RESULTS: 9 passed, 0 failed`
+* `RESULTS: 10 passed, 0 failed`
 
 关联提交：
 
@@ -76,7 +76,7 @@
 
 当前结果：
 
-* `RESULTS: 9 passed, 0 failed`
+* `RESULTS: 10 passed, 0 failed`
 * `npm run build` 通过
 
 关联提交：
@@ -121,19 +121,35 @@
 
 * `354516b feat: add duplicate post detection`
 
+### 2.12 用户参与度报告后端测试补强
+
+已为管理后台“用户参与度报告”补充最小后端测试覆盖，重点验证接口可用性与核心返回结构：
+
+* 覆盖 `/admin/stats/engagement`
+* 验证空数据场景返回 200 且字段完整
+* 验证管理员可访问、未登录与非管理员会被正确拒绝
+* 验证存在基础用户、帖子、评论、点赞数据时统计接口仍正常返回
+* 测试结果为 `RESULTS: 15 passed, 0 failed`
+
+关联提交：
+
+* 本次提交生成后补充
+
 ## 3. 当前验证结果
 
 ```text
-RESULTS: 9 passed, 0 failed
+RESULTS: 10 passed, 0 failed
 ```
 
 前端：`npm run build` 通过
 
-剩余问题：`Dashboard` chunk size 超 500KB 的 Vite 非阻塞 warning
+剩余问题：`auth.js` mixed import 的 Vite 非阻塞 warning
 
 覆盖测试：
 
 * `test_sensitive_filter.py`
+* `test_duplicate_content_filter.py`
+* `test_engagement_report.py`
 * `test_content_api.py`
 * `test_interactions_api.py`
 * `test_admin_api.py`

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import RedirectResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
@@ -23,6 +24,7 @@ from app.schemas.user import (
     VerifyCodeRequest,
 )
 from app.services.user_service import UserService
+from app.services.qq_oauth_service import QQOAuthService
 
 router = APIRouter(tags=["用户系统"])
 
@@ -134,6 +136,40 @@ async def login(
     """用户登录 — 支持密码登录和验证码登录。"""
     result = UserService.login(db, data)
     return ApiResponse(code=200, message="登录成功", data=result)
+
+
+@router.get("/auth/qq/login")
+async def qq_login(redirect: str | None = Query("/", description="登录成功后的前端跳转路径")):
+    """QQ 登录入口 — 返回 QQ 授权页跳转。"""
+    return RedirectResponse(QQOAuthService.build_authorize_url(redirect))
+
+
+@router.get("/auth/qq/callback")
+async def qq_callback(
+    code: str | None = Query(None),
+    state: str | None = Query(None),
+    error: str | None = Query(None),
+    db: Session = Depends(get_db),
+):
+    """QQ OAuth 回调 — 换取 QQ 用户信息并签发本系统 Token。"""
+    if error:
+        raise HTTPException(status_code=400, detail=f"QQ 登录失败: {error}")
+    if not code:
+        raise HTTPException(status_code=400, detail="QQ 登录缺少 code")
+    result = await QQOAuthService.handle_callback(db, code, state)
+    return RedirectResponse(QQOAuthService.build_frontend_redirect(result))
+
+
+@router.post("/auth/reset-password")
+async def reset_password(
+    data: ResetPasswordRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    _: None = Depends(code_limiter),
+):
+    """忘记密码 — 使用手机号/邮箱验证码重置密码。"""
+    result = UserService.reset_password(db, data)
+    return ApiResponse(code=200, message="密码已重置", data=result)
 
 
 @router.post("/auth/refresh")

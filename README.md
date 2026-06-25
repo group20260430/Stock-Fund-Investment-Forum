@@ -171,7 +171,7 @@ python run_backend_tests.py
 当前后端一键测试覆盖主要接口测试和端到端测试，最新验证结果：
 
 ```text
-RESULTS: 9 passed, 0 failed
+RESULTS: 10 passed, 0 failed
 ```
 
 也可以在项目根目录执行：

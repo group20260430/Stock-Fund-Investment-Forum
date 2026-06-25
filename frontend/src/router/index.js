@@ -5,6 +5,7 @@ const routes = [
   // ===== 公开页面 =====
   { path: "/", name: "home", component: () => import("../views/Home.vue") },
   { path: "/login", name: "login", component: () => import("../views/Login.vue"), meta: { guest: true, layout: false } },
+  { path: "/oauth/qq/callback", name: "qq-oauth-callback", component: () => import("../views/OAuthCallback.vue"), meta: { layout: false } },
   { path: "/register", name: "register", component: () => import("../views/Register.vue"), meta: { guest: true, layout: false } },
   { path: "/register/email", name: "register-email", component: () => import("../views/RegisterEmail.vue"), meta: { guest: true, layout: false } },
   { path: "/forgot-password", name: "forgot-password", component: () => import("../views/ForgotPassword.vue"), meta: { guest: true, layout: false } },
