@@ -44,63 +44,304 @@
 
 ```text
 Stock-Fund-Investment-Forum/
-│
-├── README.md                       # 项目总览（本文档）
-├── 团队分工与统一协作规范.md         # 团队分工与协作规范
-├── user_stories.md                 # 用户故事（模块1）
-├── use_cases.md                    # 交互场景（模块1）
-├── architect.md                    # 架构与类设计（模块2）
-├── db.md                           # 数据库设计（模块2）
-├── backend_api.md                  # 后端接口文档（模块2）
-├── ui_design.md                    # 前端UI设计（模块2）
-├── ai.md                           # AI使用记录
-├── assign.md                       # 工作完成情况
-├── frontend_core.md                # 前端核心开发文档
-├── frontend_pages.md               # 前端页面开发日志
-│
-├── backend/                        # Python 后端服务
-│   ├── app/
-│   │   ├── api/                    # API 路由层
-│   │   │   ├── auth.py            # 用户认证
-│   │   │   ├── posts.py           # 帖子相关
-│   │   │   ├── community.py       # 社区/群组/消息
-│   │   │   ├── discovery.py       # 发现/搜索
-│   │   │   ├── interactions.py    # 点赞/收藏/评论
-│   │   │   ├── market.py          # 市场数据
-│   │   │   ├── admin.py           # 后台管理
-│   │   │   ├── health.py          # 健康检查
-│   │   │   └── ...                # 其他接口
-│   │   ├── core/                   # 核心配置
-│   │   ├── models/                 # 数据模型
-│   │   ├── schemas/                # Pydantic 模式
-│   │   ├── services/               # 业务服务层
-│   │   └── main.py                 # FastAPI 应用入口
-│   ├── requirements.txt
-│   └── README.md
-│
-├── frontend/                       # Vue 3 前端应用
-│   ├── src/
-│   │   ├── api/                    # API 请求封装
-│   │   ├── components/             # 公共组件
-│   │   ├── views/                  # 页面视图
-│   │   ├── stores/                 # Pinia 状态管理
-│   │   ├── router/                 # 路由配置
-│   │   ├── utils/                  # 工具函数
-│   │   ├── App.vue                 # 根组件
-│   │   └── main.js                 # 入口
-│   ├── index.html
-│   ├── vite.config.js
-│   └── package.json
-│
-├── database/                       # MySQL 脚本
-│   ├── schema.sql                  # 建表脚本
-│   └── seed.sql                    # 初始数据
-│
-└── docs/                           # 文档与测试报告
-    ├── backend_testing_guide.md
-    ├── backend_smoke_test_zhangzhaoyan.md
-    └── ...
-```
+|   .gitignore
+|   check_categories.py
+|   openapi.yaml
+|   package-lock.json
+|   package.json
+|   project_code_full.docx
+|   README.md
+|   render.yaml
+|
++---backend
+|   |   .env.example
+|   |   .env.production
+|   |   fix_categories.py
+|   |   migrate_categories.py
+|   |   pytest.ini
+|   |   README.md
+|   |   requirements.txt
+|   |   test_auth_output.txt
+|   |
+|   +---app
+|   |   |   main.py
+|   |   |   __init__.py
+|   |   |
+|   |   +---api
+|   |   |       admin.py
+|   |   |       auth.py
+|   |   |       community.py
+|   |   |       discovery.py
+|   |   |       health.py
+|   |   |       interactions.py
+|   |   |       market.py
+|   |   |       notifications.py
+|   |   |       posts.py
+|   |   |       social_users.py
+|   |   |       uploads.py
+|   |   |       __init__.py
+|   |   |
+|   |   +---config
+|   |   |       questions.py
+|   |   |       __init__.py
+|   |   |
+|   |   +---core
+|   |   |       config.py
+|   |   |       dependencies.py
+|   |   |       security.py
+|   |   |       __init__.py
+|   |   |
+|   |   +---db
+|   |   |       base.py
+|   |   |       session.py
+|   |   |       __init__.py
+|   |   |
+|   |   +---models
+|   |   |       certification.py
+|   |   |       community.py
+|   |   |       content.py
+|   |   |       notification.py
+|   |   |       oauth.py
+|   |   |       operations.py
+|   |   |       points.py
+|   |   |       professional_certification.py
+|   |   |       refresh_token.py
+|   |   |       risk_assessment.py
+|   |   |       social.py
+|   |   |       user.py
+|   |   |       __init__.py
+|   |   |
+|   |   +---schemas
+|   |   |       community.py
+|   |   |       content.py
+|   |   |       interactions.py
+|   |   |       operations.py
+|   |   |       privacy.py
+|   |   |       social.py
+|   |   |       user.py
+|   |   |       __init__.py
+|   |   |
+|   |   \---services
+|   |           achievement_service.py
+|   |           activity_service.py
+|   |           compliance_service.py
+|   |           duplicate_content_service.py
+|   |           email_service.py
+|   |           email_service.py.bak
+|   |           mention_service.py
+|   |           points_service.py
+|   |           qq_oauth_service.py
+|   |           quality_service.py
+|   |           sensitive_word_service.py
+|   |           user_service.py
+|   |           wechat_oauth_service.py
+|   |           weibo_oauth_service.py
+|   |           __init__.py
+|   |
+|   \---tests
+|       |   conftest.py
+|       |   run_backend_tests.py
+|       |   test_admin_api.py
+|       |   test_admin_category_api.py
+|       |   test_admin_mute_api.py
+|       |   test_admin_warn_api.py
+|       |   test_advanced_search_api.py
+|       |   test_auth_api.py
+|       |   test_community_api.py
+|       |   test_content_api.py
+|       |   test_discovery_api.py
+|       |   test_duplicate_content_filter.py
+|       |   test_e2e.py
+|       |   test_email_auth_api.py
+|       |   test_engagement_report.py
+|       |   test_interactions_api.py
+|       |   test_market_api.py
+|       |   test_message_types_api.py
+|       |   test_notifications_api.py
+|       |   test_oauth_api.py
+|       |   test_professional_certification_api.py
+|       |   test_sensitive_filter.py
+|       |   test_social_api.py
+|       |   test_upload_api.py
+|       |   __init__.py
+|       |
+|       \---unit
+|               test_achievement_service.py
+|               test_compliance_service.py
+|               test_duplicate_content_service.py
+|               test_market_service.py
+|               test_mention_service.py
+|               test_points_service.py
+|               test_quality_service.py
+|               test_refresh_token.py
+|               test_sensitive_word_service.py
+|               test_user_service_email_registration.py
+|               test_user_service_login.py
+|               test_user_service_profile_update.py
+|               test_user_service_register.py
+|               test_user_service_send_code.py
+|               test_verification_code_store.py
+|               __init__.py
+|
++---database
+|       README.md
+|       schema.sql
+|       seed.sql
+|
++---deploy
+|       cloudflared-config.yml
+|       deploy.sh
+|       stock-forum-api.service
+|
++---docs
+|   |   ai.md
+|   |   architect.md
+|   |   assign.md
+|   |   backend_api.md
+|   |   db.md
+|   |   install.md
+|   |   test.md
+|   |   ui_design.md
+|   |   user_guid.md
+|   |   user_stories.md
+|   |   use_cases.md
+|   |   股票基金投资论坛-贺嘉轩-陶畅-张照炎-刘嘉成-张桐尘-杨文弢.docx
+|   |   股票基金投资论坛-贺嘉轩-陶畅-张照炎-刘嘉成-张桐尘-杨文弢.md
+|   |
+|   \---images
+|           mermaid_040c7ad4.png
+|           mermaid_97c3b847.png
+|
++---frontend
+|   |   .env.example
+|   |   index.html
+|   |   package-lock.json
+|   |   package.json
+|   |   README.md
+|   |   vite.config.js
+|   |
+|   \---src
+|       |   App.vue
+|       |   main.js
+|       |   styles.css
+|       |
+|       +---api
+|       |       admin.js
+|       |       auth.js
+|       |       comments.js
+|       |       groups.js
+|       |       market.js
+|       |       messages.js
+|       |       notifications.js
+|       |       posts.js
+|       |       search.js
+|       |       social.js
+|       |       users.js
+|       |
+|       +---components
+|       |   |   PostCard.vue
+|       |   |
+|       |   +---comment
+|       |   |       CommentItem.vue
+|       |   |       CommentList.vue
+|       |   |
+|       |   +---common
+|       |   |       AppIcon.vue
+|       |   |       EmptyState.vue
+|       |   |       ErrorState.vue
+|       |   |       Loading.vue
+|       |   |       MarketCard.vue
+|       |   |       MentionTextarea.vue
+|       |   |       MiniSparkline.vue
+|       |   |       NavBar.vue
+|       |   |       Pagination.vue
+|       |   |       SideBar.vue
+|       |   |       ToastContainer.vue
+|       |   |
+|       |   +---layout
+|       |   |       AppLayout.vue
+|       |   |
+|       |   +---post
+|       |   |       PollWidget.vue
+|       |   |       PostCard.vue
+|       |   |       PostDetail.vue
+|       |   |       PostEditor.vue
+|       |   |       RichTextEditor.vue
+|       |   |
+|       |   \---user
+|       |           UserCard.vue
+|       |           UserProfile.vue
+|       |
+|       +---router
+|       |       index.js
+|       |
+|       +---stores
+|       |       auth.js
+|       |       posts.js
+|       |       toast.js
+|       |       user.js
+|       |
+|       +---styles
+|       |       buttons.css
+|       |       tokens.css
+|       |       transitions.css
+|       |
+|       +---utils
+|       |       auth.js
+|       |       editor.js
+|       |       format.js
+|       |       icons.js
+|       |       markdown.js
+|       |       request.js
+|       |
+|       \---views
+|           |   Category.vue
+|           |   Collections.vue
+|           |   CreateGroup.vue
+|           |   CreatePost.vue
+|           |   FollowList.vue
+|           |   ForgotPassword.vue
+|           |   ForumHome.vue
+|           |   GroupDetail.vue
+|           |   GroupList.vue
+|           |   Home.vue
+|           |   Login.vue
+|           |   Messages.vue
+|           |   NotFound.vue
+|           |   Notifications.vue
+|           |   OAuthCallback.vue
+|           |   PostDetail.vue
+|           |   Register.vue
+|           |   RegisterEmail.vue
+|           |   RegisterEmail.vue.bak
+|           |   Search.vue
+|           |   Settings.vue
+|           |   SettingsAssessment.vue
+|           |   SettingsCertification.vue
+|           |   SettingsProfessionalCertification.vue
+|           |   UserProfile.vue
+|           |
+|           \---admin
+|                   ActivityLogs.vue
+|                   BehaviorMonitor.vue
+|                   Categories.vue
+|                   Certifications.vue
+|                   Compliance.vue
+|                   Dashboard.vue
+|                   DuplicateContent.vue
+|                   Engagement.vue
+|                   HotTopics.vue
+|                   ReviewQueue.vue
+|                   SensitiveWords.vue
+|                   UserManagement.vue
+|
++---images
+|       mermaid_040c7ad4.png
+|       mermaid_97c3b847.png
+|
+\---scripts
+        cleanup_admin_nav.py
+        run_project_checks.py
 
 ---
 
